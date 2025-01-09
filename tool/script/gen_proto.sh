@@ -12,8 +12,8 @@ getDir(){
 
 RUNDIR=`getDir`	# 当前路径
 
-LUA=$RUNDIR/../skynet/3rd/lua/lua # lua
-GENPROTO=$RUNDIR/../protocol/gen_proto.lua # 编译协议文件的逻辑代码
+LUA=$RUNDIR/../../skynet/3rd/lua/lua # lua
+GENPROTO=$RUNDIR/../../protocol/gen_proto.lua # 编译协议文件的逻辑代码
 
 $LUA $GENPROTO
 
