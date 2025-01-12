@@ -2,7 +2,7 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
-#include "skynet.h"
+#include "../../skynet/skynet-src/skynet.h"
 // #include "../lua-limit/llimit.h"
 
 #include <string.h>
