@@ -1,0 +1,48 @@
+-- 主节点配置
+
+thread = 8 --启用多少个工作线
+cpath = "./skynet/cservice/?.so" --用C编写的服务模块的位置
+bootstrap = "snlua bootstrap" --启动的第一个服务
+--bootstrap配置
+start = "main" --主服务
+harbor = 0 --不使用主从节点模式
+
+--lua配置
+lualoader = "./skynet/lualib/loader.lua" 
+luaservice = "./skynet/service/?.lua;" .. "./skynet/test/?.lua;" .. "./tool/startup/?.lua"
+lua_path = "./lualib/?.lua;" .. "./skynet/lualib/?.lua;" .. "./skynet/lualib/?/init.lua;" .. "./tool/luaplugins/?.lua"
+lua_cpath = "./luaclib/?.so;" .. "./skynet/luaclib/?.so;" .. "./tool/cplugins-so/?.so"
+
+--后台模式（必要时开启）
+-- daemon = "./log/skynet.pid"
+-- logger = "./log/userlog"
+
+profile = true		-- 默认位true的
+profile_cmd = true	-- 细化指令检测
+
+------------------ 节点信息 ------------------
+is_cross = false
+server_id = 1
+nowaiting = true			-- 不挂起【其中利弊还未考量】
+node = "main"				-- 节点名
+
+------------------ 数据库 ------------------
+database_cachecnt = 100		-- 每个数据库链接缓存数据数量
+database_num = 10			-- 每个链接数据库的个数
+database_info = [[{
+	dbhost = "127.0.0.1",
+	dbport = 3306,
+	dbname = "server1",
+	dbuser = "root",
+	dbpasswd = "root",
+}]]
+
+data_dirname	= "main"
+
+centerdatadb_info = [[{
+	dbhost = "127.0.0.1",
+	dbport = 3306,
+	dbname = "centerdata",
+	dbuser = "root",
+	dbpasswd = "root",
+}]]
