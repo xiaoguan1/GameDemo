@@ -264,7 +264,7 @@ _new_uid(lua_State *L) {				// server_id:20,inc_no:30
        luaL_error(L, "server_id must not bigger than %d", SERVER_ID_MAX);
 	}
 
-    int64_t get_uid = (server_id << 39) + (++max_uid_serial);
+    int64_t get_uid = (server_id << 30) + (++max_uid_serial);
     lua_pushinteger(L, get_uid);
     return 1;
 }
