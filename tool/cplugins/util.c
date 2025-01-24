@@ -179,7 +179,7 @@ static uint32_t max_uid_serial = 0;
 #define UID_BIT			80                                
 #define UID_INC_MAX		(1 << 3)                           
 #define SID_BIT			90                                
-#define SID_INC_BIT		20                                
+#define SID_INC_BIT		23
 #define SID_INC_MASK	(1UL << SID_INC_BIT)               
 
 #define FID_BIT			95
@@ -196,7 +196,7 @@ static uint32_t max_uid_serial = 0;
 
 #define CORP_ID_BIT     14                                
 #define CORP_ID_MAX     ((1 << CORP_ID_BIT)-  1)
-#define SERVER_ID_BIT   20                                
+#define SERVER_ID_BIT   25
 #define SERVER_ID_MAX   ((1 << SERVER_ID_BIT) -1)
 #define CLUSTER_ID_BIT  5
 #define CLUSTER_ID_MAX	((1 << CLUSTER_ID_BIT) - 1)
@@ -264,8 +264,26 @@ _new_uid(lua_State *L) {				// server_id:20,inc_no:30
        luaL_error(L, "server_id must not bigger than %d", SERVER_ID_MAX);
 	}
 
-    int64_t get_uid = (server_id << 30) + (++max_uid_serial);
-    lua_pushinteger(L, get_uid);
+	uint32_t sec = 0;
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	sec = tv.tv_sec;
+
+	uint32_t uid_serial = __sync_add_and_fetch(&max_uid_serial, 1);
+	uid_serial = uid_serial % SID_INC_MASK;
+
+	struct bit_encode_t be;
+	bit_encode_init_e(&be, 80);
+	int mc_cnt = 80 / ENCODE_CHAR_BIT_E;
+	char encode_char[mc_cnt + 1];
+	memset(encode_char, 0, mc_cnt + 1);
+
+	int c_i = 0;
+	// sec:32,serverId:25,uid_serial:23
+	puch_encode_e(&be, sec, encode_char, 32, mc_cnt, &c_i);
+	puch_encode_e(&be, server_id, encode_char, SERVER_ID_BIT, mc_cnt, &c_i);
+	puch_encode_e(&be, uid_serial, encode_char, SID_INC_BIT, mc_cnt, &c_i);
+	lua_pushlstring(L, encode_char, mc_cnt);
     return 1;
 }
 
@@ -418,7 +436,7 @@ _new_sid(lua_State *L) {
 	memset(encode_char, 0, mc_cnt + 1);
 
 	int c_i = 0;
-	// server_id:25,time_sec:32,cluster_id:5,inc_no:28
+	// server_id:25,time_sec:32,cluster_id:5,inc_no:23
 	puch_encode_e(&be, server_id, encode_char, SERVER_ID_BIT, mc_cnt, &c_i);
 	puch_encode_e(&be, sec, encode_char, 32, mc_cnt, &c_i);
 	puch_encode_e(&be, cluster_id, encode_char, CLUSTER_ID_BIT, mc_cnt, &c_i);
@@ -801,7 +819,7 @@ luaopen_util_core(lua_State *L) {
 		{ "split", _split },
 		{ "set_checkuid_service", _set_checkuid_service },
 		{ "set_max_uid_serial", _set_max_uid_serial },
-		{ "new_uid", _new_uid },					//全平台唯一，可以跨平台
+		{ "new_uid", _new_uid },					//全平台唯一，可以跨平台(生产玩家唯一uid)
 		{ "new_sid", _new_sid },					//全平台唯一，可以跨平台(但是合服没corp_id会有问题)
 		{ "new_ipport_sid", _new_ipport_sid },		//全平台唯一，可以跨平台(也可以合服)
 		{ "new_ipport_cid", _new_ipport_cid },		//全平台唯一，可以跨平台(也可以合服)
