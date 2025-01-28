@@ -20,6 +20,8 @@ lua_cpath = "./luaclib/?.so;" .. "./skynet/luaclib/?.so;" .. "./tool/cplugins-so
 profile = true		-- 默认位true的
 profile_cmd = true	-- 细化指令检测
 
+preload = "tool/luaplugins/preload.lua"
+
 ------------------ 节点信息 ------------------
 is_cross = false
 server_id = 1

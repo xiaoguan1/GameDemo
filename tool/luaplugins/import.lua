@@ -22,7 +22,7 @@ local skynet = require "skynet"
 
 --使用方法Import('base/util.lua')
 --代替Lua本身的module,require机制
-_G._ImportModule = _G. _ImportModule or {}
+_G._ImportModule = _G._ImportModule or {}
 local _ImportModule = _G._ImportModule
 
 is_pool_service = false		--如果是的话，不能在__init__,__update__,__startup__这几个函数中有CALLOUT

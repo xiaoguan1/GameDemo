@@ -15,3 +15,7 @@ function table.size(t)
 	return len
 end
 
+-- 比较两个table的指针地址是否一样
+function table.ptreq(t1, t2)
+	return tostring(t1) == tostring(t2)
+end
