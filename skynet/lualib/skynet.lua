@@ -43,7 +43,20 @@ local skynet = {
 	PTYPE_SNAX = 11,
 	PTYPE_TRACE = 12,	-- use for debug trace
 	PTYPE_UPDATE = 13,	-- by GGW
+	PTYPE_RPC = 14,		-- by GGW
 }
+
+function skynet.get_prototype_id(key)
+	return key and proto[key] and proto[key].id
+end
+
+function skynet.get_prototype_pack(key)
+	return key and proto[key] and proto[key].pack
+end
+
+function skynet.get_prototype_unpack(key)
+	return key and proto[key] and proto[key].unpack
+end
 
 -- code cache
 skynet.cache = require "skynet.codecache"

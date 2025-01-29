@@ -19,3 +19,11 @@ end
 function table.ptreq(t1, t2)
 	return tostring(t1) == tostring(t2)
 end
+
+function table.has_value(t, v)
+	for _k, _v in pairs(t) do
+		if v == _v then
+			return _k
+		end
+	end
+end

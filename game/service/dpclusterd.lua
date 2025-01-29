@@ -21,7 +21,15 @@ skynet.register_protocol {
 	unpack = skynet.unpack,
 	pack = skynet.pack,
 }
-assert(skynet.PTYPE_MAX <= 0xff)
+skynet.register_protocol({
+	name = "rpc",
+	id = skynet.PTYPE_RPC,
+})
+-- skynet.register_protocol({
+-- 	name = "agent_client",
+-- 	id = skynet.PTYPE_AGENT_CLIENT,
+-- })
+-- assert(skynet.PTYPE_MAX <= 0xff)
 
 -- 注意：
 -- 发送前应开启的当前接受的gate
@@ -43,12 +51,12 @@ SENDERROR_OPEN = true
 
 local dpclusterconfig_path = skynet.getenv "dpcluster"
 if not dpclusterconfig_path then
-    error("not dpcluster")
+	error("not dpcluster")
 end
 
 local node_name = DPCLUSTER_NODE.self
 if not node_name then
-    error("not dpcluster_name")
+	error("not dpcluster_name")
 end
 
 local node_session = {}
@@ -157,7 +165,7 @@ local function _merge_prototype(msgtype, prototype)
 	if type(prototype) == "string" then
 		prototype_id = skynet.get_prototype_id(prototype)
 	else
-		prototype= prototype
+		prototype_id = prototype
 	end
 	assert(msgtype <= MSG_TYPE_MAX)
 	return (prototype_id << 8) + msgtype
@@ -425,6 +433,9 @@ local function deal_overtime()
 end
 
 skynet.start(function ()
+	print("SSSSSSSSSS ", SERVICE_NAME)
+
+
 	skynet.dispatch("lua", function (session, source, cmd, ...)
 		local f = assert(command[cmd])
 		f(source, ...)
