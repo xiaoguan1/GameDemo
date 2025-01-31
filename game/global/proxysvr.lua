@@ -7,9 +7,10 @@ local setmetatable = setmetatable
 local assert = assert
 local error = error
 local type = type
-local DPCLUSTER_NODE = DPCLUSTER_NODE
-local selfnode_name = DPCLUSTER_NODE.self
+local selfnode_name = DPCLUSTER_NODE.node_ipport
+assert(selfnode_name)
 
+local DPCLUSTER = Import("game/global/dpcluster.lua")
 local readonly_meta = {__newindex = function () error("read only") end}
 local cluster = require "skynet.cluster"
 

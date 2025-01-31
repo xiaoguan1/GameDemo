@@ -28,6 +28,7 @@ server_id = 1
 nowaiting = true			-- 不挂起【其中利弊还未考量】
 node = "main"				-- 节点名
 dpcluster_auths = "!#df@&%s1idf"
+is_testserver = true		-- 测试服
 
 ------------------ 数据库 ------------------
 database_cachecnt = 100		-- 每个数据库链接缓存数据数量

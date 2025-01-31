@@ -12,6 +12,7 @@ end
 local GlobalFiles = {
 	"game/global/macro/common.lua",
 	"game/global/macro/namedsvr.lua",
+	"game/global/macro/fenv.lua",
 }
 for _, f in pairs(GlobalFiles) do
 	local func, err = loadfile(f, "bt", _G)

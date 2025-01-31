@@ -173,6 +173,7 @@ function heartbeat(errFunc, nodeName)
 end
 
 function __init__()
+	print("dpclusterddpclusterddpclusterddpclusterddpclusterd")
 	dpclusterd = skynet.uniqueservice("dpclusterd")
 end
 

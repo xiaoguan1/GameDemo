@@ -54,11 +54,6 @@ if not dpclusterconfig_path then
 	error("not dpcluster")
 end
 
-local node_name = DPCLUSTER_NODE.self
-if not node_name then
-	error("not dpcluster_name")
-end
-
 local node_session = {}
 local node_session2co = {}
 local command = {}
@@ -177,13 +172,13 @@ local function _unmerge_prototype(mtype)
 end
 
 function command.req(_, overtime, node, addr, prototype, msg, sz)
-	if node == node_name then
+	if node == DPCLUSTER_NODE.node_ipport then
 		error("req dpulsterd msg to self")
 	end
 	-- session, node, addr, type, msg, sz
 	-- 把MSG_TYPE_REQUE5T混合一下访河类型
 	-- msg可能为空也可以
-	local request, _session, padding = ldpcluster.pack(nil, node_name, addr, _merge_prototype(MSG_TYPE_REQUEST, prototype), msg, sz)	-- pack接口会释放msg内存
+	local request, _session, padding = ldpcluster.pack(nil, DPCLUSTER_NODE.node_ipport, addr, _merge_prototype(MSG_TYPE_REQUEST, prototype), msg, sz)	-- pack接口会释放msg内存
 	local sock_fd = _double_send(node, addr, request, padding)
 	if not sock_fd then
 		local response_func = skynet.response()
@@ -198,13 +193,13 @@ function command.req(_, overtime, node, addr, prototype, msg, sz)
 end
 
 function command.req_notips(_, overtime, node, addr, prototype, msg, sz)
-	if node == node_name then
+	if node == DPCLUSTER_NODE.node_ipport then
 		error(" req dpclsterd msg to self")
 	end
 	-- session, node, type, msg, sz
 	-- MSG_TYPE_REQUEST混合一下访问类型
 	-- msg可能为空也可以
-	local request, _session, padding = ldpcluster.pack(nil, node_name, addr, _merge_prototype(MSG_TYPE_REQUEST, prototype), msg, sz)	-- pack接口会释放msg内存
+	local request, _session, padding = ldpcluster.pack(nil, DPCLUSTER_NODE.node_ipport, addr, _merge_prototype(MSG_TYPE_REQUEST, prototype), msg, sz)	-- pack接口会释放msg内存
 	local sock_fd = _double_send(node, addr, request, padding, true)
 	if not sock_fd then
 		local response_func = skynet.response()
@@ -219,13 +214,13 @@ function command.req_notips(_, overtime, node, addr, prototype, msg, sz)
 end
 
 function command.req_heartbeat(_, overtime, node, prototype, msg, sz)
-	if node == node_name then
+	if node == DPCLUSTER_NODE.node_ipport then
 		error ("req_heartbeat dpclsterd msg to self")
 	end
 	-- session, node, addr, type, msg, sz
 	-- 把MSG_TYPE_REQUEST混合一下访问类型
 	-- msg可常为显可以
-	local request, _session, padding = ldpcluster.pack(nil, node_name, nil, _merge_prototype(MSG_TYPE_PINGPONG, prototype), msg, sz)	-- pack接口会释放msg内存
+	local request, _session, padding = ldpcluster.pack(nil, DPCLUSTER_NODE.node_ipport, nil, _merge_prototype(MSG_TYPE_PINGPONG, prototype), msg, sz)	-- pack接口会释放msg内存
 	local sock_fd = _double_send(node, "req_heartbeat", request, padding, true)
 	if not sock_fd then
         local response_func = skynet.response()
@@ -240,29 +235,29 @@ function command.req_heartbeat(_, overtime, node, prototype, msg, sz)
 end
 
 function command.push(_, node, addr, prototype, msg, sz)
-	if node == node_name then
+	if node == DPCLUSTER_NODE.node_ipport then
 		error("push dpclsterd msg to self")
 	end
 
-    local request, _session, padding = ldpcluster.pack(0, node_name, addr, _merge_prototype(MSG_TYPE_NOTIFY, prototype), msg, sz)
+    local request, _session, padding = ldpcluster.pack(0, DPCLUSTER_NODE.node_ipport, addr, _merge_prototype(MSG_TYPE_NOTIFY, prototype), msg, sz)
 	_double_send(node, addr, request, padding)
 end
 
 function command.push_notips(_, node, addr, prototype, msg, sz)
-	if node == node_name then
+	if node == DPCLUSTER_NODE.node_ipport then
 		error("push dpclsterd msg to self")
 	end
 
-    local request, _session, padding = ldpcluster.pack(0, node_name, addr, _merge_prototype(MSG_TYPE_NOTIFY, prototype), msg, sz)
+    local request, _session, padding = ldpcluster.pack(0, DPCLUSTER_NODE.node_ipport, addr, _merge_prototype(MSG_TYPE_NOTIFY, prototype), msg, sz)
     _double_send(node, addr, request, padding, true)
 end
 
 function command.write_proto(_, node, msg, sz)
-    if node == node_name then
+    if node == DPCLUSTER_NODE.node_ipport then
         error("write_proto dpclsterd msg to self")
     end
 
-    local request, _session, padding = ldpcluster.pack(0, node_name, nil, MSG_TYPE_W_PROTO, msg, sz)
+    local request, _session, padding = ldpcluster.pack(0, DPCLUSTER_NODE.node_ipport, nil, MSG_TYPE_W_PROTO, msg, sz)
 	_double_send(node, "write_proto", request, padding)
 end
 
@@ -299,11 +294,11 @@ socket_close_event = _socket_close_event
 
 local function rpc_response(node, session, ok, msg, sz)
 	if ok then
-		local request, session, padding = ldpcluster.pack_nf(session, node_name, nil, MSG_TYPE_RESPONSE, msg, sz)
+		local request, session, padding = ldpcluster.pack_nf(session, DPCLUSTER_NODE.node_ipport, nil, MSG_TYPE_RESPONSE, msg, sz)
 		_double_send(node, "rpc_response", request, padding)
 	else
 		-- 这里需要释放，因为他是自己打包的
-		local request, session, padding = ldpcluster.pack(session, node_name, nil, MSG_TYPE_RESPONSE_E, msg, sz)
+		local request, session, padding = ldpcluster.pack(session, DPCLUSTER_NODE.node_ipport, nil, MSG_TYPE_RESPONSE_E, msg, sz)
 		_double_send(node, "rpc_response", request, padding)
 	end
 end
@@ -433,14 +428,14 @@ local function deal_overtime()
 end
 
 skynet.start(function ()
-	print("SSSSSSSSSS ", SERVICE_NAME)
-
+	local dpcluster = skynet.getenv("dpcluster")
+	DPCLUSTER_NODE = load("return " .. dpcluster)()
 
 	skynet.dispatch("lua", function (session, source, cmd, ...)
 		local f = assert(command[cmd])
 		f(source, ...)
 	end)
 
-	node_listen(node_name)		-- 开启当前节点 gate
+	node_listen(DPCLUSTER_NODE.node_ipport)		-- 开启当前节点 gate
 	skynet.timeout(0, deal_overtime)
 end)

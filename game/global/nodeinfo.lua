@@ -61,7 +61,7 @@ local function _GetGameNodeInfoByDatabase(db)
 			local csql = string.format("select * from cross_server where server_id = %d;", _value)
 			local cres = db:query(csql)
 			if cres["badresult"] then
-				return false, string.format("query:%s database error! res:%s", csql, sys.dump(cres))
+				return false, string.format("query:%s database error! res:%s", csql, tool.dump(cres))
 			end
 			local crossData = cres[1]
 			local node_ipport = crossData["node_ip"] .. ":" .. crossData["node_port"]
@@ -177,7 +177,7 @@ local function _GetCrossNodeInfoByDatabase(db)
 						end
 						dpcluster[cNode] = node_ipport
 					else
-						return false, string.format("query:%s database error! res:%s", csql, sys.dump(cres))
+						return false, string.format("query:%s database error! res:%s", csql, tool.dump(cres))
 					end
 				end
 			end
@@ -187,7 +187,7 @@ local function _GetCrossNodeInfoByDatabase(db)
 		end
 		return true, dpcluster
 	else
-		return false, string.format("query:%s database error!, res:%s", csql, sys.dump(gres))
+		return false, string.format("query:%s database error!, res:%s", csql, tool.dump(gres))
 	end
 end
 
