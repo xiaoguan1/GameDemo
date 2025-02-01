@@ -147,7 +147,7 @@ function command.close_senderror()
 	SENDERROR_OPEN = false
 end
 
-function command.open_senderror ()
+function command.open_senderror()
 	SENDERROR_OPEN = true
 end
 

@@ -144,51 +144,48 @@ local function _GetCrossNodeInfoByDatabase(db)
 
 	local csql = string.format("select * from cross_server where server_id = %d;", host_id)
 	local gres = db:query(csql)
-	if not gres["badresult"] and #gres == 1 then
-		local dpData = gres[1]
-		local node_ipport = dpData["node_ip"] .. ":" .. dpData["node_port"]
-		local dpcluster = {node_ipport = node_ipport}
-
-		for _key, _value in pairs(dpData) do
-			if string.beginswith(_key, "is_startup_") then
-				if _value == 1 then
-					local sIdx, eIdx = string.find(_key, "is_startup_")
-					local cNode = string.sub(_key, eIdx + 1) .. "_node"
-					-- 如果没有对应的服务节点，或者服务节点不是自己的才设置，否则应该设置dpData[cNode]的ipport
-					local serverKey = string.sub(_key, eIdx + 1) .. "_serverid"
-					if not dpData[serverKey] or dpData[serverKey] == host_id then
-						dpcluster[cNode] = node_ipport
-					end
+	if gres["badresult"] or #gres ~= 1 then
+		return false, string.format("query:%s database error!, res:%s", csql, tool.dump(gres))
+	end
+	local dpData = gres[1]
+	local node_ipport = dpData["node_ip"] .. ":" .. dpData["node_port"]
+	local dpcluster = {node_ipport = node_ipport}
+	for _key, _value in pairs(dpData) do
+		if string.beginswith(_key, "is_startup_") then
+			if _value == 1 then
+				local sIdx, eIdx = string.find(_key, "is_startup_")
+				local cNode = string.sub(_key, eIdx + 1) .. "_node"
+				-- 如果没有对应的服务节点，或者服务节点不是自己的才设置，否则应该设置dpData[cNode]的ipport
+				local serverKey = string.sub(_key, eIdx + 1) .. "_serverid"
+				if not dpData[serverKey] or dpData[serverKey] == host_id then
+					dpcluster[cNode] = node_ipport
 				end
-			elseif string.endswith(_key, "_serverid") then
+			end
+		elseif string.endswith(_key, "_serverid") then
+			if _value ~= host_id then	-- 不是自己节点
+				-- 获取数据库
+				local csql = string.format("select * from cross_server where server_id = %d;", _value)
+				local cres = db:query(csql)
+				if cres["badresult"] or #cres ~= 1 then
+					return false, string.format("query:%s database error! res:%s", csql, tool.dump(cres))
+				end
+				local crossData = cres[1]
+				local node_ipport = crossData["node_ip"] .. ":" .. crossData["node_port"]
+				-- 判断是否活动开启，如果不是则报错
 				local sIdx = string.find(_key, "_serverid") - 1
 				local cNode = string.sub(_key, 1, sIdx) .. "_node"
 				local startNodeCol = "is_startup_" .. string.sub(_key, 1, sIdx)
-				if _value ~= host_id then	-- 不是自己节点
-					-- 获取数据库
-					local csql = string.format("select * from cross_server where server_id = %d;", _value)
-					local cres = db:query(csql)
-					if not cres["badresult"] and #cres == 1 then
-						local crossData = cres[1]
-						local node_ipport = crossData["node_ip"] .. ":" .. crossData["node_port"]
-						-- 判断是否活动开启，如果不是则报错
-						if crossData[startNodeCol] ~= 1 then
-							return false, string.format("cross:%s is not startup in database table:cross_server server_id:%s", _key, _value)
-						end
-						dpcluster[cNode] = node_ipport
-					else
-						return false, string.format("query:%s database error! res:%s", csql, tool.dump(cres))
-					end
+				if crossData[startNodeCol] ~= 1 then
+					return false, string.format("cross:%s is not startup in database table:cross_server server_id:%s", _key, _value)
 				end
+				dpcluster[cNode] = node_ipport
 			end
 		end
-		if table.size(dpcluster) <= 1 then
-			return false, string.format("server_id:%s not cross activity startup", host_id)
-		end
-		return true, dpcluster
-	else
-		return false, string.format("query:%s database error!, res:%s", csql, tool.dump(gres))
 	end
+	if table.size(dpcluster) <= 1 then
+		return false, string.format("server_id:%s not cross activity startup", host_id)
+	end
+	return true, dpcluster
 end
 
 -- 注意：里面有协程的，会阻塞当前协程，需要处理重入问题
