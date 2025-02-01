@@ -13,6 +13,27 @@ function abort(msg)
 	skynet.abort()
 end
 
+local function _GetAllFiles(path, result)
+	result = result or {}
+	path = path or "./game"
+	for file in posix.files(path) do
+		if file ~= "." and file ~= ".." and file ~= ".git" and file ~= ".svn" then
+			file = path .. "/" .. file
+			local t = posix.stat(file) or {}
+			if t.type == "directory" then				-- 目录
+				_GetAllFiles(file, result)
+			elseif t.type == "regular" then				-- 文件
+				if string.endswith(file, ".lua") then
+					result[file] = t.mtime
+				end
+			else
+				skynet.error("error file type " .. file)
+			end
+		end
+	end
+	return result
+end
+
 skynet.start(function ()
 	local nodeInfo = Import("game/global/nodeInfo.lua")
 	local isOk, dpcluster = nodeInfo.GetGameNodeInfoByDatabase()
@@ -26,6 +47,11 @@ skynet.start(function ()
 		skynet.name(v.named, id)
 	end
 	Import("game/global/dpcluster.lua")
+
+
+	local result = _GetAllFiles( )
+	print(tool.dumptree(result))
+
 	-- skynet.uniqueservice("stimer")
 	-- skynet.newservice("databased")
 	-- skynet.uniqueservice("dpclusterd")
