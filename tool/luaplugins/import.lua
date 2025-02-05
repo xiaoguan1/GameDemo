@@ -150,7 +150,7 @@ function UpdateAuto(updatefile)
 	if parent then
 		for _, _parentList in pairs(parent) do
 			for _, _file in ipairs(_parentList) do
-				local isOk err = Update(_file)
+				local isOk, err = Update(_file)
 				if not isOk then
 					error(err)
 				end
