@@ -1172,6 +1172,22 @@ load_proto(const char *key) {
   return result;
 }
 
+int
+clearone_proto(const char *key) {
+  if (CC.L == NULL)
+    return 1;
+
+  lua_State *L;
+  SPIN_LOCK(&CC)
+    L = CC.L;
+    lua_pushstring(L, key);
+    lua_pushnil(L);
+    lua_rawset(L, LUA_REGISTRYINDEX);
+  SPIN_UNLOCK(&CC)
+
+  return 0;
+}
+
 static const void *
 save_proto(const char *key, const void * proto) {
   lua_State *L;
@@ -1293,9 +1309,25 @@ cache_clear(lua_State *L) {
 	return 0;
 }
 
+static int cache_clearone(lua_State *L) {
+  int level = cache_level(L);
+  if (!(level == CACHE_EXIST || level == CACHE_ON))
+    luaL_error(L, "skynet.codecache status error!");
+
+  const char *fname = luaL_optstring(L, 1, NULL);
+  if (fname == NULL)
+    luaL_error(L, "please input file name!");
+
+  if (clearone_proto(fname))
+    luaL_error(L, "%s clearone fail!", fname);
+
+  return 0;
+}
+
 LUAMOD_API int luaopen_cache(lua_State *L) {
 	luaL_Reg l[] = {
 		{ "clear", cache_clear },
+		{ "clearone", cache_clearone },
 		{ "mode", cache_mode },
 		{ NULL, NULL },
 	};
