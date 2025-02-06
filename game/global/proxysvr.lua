@@ -283,7 +283,7 @@ end
 -- end
 
 function GetProxyByServiceName(serviceName, prototype, serverId)
-	local namedData = NODE_ONLYSERVER_MIRROR[serviceName]
+	local namedData = UNIQ_SERVICE[serviceName]
 	if namedData then
 		assert(namedData.named)
 		return GetProxy(namedData.named, selfnode_name, namedData.clustertype, prototype)

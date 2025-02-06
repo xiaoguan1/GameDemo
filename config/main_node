@@ -50,3 +50,6 @@ centerdatadb_info = [[{
 	dbuser = "root",
 	dbpasswd = "root",
 }]]
+
+------------------ 日志 ------------------
+log_stdin = true		-- true:控制台打印日志

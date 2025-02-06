@@ -41,18 +41,22 @@ skynet.start(function ()
 		abort(dpcluster)
 	end
 	skynet.setenv("dpcluster", tool.dumptree(dpcluster))
+	DPCLUSTER_NODE = dpcluster
 
-	for _, v in pairs(UNIQUE_SERVER_NODE) do
+	for _, v in pairs(START_UNIQ_SERVICE) do
 		local id = skynet.uniqueservice(v.svr)
 		skynet.name(v.named, id)
 	end
 	Import("game/global/dpcluster.lua")
 
 
-	local result = _GetAllFiles( )
-	print(tool.dumptree(result))
+	-- local result = _GetAllFiles( )
+	-- print(tool.dumptree(result))
 
 	-- skynet.uniqueservice("stimer")
 	-- skynet.newservice("databased")
 	-- skynet.uniqueservice("dpclusterd")
+	-- dofile "./game/global/log.lua"
+	-- _INFO("哈哈哈")
+	print(posix.mkdir("./log"))
 end)

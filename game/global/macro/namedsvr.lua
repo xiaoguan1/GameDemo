@@ -1,11 +1,13 @@
 -- 节点的宏文件
 
-UNIQUE_SERVER_NODE = {
+START_UNIQ_SERVICE = {
 	{svr = "stimer", named = ".STIMER"},
+	{svr = "gamelog", named = ".GAMELOG"},
 }
-
-NAMED_SERVER_NODE = {}
-
+UNIQ_SERVICE = {}
+for _, v in ipairs(START_UNIQ_SERVICE) do
+	UNIQ_SERVICE[v.svr] = v
+end
 
 -- 跨服服务
 CROSS_NAMED_SERVER_NODE = {
