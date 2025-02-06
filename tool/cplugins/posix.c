@@ -1013,6 +1013,23 @@ static int Psysconf(lua_State *L)		/** sysconf([options]) */
 #endif
 }
 
+static int Pmkdirp(lua_State *L){
+	const char *path = luaL_optstring(L, 1, NULL);
+	if (path == NULL)
+    	luaL_error(L, "please input path!");
+
+	struct stat s;
+	if (lstat(path, &s) != -1) {
+		const char* ftype = filetype(s.st_mode);
+		if (!(strcmp(ftype, "directory") == 0))
+			luaL_error(L, "%s not is directory path!", path);
+	}else{
+		// 创建文件夹
+		mkdir(path, 0777);
+	}
+
+	return 0;
+}
 
 static const luaL_reg R[] =
 {
@@ -1054,6 +1071,7 @@ static const luaL_reg R[] =
 	{"uname",		Puname},
 	{"utime",		Putime},
 	{"wait",		Pwait},
+	{"mkdir_p",		Pmkdirp},
 
 	{NULL,			NULL}
 };
