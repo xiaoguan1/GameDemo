@@ -88,7 +88,6 @@ end
 local function DoOnceWriteLog()
 	local ok, err = xpcall(function()
 		for _filePath, _logInfo in pairs(CatchLogStr) do
-			print("_filePath ", _filePath)
 			posix.mkdir_p(_filePath)
 			local f = io.open(_filePath, 'a')
 			if f then
