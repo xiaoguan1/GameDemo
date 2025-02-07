@@ -24,6 +24,7 @@ local _INFO_LOG_PATH = "./log/" .. node .. "/info/"
 local _WARN_LOG_PATH = "./log/" .. node .. "/warn/"
 local _ERROR_LOG_PATH =	"./log/" .. node .. "/error/"
 local _MEM_LOG_PATH = "./log/" .. node .. "/mem/"
+local _ERROR_A_ALARM_PATH = "./log/" .. node .. "/runtime/login_alarm/"
 
 -- 字体颜色
 local FONTCOLOUR = {
@@ -169,13 +170,16 @@ function _WARN_F(fmt, ...)
 end
 
 
+local function _L_ERROR(deep, ...)
+	local cfile = sformat("%s%s.log", _ERROR_LOG_PATH, os_date("%Y%m%d"))
+	LogToFile(cfile, LOG_LEVEL.WRITE_DELAY, FileInfo(deep), ...)
+end
 function _ERROR(...)
 	if logStdin then
 		local context = _error_context(FileInfo(), ...)
 		_log_print(3, context)
 	end
-	local cfile = sformat("%s%s.log", _ERROR_LOG_PATH, os_date("%Y%m%d"))
-	LogToFile(cfile, LOG_LEVEL.WRITE_DELAY, FileInfo(), ...)
+	_L_ERROR(4, ...)
 end
 function _ERROR_F(fmt, ...)
 	local msg = sformat(fmt, ...)
@@ -183,8 +187,7 @@ function _ERROR_F(fmt, ...)
 		local context = _error_context(FileInfo(), msg)
 		_log_print(3, context)
 	end
-	local cfile = sformat("%s%s.log", _ERROR_LOG_PATH, os_date("%Y%m%d"))
-	LogToFile(cfile, LOG_LEVEL.WRITE_DELAY, FileInfo(), msg)
+	_L_ERROR(4, msg)
 end
 
 
@@ -204,4 +207,21 @@ function _MEM_ALARM_F(fmt, ...)
 	end
 	local cfile = sformat("%s%s.log", _MEM_LOG_PATH, os_date("%Y%m%d"))
 	LogToFile(cfile, LOG_LEVEL.WRITE_DELAY, FileInfo(), msg)
+end
+
+local function _L_LOGIC_ALARM(deep, ...)
+	local cfile = _ERROR_A_ALARM_PATH .. os_date("error_%Y_%m_%d_%H.log", os.time())
+	LogToFile(cfile, LOG_LEVEL.WRITE_DELAY, FileInfo(deep), ...)
+end
+-- _ERROR打印并且邮件报警（在我看来就是一个信息打印两种日志）
+function _ERROR_ALARM(...)
+	_L_LOGIC_ALARM(4, ...)
+end
+function _ERROR_A_ALARM(...)
+	_L_LOGIC_ALARM(4, ...)
+	if logStdin then
+		local context = _error_context(FileInfo(), ...)
+		_log_print(3, context)
+	end
+	_L_ERROR(4, ...)
 end

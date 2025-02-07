@@ -5,6 +5,7 @@ local service
 
 skynet.init(function()
 	service = skynet.uniqueservice "sharedatad"
+	_G.SHAREDATA_NEED_FLUSH = true
 end)
 
 local sharedata = {}

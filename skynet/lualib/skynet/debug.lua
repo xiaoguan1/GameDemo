@@ -35,6 +35,14 @@ local function init(skynet, export)
 			gcing = false
 		end
 
+		function dbgcmd.SHAREDATA_FLUSH()
+			if SHAREDATA_NEED_FLUSH then
+				local sharedata = require "skynet.sharedata"
+				sharedata.flush()
+			end
+			skynet.ret(skynet.pack(nil))
+		end
+
 		function dbgcmd.STAT()
 			local stat = {}
 			stat.task = skynet.task()
@@ -74,6 +82,204 @@ local function init(skynet, export)
 				skynet.ret(skynet.pack(internal_info_func(...)))
 			else
 				skynet.ret(skynet.pack(nil))
+			end
+		end
+
+		function dbgcmd.PROTO_UPDATE(...)
+			if pbc_update then
+				pbc_update(...)
+			end
+			skynet.ret(skynet.pack(nil))
+		end
+
+		local old_snapshot = nil
+		function dbgcmd.SNAPSHOT(isCover)
+			if SERVICE_NAME == "sharedatad" then		-- 共享数据的要遍历太久了
+				return skynet.ret(skynet.pack(nil))
+			end
+			local snapshot = require "snapshot"
+			local snapshot_utils = require "snapshot_utils"
+			local snapshot_search = require "snapshot_search"
+			collectgarbage("collect")	-- 为什么两次gc？
+			collectgarbage("collect")
+			local new_snapshot = snapshot()
+			if not old_snapshot then
+				old_snapshot = new_snapshot
+				return skynet.ret(skynet.pack({}))
+			end
+			local diff = {}
+			for k, v in pairs(new_snapshot) do
+				if not old_snapshot[k] then
+					diff[k] = v
+				end
+			end
+			if isCover then					-- 默认不覆盖，保证下次也能看到哪里有问题
+				old_snapshot = new_snapshot
+			end
+			local ret = snapshot_utils.construct_indentation(diff)
+			local KEY_MAP = {}
+			for k, v in pairs(new_snapshot) do
+				local key = tostring(k)
+				local clean_key = key:match("userdata: 0x(%w+)")
+				KEY_MAP[clean_key] = k
+			end
+			local cache_search = {}
+			for _addr, _data in pairs (ret) do
+				local path = snapshot_search.search_addresspath(KEY_MAP, _addr, new_snapshot, cache_search)
+				_data.snapshot_path = path
+			end
+			return skynet.ret(skynet.pack(ret))
+		end
+
+		local start_snapshot = nil
+		function dbgcmd.SNAPSHOT_COMPSTART()
+			if SERVICE_NAME == "sharedatad" then		-- 共享数据的要遍历太久了
+				return skynet.ret(skynet.pack({"sharedatad can't start snapshot"}))
+			end
+			local snapshot = require "snapshot"
+			local snapshot_utils = require "snapshot_utils"
+			local snapshot_search = require "snapshot_search"
+			collectgarbage("collect")	-- 为什么两次gc？
+			collectgarbage("collect")
+			if not start_snapshot then
+				return skynet.ret(skynet.pack({"not start snapshot"}))
+			end
+			local new_snapshot = snapshot()
+			local diff = {}
+			for k, v in pairs(new_snapshot) do
+				if not start_snapshot[k] then
+					diff[k] = v
+				end
+			end
+			local ret = snapshot_utils.construct_indentation(diff)
+			local KEY_MAP = {}
+			for k, v in pairs(new_snapshot) do
+				local key = tostring(k)
+				local clean_key = key:match("userdata: 0x(%w+)")
+				KEY_MAP[clean_key] = k
+			end
+			local cache_search = {}
+			for _addr, _data in pairs(ret) do
+				local path = snapshot_search.search_addresspath(KEY_MAP, _addr, new_snapshot, cache_search)
+				_data.snapshot_path = path
+			end
+			return skynet.ret(skynet.pack(ret))
+
+		end
+
+		local isStartSnapshot = nil
+		function dbgcmd.STARTSTOP_SNAPSHOT()
+			if SERVICE_NAME == "sharedatad" then		-- 共享数据的要遍历太久了
+				return skynet.ret(skynet.pack({}))
+			end
+
+			-- 内存快照
+			local snapshot = require "snapshot"
+			local snapshot_utils = require "snapshot_utils"
+			local snapshot_search = require "snapshot_search"
+			collectgarbage("collect")	-- 为什么两次gc？
+			collectgarbage("collect")
+			local new_snapshot = snapshot()
+			if not start_snapshot then
+				start_snapshot = new_snapshot
+				return skynet.ret(skynet.pack({}))
+			end
+			local diff = {}
+			for k, v in pairs(new_snapshot) do
+				if not start_snapshot[k] then
+					diff[k] = v
+				end
+			end
+			local ret = snapshot_utils.construct_indentation(diff)
+			local KEY_MAP = {}
+			for k, v in pairs(new_snapshot) do
+				local key = tostring(k)
+				local clean_key = key:match("userdata: 0x(%w+)")
+				KEY_MAP[clean_key] = k
+			end
+			local cache_search = {}
+			for _addr, _data in pairs(ret) do
+				local path = snapshot_search.search_addresspath(KEY_MAP, _addr, new_snapshot, cache_search)
+				_data.snapshot_path = path
+			end
+			return skynet.ret(skynet.pack(ret))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		end
+
+		function dbgcmd.PROFILE_CMD(cmd)
+			if Import then
+				local PROFILE_CMD = Import("global/profile_cmd.lua")
+				if cmd == "on" then
+					PROFILE_CMD.Profile_On()
+				elseif cmd == "off" then
+					PROFILE_CMD. Profile_Off()
+				elseif cmd == "info" then
+					skynet.retpack(PROFILE_CMD.Profile_Info())
+					return
+				else
+					error("not cmd:" .. cmd)
+				end
+				skynet.retpack(true)
+			else
+				skynet.retpack(nil)
+			end
+		end
+
+		local function _table_hasvalue(tbl, value)
+			for k, v in pairs(tbl) do
+				if v == value then
+					return true
+				end
+			end
+		end
+
+		function dbgcmd.UPDATE_DOFILE_CMD(updatefile)
+			if UPDATE_DOFILE_FILE and UPDATE_DOFILE_FILE[updatefile] then
+				if DOFILELIST and _table_hasvalue(DOFILELIST, updatefile) then
+					skynet.error("auto dofile file:" .. updatefile)
+					dofile(updatefile)
+				end
+			end
+			skynet.retpack(nil)
+		end
+
+		function dbgcmd.UPDATE_AUTO_CMD(updatefile)
+			if Import then
+				skynet.retpack(UpdateAuto(updatefile))
+			else
+				skynet.retpack(nil)
+			end
+		end
+
+		function dbgcmd.UPDATE_MACROS_CMD(updatefile)
+			if Import then
+				skynet.retpack(UpdateMacro(updatefile))
+			else
+				skynet.retpack(nil)
 			end
 		end
 

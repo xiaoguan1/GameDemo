@@ -1,4 +1,5 @@
 local util = require "util.core"
+local type = type
 
 -- 反向解析util.new_uid函数，获得serverId
 local BITCHARS = {
@@ -24,4 +25,38 @@ function GetServerId_ByUid(uid)
 		end
 	end
 	return serverId
+end
+
+-- 校验邮件附件
+function CheckResList(list)
+	if type(list) ~= "table" then
+		return false
+	end
+	for _, v in pairs(list) do
+		local t = type(v)
+		if t == "table" then
+			if not CheckResList(v) then
+				return false
+			end
+		elseif t ~= "number" or v <= 0 then
+			return false
+		end
+	end
+	return true
+end
+
+-- 校验Http地址
+function CheckHttpAddr(address)
+	if not address or address == "" then
+		return false, "url"
+	end
+	local proto, host = address:match "^(%a+)://([^:]+):?%d*$"
+	if not proto or not host then
+		return false, "no proto or host"
+	end
+	proto = proto:lower()
+	if proto ~= "http" and proto ~= "https" then
+		return false, "invalid proto"
+	end
+	return true
 end
