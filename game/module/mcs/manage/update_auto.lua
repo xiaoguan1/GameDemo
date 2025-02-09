@@ -3,7 +3,7 @@
 -- node_ipport为可选，如果没有则为自己的节点
 -- is_errsave为可选，更新的时候如果版本不对也存当前版本
 local skynet = require "skynet"
-local queue = require "queueplus"
+local queue = require "skynet_queue"
 local PROXYSVR = Import("base/proxysvr.lua")
 local SNODE = assert(skynet.getenv("node"))
 local codecache = require "skynet.codecache"

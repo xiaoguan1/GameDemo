@@ -283,6 +283,222 @@ local function init(skynet, export)
 			end
 		end
 
+		local function _UpdateAutoListByOrder(updatefiles, UPDATE_TYPE)
+			local reterr = nil
+			-- 优先macros,再其他更新，再dofile
+			for _, _updateType in ipairs({UPDATE_TYPE.MACROS, UPDATE_TYPE.IMPORT, UPDATE_TYPE.DOFILE}) do
+				for _, _fData in ipairs(updatefiles) do
+					local updatefile = _fData.file
+					local utype = _fData.utype
+					if utype == _updateType then
+						local ok, ret = nil, nil
+						if utype == UPDATE_TYPE.DOFILE then
+							if UPDATE_DOFILE_FILE and UPDATE_DOFILE_FILE[updatefile] then
+								if DOFILELIST and _table_hasvalue(DOFILELIST, updatefile) then
+									skynet.error(string.format("[%s] auto update defile file:%s", SERVICE_NAME, updatefile))
+									ok, ret = xpcall(dofile, debug.traceback, updatefile)
+								end
+							end
+						elseif utype == UPDATE_TYPE.MACROS then
+							ok, ret = xpcall(UpdateMacro, debug.traceback, updatefile)
+						elseif utype == UPDATE_TYPE.IMPORT then
+							ok, ret = xpcall(UpdateAuto, debug.traceback, updatefile)
+						else
+							error(string.format("not updateType:%s updateFile:%s", utype, updatefile))
+						end
+						if not ok and ret then
+							if reterr then
+								reterr = reterr .. "\n" .. ret
+							else
+								reterr = ret
+							end
+						end
+					end
+				end
+			end
+			return reterr
+		end
+
+		-- return true/false, updateList
+		local function _GetUpdateImportFilesOnceList(autoUpdateFiles)
+			local _ImportModule = _ImportModule or {}
+			local m = {}
+			local queue = require "queue"
+			local q = queue.new()
+			for _, _fnode in ipairs(autoUpdateFiles) do
+				if _ImportModule[_fnode.file] then
+					q:push({file = _fnode.file, orderno = 1, prefile = _fnode.prefile})
+				end
+			end
+			local node = q:pop()
+			while node do
+				if node.orderno > 100 then
+					skynet.error(string.format("_GetUpdateImportFilesOnceList, file:%s orderno:%s error", node.file, node.orderno))
+					return false
+				end
+				local needUpdateNext = false
+				local mNode = m[node.file]
+				if mNode then
+					if node.orderno > mNode.orderno then
+						needUpdateNext = true
+					else
+						-- 不比已存在的大则不用处理
+					 end
+				else
+					needUpdateNext = true
+				end
+				if needUpdateNext then
+					local nfile = node.file
+					m[nfile] = node
+					local nextFiles = GetImportTypeNextUpdateFiles(nfile)
+					if nextFiles then
+						for _file, _t in pairs(nextFiles) do
+							q:push({file = _file, orderno = node.orderno + 1, prefile = nfile})	-- 后续更新的都只是是Import
+						end
+					end
+				end
+
+				node = q:pop()
+			end
+
+			-- 根据m的orderno排序
+			local updateList = {}
+			for _file, _node in pairs(m) do
+				table.insert(updateList, _node)
+			end
+			table.sort(updateList, function (n1, n2)
+				if n1.orderno < n2.orderno then
+					return true
+				end
+			end)
+
+			return true, updateList
+		end
+
+		function dbgcmd.UPDATE_AUTO_LISTFILE(updatefiles)
+			if Import then
+				local UPDATE_TYPE = UPDATE_TYPE or {MACROS = 1, IMPORT = 2, DOFILE = 3}
+				local autoUpdateFiles = {}       --记录目动更新的文件
+
+				local reterr = nil
+				local ok, ret = nil, nil
+				-- 1.优先更新macros
+				for _, _fData in ipairs(updatefiles) do
+					local updatefile = _fData.file
+					local utype = _fData.utype
+					if utype == UPDATE_TYPE.MACROS then
+						ok, ret, needUpdateFilesMap = xpcall(UpdateMacro, debug.traceback, updatefile, true)
+						if not ok and ret then
+							if reterr then
+								reterr = reterr .. "\n".. ret
+							else
+								reterr = ret
+							end
+						end
+						if ret and needUpdateFilesMap then
+							for _file, _ in pairs(needUpdateFilesMap) do
+								table.insert(autoUpdateFiles, {file = _file, utype = UPDATE_TYPE.IMPORT, prefile = updatefile})
+							end
+						end
+					end
+				end
+
+				-- 2.更新1mport文件
+				for _, _fData in ipairs(updatefiles) do
+					local updatefile = _fData.file
+					local utype = _fData.utype
+					if utype == UPDATE_TYPE.IMPORT then
+						table.insert(autoUpdateFiles, _fData)
+					end
+				end
+				-- 使用autoUpdateFiles判断看是否可以按顺序热更工次，如果不行，则使用普通的_UpdateAutoListByOrder
+				local canUpdateImportFilesOnce, updateList = _GetUpdateImportFilesOnceList(autoUpdateFiles)
+				if canUpdateImportFilesOnce then
+					for _, _node in ipairs(updateList) do
+						skynet.error(string.format("[%s] auto update import file:%s prefile:%s orderno:%s", SERVICE_NAME, _node.file, _node.prefile, _node.orderno))
+						ok, ret = xpcall(Update, debug.traceback, _node.file)
+						if not ok and ret then
+							if reterr then
+								reterr = reterr .. "\n".. ret
+							else
+								reterr = ret
+							end
+						end
+					end
+				else
+					local terr = _UpdateAutoListByOrder(autoUpdateFiles, UPDATE_TYPE)
+					if terr then
+						reterr = reterr .. "\n".. terr
+					end
+				end
+
+				-- 3.更新dofile文件
+				for _, _fData in ipairs(updatefiles) do
+					local updatefile = _fData.file
+					local utype = _fData.utype
+					if utype == UPDATE_TYPE.DOFILE then
+						if UPDATE_DOFILE_FILE and UPDATE_DOFILE_FILE[updatefile] then
+							if DOFILELIST and _table_hasvalue(DOFILELIST, updatefile) then
+								skynet.error(string.format("[%s] auto dofile file:%s", SERVICE_NAME, updatefile))
+								ok, ret = xpcall(dofile, debug.traceback, updatefile)
+								if not ok and ret then
+									if reterr then
+										reterr = reterr .. "\n" .. ret
+									else
+										reterr = ret
+									end
+								end
+							end
+						end
+					end
+				end
+
+				if reterr then
+					error(reterr)
+				else
+					skynet.retpack(nil)
+				end
+			else
+				skynet.retpack(nil)
+			end
+		end
+
+		function dbgcmd.GTABLE_STATE_CMD(file, tname, layer, dumpsize)
+			if Import then
+				skynet.retpack(ImportGTablestate(file, tname, layer, dumpsize))
+			else
+				skynet.retpack(nil)
+			end
+		end
+
+		function dbgcmd.ATABLE_STATE_CMD(dumpsize)
+			local dumpsize = dumpsize or 512
+			local SNODE = skynet.getenv("node") or "unknow"
+			local BASE_DIR = "log/" .. SNODE .. "/ftablecheck/point"
+			local ftablecheck = require "ftablecheck"
+			local addr = skynet.format("%08x", skynet.self())
+			collectgarbage("collect")
+			collectgarbage("collect")
+			local file = string.format("%s/%s", BASE_DIR, addr)
+			os.remove(file)				-- 删除文件
+			ftablecheck(file, dumpsize)
+
+			-- 尽量不直接在这里搜索，因为比较占用内存和时间
+			-- local fabnormalsearch = require "fabnormalsearch"
+			-- local abnormal = fabnormalsearch.GetAbnormal(file)
+			-- return skynet.ret(skynet.pack(abnormal))
+			return skynet.ret(skynet.pack({}))
+		end
+
+		function dbgcmd.PROFILE_INFOSTRING(...)
+			if Import then
+				local PROFILE_CMD = Import("global/profile_cmd")
+				skynet.retpack(PROFILE_CMD.Profile_InfoString())
+			else
+				skynet.retpack(nil)
+			end
+		end
+
 		function dbgcmd.EXIT()
 			skynet.exit()
 		end
@@ -323,6 +539,11 @@ local function init(skynet, export)
 			end
 			skynet.error(string.format("Turn trace log %s for %s", flag, proto))
 			skynet.traceproto(proto, flag)
+			skynet.ret()
+		end
+
+		function dbgcmd.STARTIME(offset)
+			skynet.offset_starttime(offset)
 			skynet.ret()
 		end
 
