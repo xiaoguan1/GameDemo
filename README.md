@@ -11,5 +11,5 @@ https://github.com/liuhaopen/SkynetMMO          git@github.com:liuhaopen/SkynetM
 	2. skynet.lua添加了一些协议类型
 
 
-
+temp目录是一些临时文件，
 
