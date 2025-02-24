@@ -18,7 +18,7 @@ end
 
 -- 排序(自下到上排序)
 function MinHeap:Update(index)
-	local size = #self.heap
+	local size = self:Size()
 	if not (index and index > 0 and index <= size) then
 		return
 	end
@@ -47,7 +47,7 @@ end
 
 -- 排序(自上到下排序)
 function MinHeap:UpdateEx()
-	local size = #self.heap
+	local size = self:Size()
 	if size <= 1 then
 		return
 	end
@@ -136,7 +136,7 @@ function MinHeap:Pop()
 		return
 	end
 	local top = self:GetTop()
-	local size = #self.heap
+	local size = self:Size()
 	if size == 0 then
 		self:Clear()
 	elseif size > 1 then
@@ -149,7 +149,11 @@ function MinHeap:Pop()
 	return top
 end
 
-function MinHeap:new(unique, sortKeys)
+function MinHeap:Size()
+	return #self.heap
+end
+
+function MinHeap:New(unique, sortKeys)
 	local st = type(sortKeys)
 	assert(type(unique) == "string")
 	assert(st == "table" or #sortKeys > 0)
@@ -189,7 +193,7 @@ local function pprint(obj)
 end
 
 function main()
-	local obj = MinHeap:new("id", {"a", "b", "c"})
+	local obj = MinHeap:New("id", {"a", "b", "c"})
 	obj:Push({ id = "1", a = 5, b = 2, c = 3, })
 	obj:Push({ id = "2", a = 5, b = 2, c = 2, })
 	obj:Push({ id = "3", a = 2, b = 2, c = 2, })
