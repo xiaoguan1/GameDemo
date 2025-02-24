@@ -146,7 +146,7 @@ local function DealwithTimer()
 	end
 end
 
-function ACCEPT.Iog2db(reqsql)
+function ACCEPT.log2db(reqsql)
 	if GetDbInvalid() then return end
 
 	local nowIndex = GetReqIndex()
