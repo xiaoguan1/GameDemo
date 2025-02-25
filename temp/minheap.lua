@@ -46,43 +46,43 @@ function MinHeap:Update(index)
 end
 
 -- 排序(自上到下排序)
-function MinHeap:UpdateEx()
+function MinHeap:UpdateEx(i)
 	local size = self:Size()
 	if size <= 1 then
 		return
 	end
 
-	local i = 1
+	i = i or 1
 	while true do
 		local isOk = false
 		local l = i * 2
 		local r = (i * 2) + 1
-		local parent = self.heap[i]
+		local smallest = i
 
 		-- 注释：优先比较左孩子
 		if l <= size then
+			local parent = self.heap[smallest]
 			local lSon = self.heap[l]
 			if self:CompareFunc(lSon, parent) then
-				self.heap[i] = self.heap[l]
-				self.heap[l] = parent
-				i = l
-				isOk = true
+				smallest = l
 			end
 		end
 
-		if not isOk and r <= size then
+		if r <= size then
+			local parent = self.heap[smallest]
 			local rSon = self.heap[r]
 			if self:CompareFunc(rSon, parent) then
-				self.heap[i] = self.heap[r]
-				self.heap[r] = parent
-				i = r
-				isOk = true
+				smallest = r
 			end
 		end
 
-		if not isOk or i > size then
-			return
+		if i == smallest then
+			break
 		end
+
+		local parent = self.heap[i]
+		self.heap[i] = self.heap[smallest]
+		self.heap[smallest] = parent
 	end
 end
 
@@ -110,7 +110,7 @@ function MinHeap:Push(ele)
 		end
 	end
 
-	local index = #self.heap + 1
+	local index = self:Size() + 1
 	self.heap[index] = {
 		unique = u,
 		ele = table.copy(ele),
@@ -120,7 +120,7 @@ function MinHeap:Push(ele)
 end
 
 function MinHeap:GetTop()
-	if #self.heap <= 0 then
+	if self:IsEmpty() then
 		return
 	end
 	return self.heap[1]
@@ -132,7 +132,7 @@ end
 
 -- 最小堆出栈
 function MinHeap:Pop()
-	if #self.heap <= 0 then
+	if self:IsEmpty() then
 		return
 	end
 	local top = self:GetTop()
@@ -140,7 +140,7 @@ function MinHeap:Pop()
 	if size == 0 then
 		self:Clear()
 	elseif size > 1 then
-		local size = #self.heap
+		local size = self:Size()
 		self.heap[1] = self.heap[size]
 		self.heap[size] = nil
 		self:UpdateEx()
@@ -151,6 +151,10 @@ end
 
 function MinHeap:Size()
 	return #self.heap
+end
+
+function MinHeap:IsEmpty()
+	return self:Size() <= 0
 end
 
 function MinHeap:New(unique, sortKeys)

@@ -117,6 +117,24 @@ function DStar:new(mapCfg, start, goal)
 	return o
 end
 
+function DStar:Insert(node, newH)
+	if node.state == STATE.NEW then
+		node.k = newH
+	elseif node.state == STATE.OPEN then
+		node.k = math.min(node.k, newH)
+	else
+		node.k = math.min(node.h, newH)
+	end
+
+	node.h = newH
+	if node.state == STATE.OPEN then
+		self.openList:update(node)
+	else
+		node.state = STATE.OPEN
+		self.openList:Push(node)
+	end
+end
+
 function DStar:CalcNeighbors(node)
 	local result = {}
 	for _, v in pairs(DIRS) do
@@ -161,8 +179,8 @@ function DStar:ProcessState()
 		end
 	end
 
+	local neighbors = self:CalcNeighbors(node)
 	if node.k == node.h then
-		local neighbors = self:CalcNeighbors(node)
 		for _, nbr in pairs(neighbors) do
 			if nbr.state ~= STATE.CLOSED then
 				local cost
@@ -172,40 +190,45 @@ function DStar:ProcessState()
 					cost = math.huge
 				end
 				if (nbr.h > (node.h + cost)) or nbr.parent == node then
-					
+					nbr.parent = x
+					self:Insert(nbr, node.h + cost)
 				end
-			end
-
-
-			if nbr.state ~= STATE.CLOSED and
-				(nbr.h > node.h + nbr.cost[node.key] or nbr.parent == node) then
-				
 			end
 		end
 	else
-
+		for _, nbr in pairs(neighbors) do
+			local cost
+			if self:IsWalk(nbr.x, nbr.y) then
+				cost = _CalcCost(node.x, node.y, nbr.x, nbr.y)
+			else
+				cost = math.huge
+			end
+			if nbr.state ~= STATE.CLOSED then
+				if nbr.parent == node or nbr.h > (node.h + cost) then
+					self:insert(nbr, nbr.h)
+				end
+			end
+		end
 	end
 
-	if k_old == x.h then
-        for _, y in ipairs(x.neighbors) do
-            if y.state ~= "CLOSED" and 
-               (y.h > x.h + y.cost[x] or y.parent == x) then
-                y.parent = x
-                self:insert(y, x.h + y.cost[x])
-            end
-        end
-    else
-        for _, y in ipairs(x.neighbors) do
-            if y.state ~= "CLOSED" and 
-               (y.parent == x or y.h > x.h + y.cost[x]) then
-                self:insert(y, y.h)
-            end
-        end
-    end
-    
     return self.openList.size
 end
 
+-- 设置障碍
+function DStar:modifyCost(x, y, newCost)
+	local node = self:GetNode(x, y)
+	local neighbors = self:CalcNeighbors(node)
 
+	-- local node = self.nodes[y][x]
+    -- for _, neighbor in ipairs(node.neighbors) do
+    --     neighbor.cost[node] = newCost
+    --     if neighbor.state == "CLOSED" then
+    --         self:insert(neighbor, neighbor.h)
+    --     end
+    -- end
+    -- while self:processState() ~= -1 do end
+end
 
-
+-- 输出路径
+function DStar:findPath()
+end
