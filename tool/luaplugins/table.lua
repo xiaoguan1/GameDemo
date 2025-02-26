@@ -27,3 +27,11 @@ function table.has_value(t, v)
 		end
 	end
 end
+
+function table.copy(t)
+	local tt = {}
+	for k, v in pairs(t) do
+		tt[k] = v
+	end
+	return tt
+end
