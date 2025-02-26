@@ -136,16 +136,15 @@ function MinHeap:GetDataByUnique(unique)
 end
 
 -- 这个接口的效率较低（还可以通过旧的排序值进行查找大致的范围，再进行for。）
-function MinHeap:ModifyByUnique(unique, modifyEle)
-	if not unique or not modifyEle then
-		return
-	end
-	if modifyEle[self.unique] then
-		error("not modify unique:" .. self.unique)
+function MinHeap:ModifyByUnique(modifyEle)
+	if not modifyEle then return end
+	local unique = modifyEle[self.unique]
+	if not unique then
+		error(string.format("not unique:%s modifyEle:%s", self.unique, tool.dumptree(modifyEle)))
 	end
 	for _, key in pairs(self.sortKeys) do
 		if not modifyEle[key] then
-			error("not sortKey field " .. key)
+			error(string.format("not sortKey:%s modifyEle:%s", key, tool.dumptree(modifyEle)))
 		end
 	end
 
@@ -157,10 +156,16 @@ function MinHeap:ModifyByUnique(unique, modifyEle)
 		end
 	end
 	if not oldEle then
-		error("not find unique:" .. unique)
+		error(string.format("not find unique:%s data", unique))
+	end
+	if not oldEle[self.unique] == modifyEle[self.unique] then
+		error("unique must be equal")
 	end
 
-	if self:CompareFunc(modifyEle, oldEle) then
+	local isGt = self:CompareFunc({ele = modifyEle}, oldEle)
+	oldEle.ele = modifyEle
+	self.heap[k] = oldEle
+	if isGt then
 		-- oldEle大于modifyEle, 自上到下排序。
 		self:SideDown(k)
 	else

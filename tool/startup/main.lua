@@ -35,20 +35,19 @@ local function _GetAllFiles(path, result)
 end
 
 skynet.start(function ()
-	local nodeInfo = Import("game/global/nodeInfo.lua")
-	local isOk, dpcluster = nodeInfo.GetGameNodeInfoByDatabase()
-	if not isOk then
-		abort(dpcluster)
-	end
-	skynet.setenv("dpcluster", tool.dumptree(dpcluster))
-	DPCLUSTER_NODE = dpcluster
+	-- local nodeInfo = Import("game/global/nodeInfo.lua")
+	-- local isOk, dpcluster = nodeInfo.GetGameNodeInfoByDatabase()
+	-- if not isOk then
+	-- 	abort(dpcluster)
+	-- end
+	-- skynet.setenv("dpcluster", tool.dumptree(dpcluster))
+	-- DPCLUSTER_NODE = dpcluster
 
-	for _, v in pairs(START_UNIQ_SERVICE) do
-		local id = skynet.uniqueservice(v.svr)
-		skynet.name(v.named, id)
-	end
-	Import("game/global/dpcluster.lua")
-
+	-- for _, v in pairs(START_UNIQ_SERVICE) do
+	-- 	local id = skynet.uniqueservice(v.svr)
+	-- 	skynet.name(v.named, id)
+	-- end
+	-- Import("game/global/dpcluster.lua")
 
 	-- local result = _GetAllFiles( )
 	-- print(tool.dumptree(result))
@@ -58,5 +57,38 @@ skynet.start(function ()
 	-- skynet.uniqueservice("dpclusterd")
 	-- dofile "./game/global/log.lua"
 	-- _INFO("哈哈哈")
-	print(posix.mkdir("./log"))
+
+	util.set_checkuid_service(skynet.self())
+	dofile "game/global/findpath/dstar.lua"
+
+	-- 地图(横为x轴、竖为y轴)
+	-- 1:可行、0:障碍
+	local map_cfg = {
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	}
+	local dsObj = DStar:New(map_cfg)
+
+	local uid = util.new_uid(999, skynet.self())
+	local roleData = dsObj:CreateFindPath(uid, {x=1, y=1}, {x=10, y=10})
+	while dsObj:ProcessState(uid) > 0 do end
+	dsObj:findPath(uid)
+
+	dsObj:modifyMap(3, 3, true)
+	while dsObj:ProcessState(uid) > 0 do end
+	print()
+	dsObj:findPath(uid)
+
+	-- print(tool.dumptree(roleData))
 end)

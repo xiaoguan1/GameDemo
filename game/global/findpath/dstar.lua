@@ -105,10 +105,26 @@ end
 
 -- 更新地图节点（并影响role_path）
 function DStar:modifyMap(x, y, isObs)
+	if not self:IsValid(x, y) then
+		return
+	end
 	if isObs then
 		self:AddObs(x, y)
 	else
 		self:SubObs(x, y)
+	end
+
+	for uid, rdata in pairs(self.role_data) do
+		local node = rdata.openSet[_GetKey(x, y)]
+		if node then
+			local neighbors = self:CalcNeighbors(uid, x, y) or {}
+			for _, nbr in pairs(neighbors) do
+				local cost = self:CalcCost(node.x, node.y, nbr.x, nbr.y)
+				if nbr.state == STATE.CLOSED then
+					self:Insert(uid, nbr, cost)
+				end
+			end
+		end
 	end
 end
 
@@ -152,30 +168,46 @@ function DStar:ProcessState(uid)
 		for _, nbr in pairs(neighbors) do
 			local cost = self:CalcCost(node.x, node.y, nbr.x, nbr.y)
 			local h = nbr.h + cost
-			if h < node.h then
+			if node.k > nbr.h and node.h > h then
 				node.parent = nbr
 				node.h = h
 			end
 		end
 	end
 
+	-- 该过程类似于dijikstra，用来传播信息当前节点h值变化的信息和降低邻居节点的h值
 	local neighbors = self:CalcNeighbors(uid, node.x, node.y) or {}
 	if node.k == node.h then
 		for _, nbr in pairs(neighbors) do
-			if nbr.state ~= STATE.CLOSED then
-				local cost = self:CalcCost(node.x, node.y, nbr.x, nbr.y)
-				if (nbr.h > (node.h + cost)) or nbr.parent == node then
-					nbr.parent = node
-					self:Insert(nbr, node.h + cost)
-				end
+			local cost = self:CalcCost(node.x, node.y, nbr.x, nbr.y)
+			if nbr.state == STATE.NEW or
+				(nbr.parent == node and nbr.h ~= (node.h + cost)) or
+				(nbr.parent ~= node and nbr.h > (node.h + cost))
+			then
+				nbr.parent = node
+				self:Insert(uid, nbr, node.h + cost)
 			end
 		end
 	else
+		-- k值和h值不相同，表示节点处于调整状态
 		for _, nbr in pairs(neighbors) do
 			local cost = self:CalcCost(node.x, node.y, nbr.x, nbr.y)
-			if nbr.state ~= STATE.CLOSED then
-				if nbr.parent == node or nbr.h > (node.h + cost) then
-					self:Insert(nbr, nbr.h)
+			if nbr.state == STATE.NEW or
+				(nbr.parent == node and nbr.h ~= node.h + cost)
+			then
+				nbr.b = x
+				self:Insert(uid, nbr, node.h + cost)
+			else
+				-- 邻居节点存在更短的路径
+				-- 调整当前节点并重新传播当前节点的h值变化信息给周围节点
+				if nbr.parent ~= node and (nbr.h > node.h + cost) then
+					self:Insert(node, node.h)
+				else
+					-- 传播邻居节点的信息，使其可以影响当前节点进而修改当前节点的h值和路径信息
+					-- 因为这里存在比当前节点的h值更低的值
+					if (nbr.parent ~= node and node.h > (nbr.h + cost) and nbr.state == STATE.CLOSED and nbr.h > node.k) then
+						self:Insert(uid, nbr, nbr.h)
+					end
 				end
 			end
 		end
@@ -186,21 +218,19 @@ end
 
 function DStar:Insert(uid, node, newH)
 	local obj = self:GetRoleData(uid)
-	if not obj then
-		return
-	end
+	if not obj then return end
+
 	if node.state == STATE.NEW then
+		node.h = newH
 		node.k = newH
+		node.state = STATE.OPEN
+		obj.openList:Push(node)
 	elseif node.state == STATE.OPEN then
 		node.k = math.min(node.k, newH)
+		obj.openList:ModifyByUnique(node)
 	else
 		node.k = math.min(node.h, newH)
-	end
-
-	node.h = newH
-	if node.state == STATE.OPEN then
-		obj.openList:update(node)
-	else
+		node.h = newH
 		node.state = STATE.OPEN
 		obj.openList:Push(node)
 	end
@@ -229,4 +259,20 @@ function DStar:CreateFindPath(uid, start, goal)
 	r.openSet[goalNode.key] = goalNode
 	r.openList:Push(goalNode)
 	return r
+end
+
+-- 调试接口：输出路径
+function DStar:findPath(uid)
+	local rData = self:GetRoleData(uid)
+	if not rData then
+		return
+	end
+
+	local key = _GetKey(rData.start.x, rData.start.y)
+	local node = rData.openSet[key]
+	local n = node
+	while n do
+		print(n.x, n.y)
+		n = n.parent
+	end
 end
