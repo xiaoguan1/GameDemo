@@ -3,6 +3,8 @@
 -- 	https://blog.csdn.net/qq_44339029/article/details/127490956
 --  https://blog.csdn.net/weixin_42875283/article/details/124341524?spm=1001.2014.3001.5501
 
+-- D星寻路算法虽然解决了动态障碍的问题，但是依然存在一些问题（例如：死路缺陷、网格数和计算量同步递增）
+
 local minheap = require "minheap"
 local table = table
 
