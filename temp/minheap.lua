@@ -178,36 +178,37 @@ function MinHeap:New(unique, sortKeys)
 	return o
 end
 
+return MinHeap
 ---------------------
 
-if not table.copy then
-	function table.copy(t)
-		local result = {}
-		for k, v in pairs(t) do
-			result[k] = v
-		end
-		return result
-	end
-end
+-- if not table.copy then
+-- 	function table.copy(t)
+-- 		local result = {}
+-- 		for k, v in pairs(t) do
+-- 			result[k] = v
+-- 		end
+-- 		return result
+-- 	end
+-- end
 
-local function pprint(obj)
-	for k, v in pairs(obj) do
-		print(k, v)
-	end
-end
+-- local function pprint(obj)
+-- 	for k, v in pairs(obj) do
+-- 		print(k, v)
+-- 	end
+-- end
 
-function main()
-	local obj = MinHeap:New("id", {"a", "b", "c"})
-	obj:Push({ id = "1", a = 5, b = 2, c = 3, })
-	obj:Push({ id = "2", a = 5, b = 2, c = 2, })
-	obj:Push({ id = "3", a = 2, b = 2, c = 2, })
-	obj:Push({ id = "4", a = 1, b = 2, c = 2, })
-	obj:Push({ id = "5", a = 6, b = 2, c = 2, })
-	obj:Push({ id = "6", a = 0, b = 2, c = 2, })
-	print("len ", #obj.heap)
-	print("key ", obj.heap[1].unique)
-	-- pprint(obj.heap[1])
-end
-main()
+-- function main()
+-- 	local obj = MinHeap:New("id", {"a", "b", "c"})
+-- 	obj:Push({ id = "1", a = 5, b = 2, c = 3, })
+-- 	obj:Push({ id = "2", a = 5, b = 2, c = 2, })
+-- 	obj:Push({ id = "3", a = 2, b = 2, c = 2, })
+-- 	obj:Push({ id = "4", a = 1, b = 2, c = 2, })
+-- 	obj:Push({ id = "5", a = 6, b = 2, c = 2, })
+-- 	obj:Push({ id = "6", a = 0, b = 2, c = 2, })
+-- 	print("len ", #obj.heap)
+-- 	print("key ", obj.heap[1].unique)
+-- 	-- pprint(obj.heap[1])
+-- end
+-- main()
 
 

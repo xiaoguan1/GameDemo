@@ -17,24 +17,6 @@ local STATE = {
 -- 移动成本
 local MOVECOST = 1
 
--- 地图(横为x轴、竖为y轴)
--- 1:可行、0:障碍
-local map_cfg = {
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-}
-
 local function _GetKey(x, y)
 	return x << 8 | y
 end
@@ -54,26 +36,37 @@ local function _CreateNode(x, y)
 		-- parent = nil,
 	}
 end
-local function _CalcCost(sx, sy, gx, gy)
-	return math.abs(gx - sx) + math.abs(gy - sy)
-end
 
 local DStar = {}
-function DStar:IsWalk(x, y)
-	local node = self.map_data[y] and self.map_data[y][x]
-	if not node then
-		return
+function DStar:CalcCost(sx, sy, gx, gy)
+	if self:IsWalk(sx, sy) and self:IsWalk(gx, gy) then
+		return math.abs(gx - sx) + math.abs(gy - sy)
 	end
-	return node.type == 1
+	return math.huge
+end
+function DStar:IsWalk(x, y)
+	local key = _GetKey(x, y)
+	local mtype1 = self.obs[key]
+	local mtype2 = map_cfg[y] and map_cfg[y][x]
+	return not (mtype1 == 1 or mtype2 == 1)
 end
 function DStar:IsValid(x, y)
-	return self.map_data[y][x]
+	return map_cfg[y] and map_cfg[y][x]
 end
 function DStar:ValidToWalk(x, y)
 	return self:IsValid(x, y) and self:IsWalk(x, y)
 end
 function DStar:GetNode(x, y)
-	return self.map_data[y] and self.map_data[y][x]
+	if not self:IsValid(x, y) then
+		return
+	end
+	local key = _GetKey(x, y)
+	local node = self.openSet[key]
+	if not node then
+		local node = _CreateNode(x, y)
+		self.openSet[node.key] = node
+	end
+	return node
 end
 function DStar:GetNodeByKey(key)
 	local x, y = _SplitKey(key)
@@ -86,26 +79,10 @@ function DStar:new(mapCfg, start, goal)
 		goal = table.copy(goal),
 		openList = minheap:New("key", {"k"}),
 		openSet = {},
-		map_data = {}, -- 地图
+		-- map_data = {}, -- 地图
 		current = table.copy(start),
+		obs = {},
 	}
-
-	for y = 1, #mapCfg do
-		self.map_data[y] = {}
-		for x = 1, #mapCfg[y] do
-			self.map_data[y][x] = {
-				x = x,
-				y = y,
-				state = STATE.NEW,
-				h = 0,
-				k = math.huge,
-				parent = nil,
-				neighbors = {},
-				cost = {},
-				type = mapCfg[y][x],
-			}
-		end
-	end
 
 	local goalNode = _CreateNode(o.goal.x, o.goal.y)
 	goalNode.state = STATE.OPEN
@@ -167,7 +144,7 @@ function DStar:ProcessState()
 		for _, nbr in pairs(neighbors) do
 			local cost
 			if self:IsWalk(nbr.x, nbr.y) then
-				cost = _CalcCost(node.x, node.y, nbr.x, nbr.y)
+				cost = self:CalcCost(node.x, node.y, nbr.x, nbr.y)
 			else
 				cost = math.huge
 			end
@@ -185,7 +162,7 @@ function DStar:ProcessState()
 			if nbr.state ~= STATE.CLOSED then
 				local cost
 				if self:IsWalk(nbr.x, nbr.y) then
-					cost = _CalcCost(node.x, node.y, nbr.x, nbr.y)
+					cost = self:CalcCost(node.x, node.y, nbr.x, nbr.y)
 				else
 					cost = math.huge
 				end
@@ -199,7 +176,7 @@ function DStar:ProcessState()
 		for _, nbr in pairs(neighbors) do
 			local cost
 			if self:IsWalk(nbr.x, nbr.y) then
-				cost = _CalcCost(node.x, node.y, nbr.x, nbr.y)
+				cost = self:CalcCost(node.x, node.y, nbr.x, nbr.y)
 			else
 				cost = math.huge
 			end
@@ -214,21 +191,48 @@ function DStar:ProcessState()
     return self.openList.size
 end
 
--- 设置障碍
+-- 设置障碍并影响周围 ( 周围节点与该节点的代价为math.huge(即h值) )
 function DStar:modifyCost(x, y, newCost)
 	local node = self:GetNode(x, y)
-	local neighbors = self:CalcNeighbors(node)
+	if not node then
+		error(string.format("set x:%s y:%s cost error!", x, y))
+	end
+	local key = _GetKey(x, y)
+	self.obs[key] = 1
 
-	-- local node = self.nodes[y][x]
-    -- for _, neighbor in ipairs(node.neighbors) do
-    --     neighbor.cost[node] = newCost
-    --     if neighbor.state == "CLOSED" then
-    --         self:insert(neighbor, neighbor.h)
-    --     end
-    -- end
-    -- while self:processState() ~= -1 do end
+	local neighbors = self:CalcNeighbors(node)
+	for _, v in pairs(neighbors) do
+		-- 重新回到openList
+		if v.state == STATE.CLOSED then
+			self:Insert(v, newCost)
+		end
+	end
+	while self:ProcessState() ~= -1 do
+
+	end
 end
 
 -- 输出路径
 function DStar:findPath()
 end
+
+
+---- 测试用例
+-- 地图(横为x轴、竖为y轴)
+-- 1:可行、0:障碍
+local map_cfg = {
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+	{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+}
+
