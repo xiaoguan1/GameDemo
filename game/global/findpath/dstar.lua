@@ -30,11 +30,11 @@ end
 local function _CreateNode(x, y)
 	return {
 		key = _GetKey(x, y),
-		x = y,
+		x = x,
 		y = y,
 		state = STATE.NEW,
 		h = 0,
-		k = 0,
+		k = math.huge,
 		parent = nil,
 	}
 end
@@ -124,7 +124,7 @@ function DStar:CalcNeighbors(uid, x, y)
 		if self:IsValid(nbrx, nbry) then
 			local nbr = roleData.openSet[_GetKey(nbrx, nbry)]
 			if not nbr then
-				local nbr = _CreateNode(x, y)
+				nbr = _CreateNode(nbrx, nbry)
 				roleData.openSet[nbr.key] = nbr
 			end
 			table.insert(result, nbr)
@@ -165,7 +165,7 @@ function DStar:ProcessState(uid)
 			if nbr.state ~= STATE.CLOSED then
 				local cost = self:CalcCost(node.x, node.y, nbr.x, nbr.y)
 				if (nbr.h > (node.h + cost)) or nbr.parent == node then
-					nbr.parent = x
+					nbr.parent = node
 					self:Insert(nbr, node.h + cost)
 				end
 			end
@@ -213,17 +213,18 @@ function DStar:CreateFindPath(uid, start, goal)
 
 	local r = {
 		uid = uid,
-		start = start,
-		goal = goal,
-		current = start,
+		start = table.copy(start),
+		goal = table.copy(goal),
+		current = table.copy(start),
 
 		-- 优先队列(最小堆)
-		openList = minheap:New("key", {"k"}),
+		openList = minheap:New("key", {"k"}, true),
 		openSet = {},
 	}
 	self.role_data[uid] = r
 
 	local goalNode = _CreateNode(goal.x, goal.y)
+	goalNode.h, goalNode.k = 0, 0
 	goalNode.state = STATE.OPEN
 	r.openSet[goalNode.key] = goalNode
 	r.openList:Push(goalNode)
