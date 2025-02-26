@@ -32,16 +32,16 @@ local function _CreateNode(x, y)
 		key = _GetKey(x, y),
 		x = y,
 		y = y,
-		-- state = STATE.NEW,
-		-- h = 0,
-		-- k = 0,
-		-- parent = nil,
+		state = STATE.NEW,
+		h = 0,
+		k = 0,
+		parent = nil,
 	}
 end
 
 -- D星算法的类模板
 DStar = { ClassType = "DStar" }
-function DStar:new(map_data)
+function DStar:New(map_data)
 	local o = {
 		map_data = table.copy(map_data),
 		role_data = {},	-- 玩家寻路路径数据
@@ -138,10 +138,10 @@ function DStar:ProcessState(uid)
 	if not obj then
 		return
 	end
-	if obj.openList:Size() <= 0 then
+	local node = obj.openList:Pop()
+	if not node then
 		return
 	end
-	local node = obj.openList:Pop()
 	node.state = STATE.CLOSED
 
 	-- 传播
@@ -212,13 +212,20 @@ function DStar:CreateFindPath(uid, start, goal)
 	assert(not r, string.format("uid:%s already has data", uid))
 
 	local r = {
+		uid = uid,
 		start = start,
 		goal = goal,
-		uid = uid,
+		current = start,
 
 		-- 优先队列(最小堆)
 		openList = minheap:New("key", {"k"}),
 		openSet = {},
 	}
 	self.role_data[uid] = r
+
+	local goalNode = _CreateNode(goal.x, goal.y)
+	goalNode.state = STATE.OPEN
+	r.openSet[goalNode.key] = goalNode
+	r.openList:Push(goalNode)
+	return r
 end

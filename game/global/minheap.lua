@@ -6,8 +6,7 @@ local string = string
 local MinHeap = {}
 function MinHeap:CompareFunc(son, parent)
 	for _, key in pairs(self.sortKeys) do
-		local sv = son.ele
-		local pv = parent.ele
+		local pv, sv = parent.ele, son.ele
 		if pv[key] > sv[key] then
 			-- 父节点元素大于子节点元素
 			return true
@@ -16,9 +15,13 @@ function MinHeap:CompareFunc(son, parent)
 end
 
 -- 排序(自下到上排序)
-function MinHeap:Update(index)
+function MinHeap:SideUp(index)
 	local size = self:Size()
-	if not (index and index > 0 and index <= size) then
+	if size <= 1 then
+		return
+	end
+	index = index or size
+	if not (index > 0 and index <= size) then
 		return
 	end
 
@@ -26,39 +29,44 @@ function MinHeap:Update(index)
 	local loop = 0
 	while true do
 		loop = loop + 1
-		if loop > size then break end
+		if loop > size then
+			error("side up error! loop:" .. loop)
+		end
 
-		local pIndex = index // 2
-		if pIndex <= 0 then break end
+		local smallest = index // 2
+		if smallest <= 0 then break end
 
-		local parent = heap[pIndex]
+		local parent = heap[smallest]
 		local son = heap[index]
 
 		if not self:CompareFunc(son, parent) then
 			break
 		end
 
-		heap[pIndex] = heap[index]
+		heap[smallest] = heap[index]
 		heap[index] = parent
-		index = pIndex
+		index = smallest
 	end
 end
 
 -- 排序(自上到下排序)
-function MinHeap:UpdateEx(i)
+function MinHeap:SideDown(index)
 	local size = self:Size()
 	if size <= 1 then
 		return
 	end
 
-	i = i or 1
+	local loop = 0
+	index = index or 1
 	while true do
-		local isOk = false
-		local l = i * 2
-		local r = (i * 2) + 1
-		local smallest = i
+		loop = loop + 1
+		if loop > size then
+			error("side down error! loop:" .. loop)
+		end
 
-		-- 注释：优先比较左孩子
+		local l = index * 2
+		local r = (index * 2) + 1
+		local smallest = index
 		if l <= size then
 			local parent = self.heap[smallest]
 			local lSon = self.heap[l]
@@ -66,7 +74,6 @@ function MinHeap:UpdateEx(i)
 				smallest = l
 			end
 		end
-
 		if r <= size then
 			local parent = self.heap[smallest]
 			local rSon = self.heap[r]
@@ -74,14 +81,13 @@ function MinHeap:UpdateEx(i)
 				smallest = r
 			end
 		end
-
-		if i == smallest then
+		if index == smallest then
 			break
 		end
-
-		local parent = self.heap[i]
-		self.heap[i] = self.heap[smallest]
+		local parent = self.heap[index]
+		self.heap[index] = self.heap[smallest]
 		self.heap[smallest] = parent
+		index = smallest
 	end
 end
 
@@ -112,10 +118,62 @@ function MinHeap:Push(ele)
 	local index = self:Size() + 1
 	self.heap[index] = {
 		unique = u,
-		ele = table.copy(ele),
+		ele = self.isQuote and ele or table.copy(ele),
 	}
 	-- 更新最小堆
-	self:Update(index)
+	self:SideUp(index)
+end
+
+function MinHeap:GetDataByUnique(unique)
+	if not unique then return end
+	for _, v in pairs(self.heap) do
+		if v.unique == unique then
+			local ele = table.copy(v.ele)
+			setmetatable(ele, {__newindex = function (...) error("not modify") end})
+			return ele
+		end
+	end
+end
+
+-- 这个接口的效率较低（还可以通过旧的排序值进行查找大致的范围，再进行for。）
+function MinHeap:ModifyByUnique(unique, modifyEle)
+	if not unique or not modifyEle then
+		return
+	end
+	if modifyEle[self.unique] then
+		error("not modify unique:" .. self.unique)
+	end
+	for _, key in pairs(self.sortKeys) do
+		if not modifyEle[key] then
+			error("not sortKey field " .. key)
+		end
+	end
+
+	local k, oldEle
+	for _k, v in pairs(self.heap) do
+		if v.unique == unique then
+			k, oldEle = _k, v
+			break
+		end
+	end
+	if not oldEle then
+		error("not find unique:" .. unique)
+	end
+
+	if self:CompareFunc(modifyEle, oldEle) then
+		-- oldEle大于modifyEle, 自上到下排序。
+		self:SideDown(k)
+	else
+		-- oldEle小于modifyEle，自下到上排序
+		self:SideUp(k)
+	end
+end
+
+function MinHeap:GetTopUnique()
+	if self:IsEmpty() then
+		return
+	end
+	return self.heap[1] and self.heap[1].unique
 end
 
 function MinHeap:GetTop()
@@ -136,16 +194,14 @@ function MinHeap:Pop()
 	end
 	local top = self:GetTop()
 	local size = self:Size()
-	if size == 0 then
+	if size == 1 then
 		self:Clear()
 	elseif size > 1 then
-		local size = self:Size()
 		self.heap[1] = self.heap[size]
 		self.heap[size] = nil
-		self:UpdateEx()
+		self:SideDown()
 	end
-
-	return top
+	return top and top.ele
 end
 
 function MinHeap:Size()
@@ -156,7 +212,8 @@ function MinHeap:IsEmpty()
 	return self:Size() <= 0
 end
 
-function MinHeap:New(unique, sortKeys)
+-- isQuote:true 引用(不对ele进行复制)
+function MinHeap:New(unique, sortKeys, isQuote)
 	local st = type(sortKeys)
 	assert(type(unique) == "string")
 	assert(st == "table" or #sortKeys > 0)
@@ -171,7 +228,8 @@ function MinHeap:New(unique, sortKeys)
 	local o = {
 		sortKeys = cpSortKeys,
 		unique = unique,
-		heap = {}
+		heap = {},
+		isQuote = isQuote,
 	}
 	setmetatable(o, {__index = self})
 	return o
