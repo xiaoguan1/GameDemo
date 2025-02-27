@@ -30,6 +30,9 @@ local function _SplitKey(key)
 	return x, y
 end
 local function _CreateNode(x, y)
+	-- k：表示当前(x, y)最小的h值
+	-- h：表示当前(x, y)坐标到达目标节点(即goal)的代价
+	-- parent：表示当前(x, y)节点的父节点
 	return {
 		key = _GetKey(x, y),
 		x = x,
@@ -166,6 +169,7 @@ function DStar:ProcessState(uid)
 	if node.k < node.h then
 		-- 当h值大于k值时，表示当前该节点处于h值被修改为较大的状态(raise状态)
 		-- 为此查找邻居节点来得到减低自身的h值
+		--（注释：若h>k,记为Raise态，当该节点处于Raise态时表明有更优的路径。）
 		local neighbors = self:CalcNeighbors(uid, node.x, node.y) or {}
 		for _, nbr in pairs(neighbors) do
 			local cost = self:CalcCost(node.x, node.y, nbr.x, nbr.y)
@@ -249,7 +253,8 @@ function DStar:CreateFindPath(uid, start, goal)
 		goal = table.copy(goal),
 		current = table.copy(start),
 
-		-- 优先队列(最小堆)
+		-- minheap：优先队列(最小堆)
+		-- openList：存放节点状态为OPEN的节点。且其按照节点的k值从小到大进行排序
 		openList = minheap:New("key", {"k"}, true),
 		openSet = {},
 	}
