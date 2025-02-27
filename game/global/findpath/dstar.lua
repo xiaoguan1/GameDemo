@@ -11,6 +11,8 @@ local table = table
 local MAPTYPE0 = 0		-- 障碍
 local MAPTYPE1 = 1
 
+local MAX_COST = 99999
+
 local DIRS = {
 	-- 上，下，左、右
 	{0, 1}, {0, -1}, {-1, 0}, {1, 0},
@@ -39,7 +41,7 @@ local function _CreateNode(x, y)
 		y = y,
 		state = STATE.NEW,
 		h = 0,
-		k = math.huge,
+		k = MAX_COST,
 		parent = nil,
 	}
 end
@@ -63,11 +65,36 @@ function DStar:GetRoleData(uid)
 	return self.role_data[uid]
 end
 
-function DStar:CalcCost(sx, sy, gx, gy)
+-- 切比雪夫距离(Chebyshev Distance)，直行和对角线移动的成本均为1。
+function DStar:CalcCost_CD(sx, sy, gx, gy)
+	if not (self:IsWalk(sx, sy) and self:IsWalk(gx, gy)) then
+		return MAX_COST
+	end
+	local dx = math.abs(gx - sx)
+	local dy = math.abs(gy - sy)
+	return math.max(dx, dy)  -- 切比雪夫距离
+end
+
+-- 欧几里得距离(Euclidean distance), 精确区分直行与斜向成本。
+function DStar:CalcCost_ED(sx, sy, gx, gy)
+	if not (self:IsWalk(sx, sy) and self:IsWalk(gx, gy)) then
+		return MAX_COST
+	end
+	local dx = math.abs(gx - sx)
+	local dy = math.abs(gy - sy)
+	if dx > 0 and dy > 0 then
+		return 1.414  -- 斜向移动成本
+	else
+		return 1      -- 直行移动成本
+	end
+end
+
+-- 曼哈顿距离计算(Manhattan Distance)，不精确地区分直线与斜向成本。
+function DStar:CalcCost_MD(sx, sy, gx, gy)
 	if self:IsWalk(sx, sy) and self:IsWalk(gx, gy) then
 		return math.abs(gx - sx) + math.abs(gy - sy)
 	end
-	return math.huge
+	return MAX_COST
 end
 
 -- 坐标是否有效
@@ -124,7 +151,7 @@ function DStar:modifyMap(x, y, isObs)
 		if node then
 			local neighbors = self:CalcNeighbors(uid, x, y) or {}
 			for _, nbr in pairs(neighbors) do
-				local cost = self:CalcCost(node.x, node.y, nbr.x, nbr.y)
+				local cost = self:CalcCost_CD(node.x, node.y, nbr.x, nbr.y)
 				if nbr.state == STATE.CLOSED then
 					self:Insert(uid, nbr, cost)
 				end
@@ -172,7 +199,7 @@ function DStar:ProcessState(uid)
 		--（注释：若h>k,记为Raise态，当该节点处于Raise态时表明有更优的路径。）
 		local neighbors = self:CalcNeighbors(uid, node.x, node.y) or {}
 		for _, nbr in pairs(neighbors) do
-			local cost = self:CalcCost(node.x, node.y, nbr.x, nbr.y)
+			local cost = self:CalcCost_CD(node.x, node.y, nbr.x, nbr.y)
 			local h = nbr.h + cost
 			if node.k > nbr.h and node.h > h then
 				node.parent = nbr
@@ -185,7 +212,7 @@ function DStar:ProcessState(uid)
 	local neighbors = self:CalcNeighbors(uid, node.x, node.y) or {}
 	if node.k == node.h then
 		for _, nbr in pairs(neighbors) do
-			local cost = self:CalcCost(node.x, node.y, nbr.x, nbr.y)
+			local cost = self:CalcCost_CD(node.x, node.y, nbr.x, nbr.y)
 			if nbr.state == STATE.NEW or
 				(nbr.parent == node and nbr.h ~= (node.h + cost)) or
 				(nbr.parent ~= node and nbr.h > (node.h + cost))
@@ -197,11 +224,11 @@ function DStar:ProcessState(uid)
 	else
 		-- k值和h值不相同，表示节点处于调整状态
 		for _, nbr in pairs(neighbors) do
-			local cost = self:CalcCost(node.x, node.y, nbr.x, nbr.y)
+			local cost = self:CalcCost_CD(node.x, node.y, nbr.x, nbr.y)
 			if nbr.state == STATE.NEW or
 				(nbr.parent == node and nbr.h ~= node.h + cost)
 			then
-				nbr.b = x
+				nbr.parent = node
 				self:Insert(uid, nbr, node.h + cost)
 			else
 				-- 邻居节点存在更短的路径
