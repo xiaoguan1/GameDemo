@@ -102,6 +102,35 @@ function DStar:IsValid(x, y)
 	return self.map_data[y] and self.map_data[y][x]
 end
 
+-- true：(x,y)为障碍
+function DStar:IsObs(x, y)
+	if not self:IsValid(x, y) then
+		error(string.format("addobs, x:%s y:%s no valid", x, y))
+	end
+	local key = _GetKey(x, y)
+	local state = self.pos_state[key] or self.map_data[y][x]
+	if state == POS_STATE0 then
+		return true
+	end
+end
+
+-- true: (x,y)可正常行走
+function DStar:IsWalk(x, y)
+	if not self:IsValid(x, y) then
+		return
+	end
+	local key = _GetKey(x, y)
+	if self.pos_state[key] then
+		return
+	end
+	local mtype = self.map_data[y] and self.map_data[y][x]
+	if mtype ~= POS_STATE1 then
+		return
+	end
+	return true
+end
+
+-- 更新(x,y)坐标的属性状态
 function DStar:UpdatePosState(x, y, nState)
 	if not (nState == POS_STATE0 or nState == POS_STATE1) then
 		error(string.format("update pos state, but state:%s error! x:%s y:%s", nState, x, y))
@@ -117,32 +146,6 @@ function DStar:UpdatePosState(x, y, nState)
 		self.pos_state[key] = nState
 	end
 	_INFO_F("update x:%s y:%s oldstate:%s newstate:%s", x, y, oState, nState)
-end
-
-function DStar:IsObs(x, y)
-	if not self:IsValid(x, y) then
-		error(string.format("addobs, x:%s y:%s no valid", x, y))
-	end
-	local key = _GetKey(x, y)
-	local state = self.pos_state[key] or self.map_data[y][x]
-	if state == POS_STATE0 then
-		return true
-	end
-end
-
-function DStar:IsWalk(x, y)
-	if not self:IsValid(x, y) then
-		return
-	end
-	local key = _GetKey(x, y)
-	if self.pos_state[key] then
-		return
-	end
-	local mtype = self.map_data[y] and self.map_data[y][x]
-	if mtype ~= POS_STATE1 then
-		return
-	end
-	return true
 end
 
 -- 更新地图节点（并影响role_path）
