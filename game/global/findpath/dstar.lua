@@ -8,8 +8,8 @@
 local minheap = require "minheap"
 local table = table
 
-local MAPTYPE0 = 0		-- 障碍
-local MAPTYPE1 = 1
+local POS_STATE0 = 0	-- 障碍
+local POS_STATE1 = 1	-- 正常可行走
 
 local MAX_COST = 99999
 
@@ -52,7 +52,7 @@ function DStar:New(map_data)
 	local o = {
 		map_data = table.copy(map_data),
 		role_data = {},	-- 玩家寻路路径数据
-		obs = {},		-- 自定义的障碍
+		pos_state = {},	-- 坐标最新状态(障碍、非障碍)
 
 		-- 优先队列(最小堆)
 		-- openList = minheap:New("key", {"k"}),
@@ -102,22 +102,32 @@ function DStar:IsValid(x, y)
 	return self.map_data[y] and self.map_data[y][x]
 end
 
--- 设置障碍
-function DStar:AddObs(x, y)
+function DStar:UpdatePosState(x, y, nState)
+	if not (nState == POS_STATE0 or nState == POS_STATE1) then
+		error(string.format("update pos state, but state:%s error! x:%s y:%s", nState, x, y))
+	end
+	if not self:IsValid(x, y) then
+		return
+	end
+	local key = _GetKey(x, y)
+	local oState = self.map_data[y][x]
+	if oState == nState then
+		self.pos_state[key] = nil
+	else
+		self.pos_state[key] = nState
+	end
+	print(string.format("update x:%s y:%s oldstate:%s newstate:%s", x, y, oState, nState))
+end
+
+function DStar:IsObs(x, y)
 	if not self:IsValid(x, y) then
 		error(string.format("addobs, x:%s y:%s no valid", x, y))
 	end
 	local key = _GetKey(x, y)
-	self.obs[key] = true
-end
-
--- 去除障碍
-function DStar:SubObs(x, y)
-	if not self:IsValid(x, y) then
-		error(string.format("subobs, x:%s y:%s no valid", x, y))
+	local state = self.pos_state[key] or self.map_data[y][x]
+	if state == POS_STATE0 then
+		return true
 	end
-	local key = _GetKey(x, y)
-	self.obs[key] = nil
 end
 
 function DStar:IsWalk(x, y)
@@ -125,11 +135,11 @@ function DStar:IsWalk(x, y)
 		return
 	end
 	local key = _GetKey(x, y)
-	if self.obs[key] then
+	if self.pos_state[key] then
 		return
 	end
 	local mtype = self.map_data[y] and self.map_data[y][x]
-	if mtype ~= MAPTYPE1 then
+	if mtype ~= POS_STATE1 then
 		return
 	end
 	return true
@@ -140,20 +150,23 @@ function DStar:modifyMap(x, y, isObs)
 	if not self:IsValid(x, y) then
 		return
 	end
-	if isObs then
-		self:AddObs(x, y)
-	else
-		self:SubObs(x, y)
+	local nState = isObs and POS_STATE0 or POS_STATE1
+	local key = _GetKey(x, y)
+	local oState = self.pos_state[key] or self.map_data[y][x]
+	if nState == oState then
+		return
 	end
-
+	self:UpdatePosState(x, y, nState)
 	for uid, rdata in pairs(self.role_data) do
 		local node = rdata.openSet[_GetKey(x, y)]
 		if node then
 			local neighbors = self:CalcNeighbors(uid, x, y) or {}
 			for _, nbr in pairs(neighbors) do
-				local cost = self:CalcCost_CD(node.x, node.y, nbr.x, nbr.y)
-				if nbr.state == STATE.CLOSED then
-					self:Insert(uid, nbr, cost)
+				if nbr.parent == node then
+					local cost = self:CalcCost_CD(node.x, node.y, nbr.x, nbr.y)
+					if nbr.state == STATE.CLOSED then
+						self:Insert(uid, nbr, cost)
+					end
 				end
 			end
 		end
@@ -302,11 +315,25 @@ function DStar:findPath(uid)
 		return
 	end
 
+	local mapData = table.deepcopy(self.map_data)
 	local key = _GetKey(rData.start.x, rData.start.y)
 	local node = rData.openSet[key]
 	local n = node
 	while n do
-		print(n.x, n.y)
+		mapData[n.y][n.x] = "E"
 		n = n.parent
 	end
+	for key in pairs(self.pos_state) do
+		local x, y = _SplitKey(key)
+		mapData[y][x] = "O"
+	end
+
+	for y = 1, #mapData do
+		local m = ""
+		for x = 1, #mapData[1] do
+			m = m .. mapData[y][x] .. " "
+		end
+		print(m)
+	end
+
 end

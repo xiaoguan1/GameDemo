@@ -35,3 +35,17 @@ function table.copy(t)
 	end
 	return tt
 end
+
+function table.deepcopy(t)
+	local tt = {}
+	for k, v in pairs(t) do
+		if type(v) == "table" then
+			tt[k] = table.deepcopy(v)
+		elseif type(v) == "userdata" then
+			error("not support copy usedata")
+		else
+			tt[k] = v
+		end
+	end
+	return tt
+end
