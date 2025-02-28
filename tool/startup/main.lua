@@ -35,27 +35,27 @@ local function _GetAllFiles(path, result)
 end
 
 skynet.start(function ()
-	-- local nodeInfo = Import("game/global/nodeInfo.lua")
-	-- local isOk, dpcluster = nodeInfo.GetGameNodeInfoByDatabase()
-	-- if not isOk then
-	-- 	abort(dpcluster)
-	-- end
-	-- skynet.setenv("dpcluster", tool.dumptree(dpcluster))
-	-- DPCLUSTER_NODE = dpcluster
+	local nodeInfo = Import("game/global/nodeInfo.lua")
+	local isOk, dpcluster = nodeInfo.GetGameNodeInfoByDatabase()
+	if not isOk then
+		abort(dpcluster)
+	end
+	skynet.setenv("dpcluster", tool.dumptree(dpcluster))
+	DPCLUSTER_NODE = dpcluster
 
-	-- for _, v in pairs(START_UNIQ_SERVICE) do
-	-- 	local id = skynet.uniqueservice(v.svr)
-	-- 	skynet.name(v.named, id)
-	-- end
-	-- Import("game/global/dpcluster.lua")
+	for _, v in pairs(START_UNIQ_SERVICE) do
+		local id = skynet.uniqueservice(v.svr)
+		skynet.name(v.named, id)
+	end
+	Import("game/global/dpcluster.lua")
 
 	-- local result = _GetAllFiles( )
 	-- print(tool.dumptree(result))
 
-	-- skynet.uniqueservice("stimer")
-	-- skynet.newservice("databased")
-	-- skynet.uniqueservice("dpclusterd")
-	-- dofile "./game/global/log.lua"
+	skynet.uniqueservice("stimer")
+	skynet.newservice("databased")
+	skynet.uniqueservice("dpclusterd")
+	dofile "./game/global/log.lua"
 	-- _INFO("哈哈哈")
 
 	util.set_checkuid_service(skynet.self())
@@ -86,9 +86,9 @@ skynet.start(function ()
 	dsObj:findPath(uid)
 
 	dsObj:modifyMap(3, 3, true)
+	dsObj:modifyMap(2, 3, true)
+	dsObj:modifyMap(1, 3, true)
 	while dsObj:ProcessState(uid) > 0 do end
-	print()
 	dsObj:findPath(uid)
-
 	-- print(tool.dumptree(roleData))
 end)

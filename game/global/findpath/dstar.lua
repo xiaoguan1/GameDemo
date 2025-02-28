@@ -116,7 +116,7 @@ function DStar:UpdatePosState(x, y, nState)
 	else
 		self.pos_state[key] = nState
 	end
-	print(string.format("update x:%s y:%s oldstate:%s newstate:%s", x, y, oState, nState))
+	_INFO_F("update x:%s y:%s oldstate:%s newstate:%s", x, y, oState, nState)
 end
 
 function DStar:IsObs(x, y)
@@ -162,11 +162,9 @@ function DStar:modifyMap(x, y, isObs)
 		if node then
 			local neighbors = self:CalcNeighbors(uid, x, y) or {}
 			for _, nbr in pairs(neighbors) do
-				if nbr.parent == node then
+				if nbr.parent == node and nbr.state == STATE.CLOSED then
 					local cost = self:CalcCost_CD(node.x, node.y, nbr.x, nbr.y)
-					if nbr.state == STATE.CLOSED then
-						self:Insert(uid, nbr, cost)
-					end
+					self:Insert(uid, nbr, cost)
 				end
 			end
 		end
