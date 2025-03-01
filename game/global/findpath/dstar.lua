@@ -50,7 +50,7 @@ end
 DStar = { ClassType = "DStar" }
 function DStar:New(map_data)
 	local o = {
-		map_data = table.copy(map_data),
+		map_data = map_data,
 		role_data = {},	-- 玩家寻路路径数据
 		pos_state = {},	-- 坐标最新状态(障碍、非障碍)
 
@@ -175,19 +175,19 @@ function DStar:modifyMap(x, y, isObs)
 end
 
 function DStar:CalcNeighbors(uid, x, y)
-	local result = {}
-	local roleData = self:GetRoleData(uid)
-	if not roleData then
+	local rData = self:GetRoleData(uid)
+	if not rData then
 		return
 	end
+	local result = {}
 	for _, v in pairs(DIRS) do
 		local nbrx = x + v[1]
 		local nbry = y + v[2]
-		if self:IsValid(nbrx, nbry) then
-			local nbr = roleData.openSet[_GetKey(nbrx, nbry)]
+		if self:IsWalk(nbrx, nbry) then
+			local nbr = rData.openSet[_GetKey(nbrx, nbry)]
 			if not nbr then
 				nbr = _CreateNode(nbrx, nbry)
-				roleData.openSet[nbr.key] = nbr
+				rData.openSet[nbr.key] = nbr
 			end
 			table.insert(result, nbr)
 		end
@@ -195,12 +195,31 @@ function DStar:CalcNeighbors(uid, x, y)
 	return result
 end
 
-function DStar:ProcessState(uid)
-	local obj = self:GetRoleData(uid)
-	if not obj then
+function DStar:IsGoal(uid)
+	local rData = self.role_data[uid]
+	if not rData then
 		return
 	end
-	local node = obj.openList:Pop()
+	local key = _GetKey(rData.start.x, rData.start.y)
+	local node = rData.openSet[key]
+	return node and node.state == STATE.CLOSED
+end
+
+function DStar:DoProcess(uid)
+	while not self:IsGoal(uid) do
+		local size = self:ProcessState(uid)
+		if not size or size <= 0 then
+			return
+		end
+	end
+end
+
+function DStar:ProcessState(uid)
+	local rData = self:GetRoleData(uid)
+	if not rData then
+		return
+	end
+	local node = rData.openList:Pop()
 	if not node then
 		return
 	end
@@ -208,9 +227,8 @@ function DStar:ProcessState(uid)
 
 	-- 传播
 	if node.k < node.h then
-		-- 当h值大于k值时，表示当前该节点处于h值被修改为较大的状态(raise状态)
+		-- raise状态：h值大于k值，表示当前该节点处于h值被修改为较大的状态。（例如该节点被设置成障碍）
 		-- 为此查找邻居节点来得到减低自身的h值
-		--（注释：若h>k,记为Raise态，当该节点处于Raise态时表明有更优的路径。）
 		local neighbors = self:CalcNeighbors(uid, node.x, node.y) or {}
 		for _, nbr in pairs(neighbors) do
 			local cost = self:CalcCost_CD(node.x, node.y, nbr.x, nbr.y)
@@ -260,35 +278,35 @@ function DStar:ProcessState(uid)
 		end
 	end
 
-	return obj.openList:Size()
+	return rData.openList:Size()
 end
 
 function DStar:Insert(uid, node, newH)
-	local obj = self:GetRoleData(uid)
-	if not obj then return end
+	local rData = self:GetRoleData(uid)
+	if not rData then return end
 
 	if node.state == STATE.NEW then
 		node.h = newH
 		node.k = newH
 		node.state = STATE.OPEN
-		obj.openList:Push(node)
+		rData.openList:Push(node)
 	elseif node.state == STATE.OPEN then
 		node.k = math.min(node.k, newH)
-		obj.openList:ModifyByUnique(node)
+		rData.openList:ModifyByUnique(node)
 	else
 		node.k = math.min(node.h, newH)
 		node.h = newH
 		node.state = STATE.OPEN
-		obj.openList:Push(node)
+		rData.openList:Push(node)
 	end
 end
 
 -- 添加寻路数据
 function DStar:CreateFindPath(uid, start, goal)
-	local r = self:GetRoleData(uid)
-	assert(not r, string.format("uid:%s already has data", uid))
+	local rData = self:GetRoleData(uid)
+	assert(not rData, string.format("uid:%s already has data", uid))
 
-	local r = {
+	rData = {
 		uid = uid,
 		start = table.copy(start),
 		goal = table.copy(goal),
@@ -299,14 +317,14 @@ function DStar:CreateFindPath(uid, start, goal)
 		openList = minheap:New("key", {"k"}, true),
 		openSet = {},
 	}
-	self.role_data[uid] = r
+	self.role_data[uid] = rData
 
 	local goalNode = _CreateNode(goal.x, goal.y)
 	goalNode.h, goalNode.k = 0, 0
 	goalNode.state = STATE.OPEN
-	r.openSet[goalNode.key] = goalNode
-	r.openList:Push(goalNode)
-	return r
+	rData.openSet[goalNode.key] = goalNode
+	rData.openList:Push(goalNode)
+	return rData
 end
 
 -- 调试接口：输出路径
