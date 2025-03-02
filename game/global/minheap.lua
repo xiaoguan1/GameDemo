@@ -4,6 +4,20 @@ local table = table
 local string = string
 
 local MinHeap = {}
+function MinHeap:Swap(aIndex, bIndex)
+	local heap = self.heap
+	local aNode = heap[aIndex]
+	local bNode = heap[bIndex]
+	heap[aIndex] = bNode
+	heap[bIndex] = aNode
+	if aNode then
+		self.stub[aNode.unique] = bIndex
+	end
+	if bNode then
+		self.stub[bNode.unique] = aIndex
+	end
+end
+
 function MinHeap:CompareFunc(son, parent)
 	for _, key in pairs(self.sortKeys) do
 		local pv, sv = parent.ele, son.ele
@@ -43,8 +57,9 @@ function MinHeap:SideUp(index)
 			break
 		end
 
-		heap[smallest] = heap[index]
-		heap[index] = parent
+		self:Swap(index, smallest)
+		-- heap[smallest] = heap[index]
+		-- heap[index] = parent
 		index = smallest
 	end
 end
@@ -84,9 +99,10 @@ function MinHeap:SideDown(index)
 		if index == smallest then
 			break
 		end
-		local parent = self.heap[index]
-		self.heap[index] = self.heap[smallest]
-		self.heap[smallest] = parent
+		self:Swap(index, smallest)
+		-- local parent = self.heap[index]
+		-- self.heap[index] = self.heap[smallest]
+		-- self.heap[smallest] = parent
 		index = smallest
 	end
 end
@@ -125,14 +141,13 @@ function MinHeap:Push(ele)
 end
 
 function MinHeap:GetDataByUnique(unique)
-	if not unique then return end
-	for _, v in pairs(self.heap) do
-		if v.unique == unique then
-			local ele = table.copy(v.ele)
-			setmetatable(ele, {__newindex = function (...) error("not modify") end})
-			return ele
-		end
-	end
+	local index = unique and self.stub[unique]
+	if not index then return end
+	local ele = self.heap[index] and self.heap[index].ele
+	if not ele then return end
+	ele = table.copy(v.ele)
+	setmetatable(ele, {__newindex = function (...) error("not modify") end})
+	return ele
 end
 
 -- 这个接口的效率较低（还可以通过旧的排序值进行查找大致的范围，再进行for。）
@@ -148,13 +163,8 @@ function MinHeap:ModifyByUnique(modifyEle)
 		end
 	end
 
-	local k, oldEle
-	for _k, v in pairs(self.heap) do
-		if v.unique == unique then
-			k, oldEle = _k, v
-			break
-		end
-	end
+	local index = unique and self.stub[unique]
+	local oldEle = index and self.heap[index]
 	if not oldEle then
 		error(string.format("not find unique:%s data", unique))
 	end
@@ -164,13 +174,13 @@ function MinHeap:ModifyByUnique(modifyEle)
 
 	local isGt = self:CompareFunc({ele = modifyEle}, oldEle)
 	oldEle.ele = modifyEle
-	self.heap[k] = oldEle
+	self.heap[index] = oldEle
 	if isGt then
 		-- oldEle大于modifyEle, 自上到下排序。
-		self:SideDown(k)
+		self:SideDown(index)
 	else
 		-- oldEle小于modifyEle，自下到上排序
-		self:SideUp(k)
+		self:SideUp(index)
 	end
 end
 
@@ -190,6 +200,7 @@ end
 
 function MinHeap:Clear()
 	self.heap = {}
+	self.stub = {}
 end
 
 -- 最小堆出栈
@@ -202,8 +213,9 @@ function MinHeap:Pop()
 	if size == 1 then
 		self:Clear()
 	elseif size > 1 then
-		self.heap[1] = self.heap[size]
-		self.heap[size] = nil
+		self.heap[1] = nil
+		self.stub[top.unique] = nil
+		self:Swap(1, size)
 		self:SideDown()
 	end
 	return top and top.ele
@@ -234,6 +246,7 @@ function MinHeap:New(unique, sortKeys, isQuote)
 		sortKeys = cpSortKeys,
 		unique = unique,
 		heap = {},
+		stub = {},
 		isQuote = isQuote,
 	}
 	setmetatable(o, {__index = self})

@@ -441,3 +441,250 @@ while current.x ~= dstar.goal.x or current.y ~= dstar.goal.y do
     print(string.format("Move to (%d, %d)", nextNode.x, nextNode.y))
     current = nextNode
 end
+
+
+
+
+
+
+
+------------------------
+-- D* Lite算法是一种增量启发式搜索算法，用于实时更新图中的最短路径
+-- 参考论文：Koenig and Likhachev - http://idm-lab.org/bib/abstracts/papers/aaai02b.pdf
+
+local math_min = math.min
+local math_huge = math.huge
+local table_insert = table.insert
+local table_remove = table.remove
+
+local function approx(f1, f2)
+    return f1 == f2
+    -- return math.abs(f1 - f2) < 1e-5
+end
+
+-- 节点类
+local Node = {}
+Node.__index = Node
+
+function Node.new(data, cost_func, heuristic_func)
+    local self = setmetatable({}, Node)
+    self.Data = data
+    self.Cost = cost_func
+    self.Heuristic = heuristic_func
+    self.Neighbors = {}
+    self.G = math_huge
+    self.RHS = math_huge
+    return self
+end
+
+function Node:GEqualRHS()
+    return approx(self.G, self.RHS)
+end
+
+-- 优先队列实现（最小堆）
+local PriorityQueue = {}
+PriorityQueue.__index = PriorityQueue
+
+function PriorityQueue.new(compare_func)
+    local self = setmetatable({}, PriorityQueue)
+    self.heap = {}
+    self.compare = compare_func
+    return self
+end
+
+function PriorityQueue:push(item)
+    table_insert(self.heap, item)
+    local i = #self.heap
+    while i > 1 do
+        local parent = math.floor(i/2)
+        if self.compare(self.heap[i], self.heap[parent]) then
+            self.heap[i], self.heap[parent] = self.heap[parent], self.heap[i]
+            i = parent
+        else
+            break
+        end
+    end
+end
+
+function PriorityQueue:pop()
+    if #self.heap == 0 then return nil end
+    local item = self.heap[1]
+    self.heap[1] = self.heap[#self.heap]
+    table_remove(self.heap)
+    local i = 1
+    while true do
+        local left = 2*i
+        local right = 2*i+1
+        local smallest = i
+        if left <= #self.heap and self.compare(self.heap[left], self.heap[smallest]) then
+            smallest = left
+        end
+        if right <= #self.heap and self.compare(self.heap[right], self.heap[smallest]) then
+            smallest = right
+        end
+        if smallest ~= i then
+            self.heap[i], self.heap[smallest] = self.heap[smallest], self.heap[i]
+            i = smallest
+        else
+            break
+        end
+    end
+    return item
+end
+
+function PriorityQueue:peek()
+    return self.heap[1]
+end
+
+function PriorityQueue:size()
+    return #self.heap
+end
+
+-- D* Lite 主类
+local DStarLite = {}
+DStarLite.__index = DStarLite
+
+function DStarLite.new(start_node, goal_node, all_nodes)
+    local self = setmetatable({}, DStarLite)
+    self.start = start_node
+    self.goal = goal_node
+    self.all_nodes = all_nodes
+    self.km = 0
+    self.open_set = PriorityQueue.new(function(a, b)
+        if approx(a.k1, b.k1) then
+            return a.k2 < b.k2
+        end
+        return a.k1 < b.k1
+    end)
+    self.lookups = {}
+    return self
+end
+
+function DStarLite:calculate_key(node)
+    local min_val = math_min(node.G, node.RHS)
+    return {
+        k1 = min_val + node.Heuristic(node, self.start) + self.km,
+        k2 = min_val,
+        node = node
+    }
+end
+
+function DStarLite:update_vertex(node)
+    local key = self:calculate_key(node)
+    local in_queue = self.lookups[node]
+
+    if not node:GEqualRHS() and not in_queue then
+        self.open_set:push(key)
+        self.lookups[node] = key
+    elseif in_queue then
+        if key.k1 < in_queue.k1 or (approx(key.k1, in_queue.k1) and key.k2 < in_queue.k2) then
+            self.lookups[node] = nil
+            self.open_set:push(key)
+            self.lookups[node] = key
+        end
+        if node:GEqualRHS() then
+            self.lookups[node] = nil
+        end
+    end
+end
+
+function DStarLite:predecessors(node)
+    return node.Neighbors -- 根据实际需求可能需要更复杂的实现
+end
+
+function DStarLite:successors(node)
+    return node.Neighbors -- 根据实际需求可能需要更复杂的实现
+end
+
+function DStarLite:compute_shortest_path()
+    local max_steps = 1000
+    while self.open_set:size() > 0 do
+        if max_steps <= 0 then
+            print("ComputeShortestPath error: max steps exceeded.")
+            break
+        end
+        max_steps = max_steps - 1
+
+        local current = self.open_set:pop()
+        self.lookups[current.node] = nil
+
+        local key = self:calculate_key(current.node)
+        if key.k1 < current.k1 or (approx(key.k1, current.k1) and key.k2 < current.k2) then
+            self.open_set:push(key)
+            self.lookups[current.node] = key
+        elseif current.node.G > current.node.RHS then
+            current.node.G = current.node.RHS
+            for _, s in ipairs(self:predecessors(current.node)) do
+                if s ~= self.goal then
+                    s.RHS = math_min(s.RHS, s.Cost(s, current.node) + current.node.G)
+                end
+                self:update_vertex(s)
+            end
+        else
+            local g_old = current.node.G
+            current.node.G = math_huge
+            local nodes = self:predecessors(current.node)
+            table_insert(nodes, current.node)
+            for _, s in ipairs(nodes) do
+                if approx(s.RHS, s.Cost(s, current.node) + g_old) then
+                    if s ~= self.goal then
+                        s.RHS = math_huge
+                    end
+                    for _, s_prime in ipairs(self:successors(s)) do
+                        s.RHS = math_min(s.RHS, s.Cost(s, s_prime) + s_prime.G)
+                    end
+                end
+                self:update_vertex(s)
+            end
+        end
+    end
+    self.start.G = self.start.RHS
+end
+
+function DStarLite:initialize()
+    self.open_set = PriorityQueue.new(function(a, b)
+        if approx(a.k1, b.k1) then
+            return a.k2 < b.k2
+        end
+        return a.k1 < b.k1
+    end)
+    self.lookups = {}
+    self.km = 0
+
+    for _, node in ipairs(self.all_nodes) do
+        node.G = math_huge
+        node.RHS = math_huge
+    end
+
+    self.goal.RHS = 0
+    local key = self:calculate_key(self.goal)
+    self.open_set:push(key)
+    self.lookups[self.goal] = key
+end
+
+function DStarLite:recalculate_node(node)
+    self.km = self.km + self.start.Heuristic(self.start, node)
+    local connected = {}
+    for _, s in ipairs(self:successors(node)) do table_insert(connected, s) end
+    for _, s in ipairs(self:predecessors(node)) do table_insert(connected, s) end
+
+    for _, s in ipairs(connected) do
+        if s ~= self.start then
+            s.RHS = math_min(s.RHS, s.Cost(s, node) + node.G)
+        end
+        self:update_vertex(s)
+    end
+    self:update_vertex(node)
+    self:compute_shortest_path()
+end
+
+function DStarLite:get_path()
+    local path = {self.start}
+    -- 根据实际需求实现路径重建逻辑
+    return path
+end
+
+return {
+    Node = Node,
+    DStarLite = DStarLite
+}

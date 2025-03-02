@@ -1,6 +1,7 @@
 -- https://blog.csdn.net/mkr67n/article/details/106031055
 -- https://github.com/Bastiantheone/DStarLite/blob/master/DStarLite.cs
 
+
 local minheap = require "minheap"
 local math = math
 
@@ -70,6 +71,10 @@ function DStarLite:Insert(uid, node)
 	rData.openList:Push(node)
 end
 
+function DStarLite:UpdateVertex(node)
+
+end
+
 -- 添加玩家的寻路事件
 function DStarLite:AddRoleEvent(uid, start, goal)
 	local rData = self:GetRoleData(uid)
@@ -128,41 +133,91 @@ function DStarLite:ComputePath(uid)
 	local rData = self:GetRoleData(uid)
 	if not rData then return end
 
+	local startX = rData.start.x
+	local startY = rData.start.y
+	local max_steps = 1000
+	while rData.openList:Size() > 0 do
+		if max_steps <= 0 then
+			print("ComputeShortestPath error: max steps exceeded.")
+			break
+		end
+		max_steps = max_steps - 1
+		local current = rData.openList:Pop()
+		if current.x == startX and current.y == startY then
+			-- 到达终点
+			break
+		end
+
+
+		local nbrs = self:GetNbrs(current.x, current.y)
+		if current.g > current.rhs then
+			current.g = current.rhs
+			for _, nbr in ipairs(nbrs) do
+				local nbrNode = self:getNode(nbr.x, nbr.y)
+				if nbrNode.rhs > (current.g + 1) then
+					nbrNode.rhs = current.g + 1
+					nbrNode.k1, nbrNode.k2 = self:CalcKey(uid, nbrNode.x, nbrNode.y)
+					self:Insert(uid, nbrNode)
+				end
+			end
+		end
+
+
+
+	end
+
+
+
+
+
+
+
+
+
+
+	local startX = rData.start.x
+	local startY = rData.start.y
+	local sK1, sK2 = self.CalcKey(uid, startX, startY)
 	while true do
 		local node = rData.openList:Pop()
 		if not node then
 			break
 		end
 
-		local k1, k2 = node.k1, node.k2
-		local sk1, sk2 = self.CalcKey(uid, rData.start.x, rData.start.y)
-		if (k1 > sk1) or (k1 == sk1 and k2 > sk2) then
-			self:Insert(uid, )
-		end
-
-
-
-		if node.x == rData.start.x and node.y == rData.start.y then
-			-- 到达终点
+		if node.k1 > sK1 or (node.k1 == sK1 and node.k2 > sK2) then
+			self:Insert(uid, node)
 			break
 		end
 
+		-- if node.x == startX and node.y == startY then
+		-- 	-- 到达终点
+		-- 	break
+		-- end
+
+		local nbrs = self:GetNbrs(node.x, node.y)
 		if node.g > node.rhs then
 			node.g = node.rhs
-			local nbrs = self:GetNbrs(node.x, node.y)
 			for _, nbr in ipairs(nbrs) do
-				if s ~= u then
-					if s.rhs > u.g + self:_cost(s, u) then
-						s.rhs = u.g + self:_cost(s, u)
-						self.U:insert(s, self:_calculateKey(s))
-					end
+				local nbrNode = self:getNode(nbr.x, nbr.y)
+				if nbrNode.rhs > (node.g + 1) then
+					nbrNode.rhs = node.g + 1
+					nbrNode.k1, nbrNode.k2 = self:CalcKey(uid, nbrNode.x, nbrNode.y)
+					self:Insert(uid, nbrNode)
 				end
 			end
 		else
-
+			node.g = math.huge
+			for _, nbr in ipairs(nbrs) do
+				local nbrNode = self:getNode(nbr.x, nbr.y)
+				if nbrNode.rhs == node.g + 1 then
+					nbrNode.rhs = math.huge
+					nbrNode.k1, nbrNode.k2 = self:CalcKey(uid, nbrNode.x, nbrNode.y)
+					self:Insert(uid, nbrNode)
+				end
+			end
+			node.k1, node.k2 = self:CalcKey(uid, node.x, node.y)
+			self:Insert(uid, node)
 		end
-
-
 	end
 end
 
