@@ -83,9 +83,13 @@ skynet.start(function ()
 	local uid = util.new_uid(999, skynet.self())
 	local roleData = dsObj:AddRoleEvent(uid, {x=1, y=1}, {x=10, y=10})
 	dsObj:ComputePath(uid)
+	roleData.openList:Clear()
 	-- while dsObj:ProcessState(uid) > 0 do end
 	dsObj:findPath(uid)
 
+	print("\n-----------------------------\n")
+	dsObj:modifyMap(2, 2, true)
+	dsObj:findPath(uid)
 	-- dsObj:modifyMap(3, 3, true)
 	-- dsObj:modifyMap(2, 3, true)
 	-- dsObj:modifyMap(1, 3, true)
