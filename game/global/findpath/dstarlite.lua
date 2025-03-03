@@ -187,7 +187,7 @@ function DStarLite:ComputePath(uid)
 				local rhs = math.min(nbrNode.rhs, newG)
 				if nbrNode.state == POS_STATE.NEW or
 					(nbrNode.parent == current and nbrNode.rhs ~= rhs) or
-					(nbrNode.parent == current and nbrNode.rhs > rhs)
+					(nbrNode.parent ~= current and nbrNode.rhs > rhs)
 				then
 					nbrNode.rhs = rhs
 					nbrNode.parent = current
