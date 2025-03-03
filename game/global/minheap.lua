@@ -156,7 +156,7 @@ function MinHeap:GetDataByIndex(index)
 end
 
 -- 这个接口的效率较低（还可以通过旧的排序值进行查找大致的范围，再进行for。）
-function MinHeap:ModifyByUnique(modifyEle)
+function MinHeap:Modify(modifyEle)
 	if not modifyEle then return end
 	local unique = modifyEle[self.unique]
 	if not unique then
@@ -224,6 +224,20 @@ function MinHeap:Pop()
 		self:SideDown()
 	end
 	return top and top.ele
+end
+
+function MinHeap:Remove(unique)
+	if self:IsEmpty() then
+		return
+	end
+	local index = unique and self.stub[unique]
+	local node = index and self.heap[index]
+	if not node then
+		return
+	end
+	self:Swap(index, self:Size())
+	self:SideDown(index)
+	return node
 end
 
 function MinHeap:Size()

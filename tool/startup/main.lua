@@ -59,7 +59,7 @@ skynet.start(function ()
 	-- _INFO("哈哈哈")
 
 	util.set_checkuid_service(skynet.self())
-	dofile "game/global/findpath/dstar.lua"
+	dofile "game/global/findpath/dstarlite.lua"
 
 	-- 地图(横为x轴、竖为y轴)
 	-- 1:可行、0:障碍
@@ -78,17 +78,19 @@ skynet.start(function ()
 		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 	}
-	local dsObj = DStar:New(map_cfg)
+	local dsObj = DStarLite:New(map_cfg)
 
 	local uid = util.new_uid(999, skynet.self())
-	local roleData = dsObj:CreateFindPath(uid, {x=1, y=1}, {x=10, y=10})
-	while dsObj:ProcessState(uid) > 0 do end
+	local roleData = dsObj:AddRoleEvent(uid, {x=1, y=1}, {x=10, y=10})
+	dsObj:ComputePath(uid)
+	-- while dsObj:ProcessState(uid) > 0 do end
 	dsObj:findPath(uid)
 
-	dsObj:modifyMap(3, 3, true)
-	dsObj:modifyMap(2, 3, true)
-	dsObj:modifyMap(1, 3, true)
-	while dsObj:ProcessState(uid) > 0 do end
-	dsObj:findPath(uid)
+	-- dsObj:modifyMap(3, 3, true)
+	-- dsObj:modifyMap(2, 3, true)
+	-- dsObj:modifyMap(1, 3, true)
+	-- while dsObj:ProcessState(uid) > 0 do end
+	-- dsObj:findPath(uid)
 	-- print(tool.dumptree(roleData))
+
 end)

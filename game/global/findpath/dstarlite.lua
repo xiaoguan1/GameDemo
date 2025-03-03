@@ -15,6 +15,9 @@ local DIRS = {
 	{1, 1}, {1, -1}, {-1, -1}, {-1, 1},
 }
 
+-- 节点状态
+local POS_STATE = { NEW = 1, OPEN = 2, CLOSED = 3, }
+
 -- 局部函数 ---------------------------------
 -- 启发式函数（曼哈顿距离）
 local function _Heuristic(a, b)
@@ -42,6 +45,11 @@ function DStarLite:New(map_data)
 	return o
 end
 
+function DStarLite:IsWalk(x, y)
+	local state = self.map_data[y] and self.map_data[y][x]
+	return state == POS_STATE1
+end
+
 function DStarLite:GetRoleData(uid)
 	return uid and self.role_data[uid]
 end
@@ -52,6 +60,7 @@ function DStarLite:GetNode(uid, x, y)
 	local node = rData.openSet[key]
 	if not node then
 		node = {
+			key = _GetKey(x, y),
 			x = x,
 			y = y,
 			g = math.huge,		-- 到目标的实际代价
@@ -59,20 +68,40 @@ function DStarLite:GetNode(uid, x, y)
 			k1 = math.huge,
 			k2 = math.huge,
 			parent = nil,
+			state = POS_STATE.NEW,
 		}
+		rData.openSet[key] = node
 	end
 	return node
 end
 
-function DStarLite:Insert(uid, node)
+-- function DStarLite:Insert(uid, node)
+-- 	local rData = self:GetRoleData(uid)
+-- 	local k1, k2 = self:CalcKey(uid, node)
+-- 	node.k1, node.k2 = k1, k2
+-- 	rData.openList:Push(node)
+-- end
+
+function DStarLite:UpdateVertex(uid, node)
+	-- 当检测到结点G!=Rhs时会将其加入队列（若已在队列中则进行Key更新）
+	-- 否则将其从队列中移除
 	local rData = self:GetRoleData(uid)
-	local k1, k2 = self:CalcKey(uid, node.x, node.y)
-	node.k1, node.k2 = k1, k2
-	rData.openList:Push(node)
-end
-
-function DStarLite:UpdateVertex(node)
-
+	if not rData then return end
+	local isQueue = rData.openList:HasUnique(node.key)
+	if node.rhs ~= node.g then
+		node.k1, node.k2 = self:CalcKey(uid, node)
+		node.state = POS_STATE.OPEN
+		if isQueue then
+			rData.openList:Modify(node)
+		else
+			rData.openList:Push(node)
+		end
+	else
+		if isQueue then
+			node.state = POS_STATE.CLOSED
+			rData.openList:Remove(node.key)
+		end
+	end
 end
 
 -- 添加玩家的寻路事件
@@ -97,32 +126,27 @@ function DStarLite:AddRoleEvent(uid, start, goal)
 	self.role_data[uid] = rData
 	local gNode = self:GetNode(uid, goal.x, goal.y)
 	gNode.rhs = 0
-	self:Insert(uid, gNode)
+	self:UpdateVertex(uid, gNode)
 	return rData
 end
 
 -- 计算节点的优先级键值
-function DStarLite:CalcKey(uid, x, y)
+function DStarLite:CalcKey(uid, node)
 	local rData = self:GetRoleData(uid)
-	local node = self:GetNode(uid, x, y)
 	local k2 = math.min(node.g, node.rhs)
 	local k1 = k2 + _Heuristic(rData.start, node) + rData.km
 	return k1, k2
 end
 
-function DStarLite:IsWalk(x, y)
-	local state = self.map_data[y] and self.map_data[y][x]
-	return state == POS_STATE1
-end
-
 -- 获取邻居
-function DStarLite:GetNbrs(x, y)
+function DStarLite:GetNbrs(uid, node)
+	if not node then return end
 	local nbrs = {}
 	for _, v in pairs(DIRS) do
-		local nbrx = x + v[1]
-		local nbry = y + v[2]
+		local nbrx = node.x + v[1]
+		local nbry = node.y + v[2]
 		if self:IsWalk(nbrx, nbry) then
-			table.insert(nbrs, {x=nbrx, y=nbry})
+			table.insert(nbrs, self:GetNode(uid, nbrx, nbry))
 		end
 	end
 	return nbrs
@@ -135,7 +159,7 @@ function DStarLite:ComputePath(uid)
 
 	local startX = rData.start.x
 	local startY = rData.start.y
-	local max_steps = 1000
+	local max_steps = 99999
 	while rData.openList:Size() > 0 do
 		if max_steps <= 0 then
 			print("ComputeShortestPath error: max steps exceeded.")
@@ -143,85 +167,78 @@ function DStarLite:ComputePath(uid)
 		end
 		max_steps = max_steps - 1
 		local current = rData.openList:Pop()
+		current.state = POS_STATE.CLOSED
 		if current.x == startX and current.y == startY then
 			-- 到达终点
 			break
 		end
 
-
-		local nbrs = self:GetNbrs(current.x, current.y)
-		if current.g > current.rhs then
+		local k1, k2 = self:CalcKey(uid, current)
+		if current.k1 < k1 or (current.k1 == k1 and current.k2 < k2) then
+			current.k1 = k1
+			current.k2 = k2
+			current.state = POS_STATE.OPEN
+			rData.openList:Push(current)
+		elseif current.g > current.rhs then
 			current.g = current.rhs
-			for _, nbr in ipairs(nbrs) do
-				local nbrNode = self:getNode(nbr.x, nbr.y)
-				if nbrNode.rhs > (current.g + 1) then
-					nbrNode.rhs = current.g + 1
-					nbrNode.k1, nbrNode.k2 = self:CalcKey(uid, nbrNode.x, nbrNode.y)
-					self:Insert(uid, nbrNode)
-				end
-			end
-		end
-
-
-
-	end
-
-
-
-
-
-
-
-
-
-
-	local startX = rData.start.x
-	local startY = rData.start.y
-	local sK1, sK2 = self.CalcKey(uid, startX, startY)
-	while true do
-		local node = rData.openList:Pop()
-		if not node then
-			break
-		end
-
-		if node.k1 > sK1 or (node.k1 == sK1 and node.k2 > sK2) then
-			self:Insert(uid, node)
-			break
-		end
-
-		-- if node.x == startX and node.y == startY then
-		-- 	-- 到达终点
-		-- 	break
-		-- end
-
-		local nbrs = self:GetNbrs(node.x, node.y)
-		if node.g > node.rhs then
-			node.g = node.rhs
-			for _, nbr in ipairs(nbrs) do
-				local nbrNode = self:getNode(nbr.x, nbr.y)
-				if nbrNode.rhs > (node.g + 1) then
-					nbrNode.rhs = node.g + 1
-					nbrNode.k1, nbrNode.k2 = self:CalcKey(uid, nbrNode.x, nbrNode.y)
-					self:Insert(uid, nbrNode)
+			local newG = current.g + 1
+			local nbrs = self:GetNbrs(uid, current) or {}
+			for _, nbrNode in pairs(nbrs) do
+				local rhs = math.min(nbrNode.rhs, newG)
+				if nbrNode.state == POS_STATE.NEW or
+					(nbrNode.parent == current and nbrNode.rhs ~= rhs) or
+					(nbrNode.parent == current and nbrNode.rhs > rhs)
+				then
+					nbrNode.rhs = rhs
+					nbrNode.parent = current
+					self:UpdateVertex(uid, nbrNode)
 				end
 			end
 		else
-			node.g = math.huge
-			for _, nbr in ipairs(nbrs) do
-				local nbrNode = self:getNode(nbr.x, nbr.y)
-				if nbrNode.rhs == node.g + 1 then
+			local oldG = current.g
+			current.g = math.huge
+			local nbrs = self:GetNbrs(uid, current) or {}
+			for _, nbrNode in pairs(nbrs) do
+				if nbrNode.rhs == (oldG + 1) then
 					nbrNode.rhs = math.huge
-					nbrNode.k1, nbrNode.k2 = self:CalcKey(uid, nbrNode.x, nbrNode.y)
-					self:Insert(uid, nbrNode)
+					nbrNode.parent = current
+					self:UpdateVertex(uid, nbrNode)
 				end
 			end
-			node.k1, node.k2 = self:CalcKey(uid, node.x, node.y)
-			self:Insert(uid, node)
+			self:UpdateVertex(uid, current)
 		end
 	end
 end
 
+-- 调试接口：输出路径
+function DStarLite:findPath(uid)
+	local rData = self:GetRoleData(uid)
+	if not rData then
+		return
+	end
 
+	local mapData = table.deepcopy(self.map_data)
+	local key = _GetKey(rData.start.x, rData.start.y)
+	local node = rData.openSet[key]
+	local n = node
+	while n do
+		mapData[n.y][n.x] = "E"
+		n = n.parent
+	end
+	-- for key in pairs(self.pos_state) do
+	-- 	local x, y = _SplitKey(key)
+	-- 	mapData[y][x] = "O"
+	-- end
+
+	for y = 1, #mapData do
+		local m = ""
+		for x = 1, #mapData[1] do
+			m = m .. mapData[y][x] .. " "
+		end
+		print(m)
+	end
+
+end
 
 
 
