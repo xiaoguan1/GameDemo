@@ -108,11 +108,7 @@ function MinHeap:SideDown(index)
 end
 
 function MinHeap:HasUnique(unique)
-	for _, v in pairs(self.heap) do
-		if v.unique == unique then
-			return true
-		end
-	end
+	return unique and self.stub[unique]
 end
 
 function MinHeap:Push(ele)
@@ -136,6 +132,7 @@ function MinHeap:Push(ele)
 		unique = u,
 		ele = self.isQuote and ele or table.copy(ele),
 	}
+	self.stub[u] = index
 	-- 更新最小堆
 	self:SideUp(index)
 end
@@ -145,7 +142,15 @@ function MinHeap:GetDataByUnique(unique)
 	if not index then return end
 	local ele = self.heap[index] and self.heap[index].ele
 	if not ele then return end
-	ele = table.copy(v.ele)
+	ele = table.copy(ele)
+	setmetatable(ele, {__newindex = function (...) error("not modify") end})
+	return ele
+end
+
+function MinHeap:GetDataByIndex(index)
+	local ele = index and self.heap[index] and self.heap[index].ele
+	if not ele then return end
+	ele = table.copy(ele)
 	setmetatable(ele, {__newindex = function (...) error("not modify") end})
 	return ele
 end
@@ -176,11 +181,11 @@ function MinHeap:ModifyByUnique(modifyEle)
 	oldEle.ele = modifyEle
 	self.heap[index] = oldEle
 	if isGt then
-		-- oldEle大于modifyEle, 自上到下排序。
-		self:SideDown(index)
-	else
 		-- oldEle小于modifyEle，自下到上排序
 		self:SideUp(index)
+	else
+		-- oldEle大于modifyEle, 自上到下排序。
+		self:SideDown(index)
 	end
 end
 
