@@ -130,6 +130,7 @@ function DStarLite:AddRoleEvent(uid, start, goal)
 
 	rData = {
 		uid = uid,
+		last = nil,	-- 玩家当前位置
 		start = table.copy(start),
 		goal = table.copy(goal),
 		km = 0,
@@ -190,17 +191,13 @@ function DStarLite:ComputePath(uid)
 		end
 
 		local k1, k2 = self:CalcKey(uid, current)
-		if max_steps == 99998 then
-			print(tool.dumptree(current))
-			print(k1, k2)
-
-		end
 		if current.k1 < k1 or (current.k1 == k1 and current.k2 < k2) then
 			current.k1 = k1
 			current.k2 = k2
 			current.state = NODE_STATE.OPEN
 			rData.openList:Push(current)
 		elseif current.g > current.rhs then
+			-- print(rData.openList:Size())
 			-- 局部过一致！意味着该节点的连通状态比之前的要好。
 			current.g = current.rhs
 			local nbrs = self:GetNbrs(uid, current) or {}
@@ -217,21 +214,30 @@ function DStarLite:ComputePath(uid)
 			end
 		elseif current.g < current.rhs then
 			-- 局部欠一致！意味着受到附近新障碍物的直接/间接影响。
-			local oldG = current.g
+			-- local oldG = current.g
+			rData.is = true
 			current.g = math.huge
-			local nbrs = self:GetNbrs(uid, current) or {}
-			table.insert(nbrs, current)
-			for _, node in pairs(nbrs) do
-				if node.rhs == (self:Cost(node, current) + oldG) then
-					if not (node.x == rData.goal.x and node.y == rData.goal.y) then
-						node.rhs = math.huge
-					end
-					for _, v in pairs(self:GetNbrs(uid, node) or {}) do
-						v.rhs = math.min(v.rhs, self:Cost(node, v) + v.g)
-					end
-					node.parent = current.key
+			local preNode = self:GetNode(uid, _SplitKey(current.parent))
+			current.parent = nil
+			for _, node in pairs(self:GetNbrs(uid, preNode) or {}) do
+				if node.rhs == (self:Cost(node, preNode) + preNode.g) then
+					node.g = math.huge
 					self:UpdateVertex(uid, node)
 				end
+				-- if node.parent == preNode.key then
+				-- 	local rhs = math.min(node.rhs, self:Cost(node, preNode) + preNode.g)
+				-- 	node.rhs = rhs
+				-- 	self:UpdateVertex(uid, node)
+				-- end
+
+
+				-- print("node", node.x, node.y, _SplitKey(node.parent))
+				-- local rhs = math.min(node.rhs, self:Cost(node, preNode) + preNode.g)
+				-- if node.state == NODE_STATE.NEW or node.parent ~= preNode.key then
+				-- 	node.rhs = rhs
+				-- 	node.parent = preNode.key
+				-- end
+				-- self:UpdateVertex(uid, node)
 			end
 			self:UpdateVertex(uid, current)
 		end
@@ -261,17 +267,23 @@ function DStarLite:modifyMap(x, y, isObs)
 			if nPosType == POS_TYPE0 then
 				node.rhs = math.huge
 			end
-
 			local startNode = self:GetNode(uid, rData.start.x, rData.start.y)
-			rData.km = rData.km + _Heuristic(startNode, node)
-			local nbrs = self:GetNbrs(uid, node) or {}
-			for _, v in pairs(nbrs) do
-				if not (v.x == startNode.x and v.y == startNode.y) then
-					v.rhs = math.min(v.rhs, self:Cost(v, node) + node.g)
-					self:UpdateVertex(uid, v)
-				end
-			end
+			-- rData.km = rData.km + _Heuristic(startNode, node)
+
+			-- local pNode = self:GetNode(uid, _SplitKey(node.parent))
+			-- pNode.rhs = math.huge
 			self:UpdateVertex(uid, node)
+
+
+			-- local nbrs = self:GetNbrs(uid, node) or {}
+			-- for _, v in pairs(nbrs) do
+			-- 	if not (v.x == startNode.x and v.y == startNode.y) then
+			-- 		-- v.rhs = math.min(v.rhs, self:Cost(v, node) + node.g)
+			-- 		v.rhs = math.huge
+			-- 		self:UpdateVertex(uid, v)
+			-- 	end
+			-- end
+			-- -- self:UpdateVertex(uid, node)
 			self:ComputePath(uid)
 		end
 	end
