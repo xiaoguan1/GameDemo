@@ -180,7 +180,7 @@ function DStarLite:AgainComputePath(uid, index)
 	local node = pos and rData.openSet[_GetKey(pos.x, pos.y)]
 	if not node then return end
 	-- 这里还可以再细化，因为玩家是移动的，根据rData.current做最新的起点(start)
-	rData.is = true
+
 	-- 清除无用的计算结果
 	for i = 1, index - 1 do
 		local p = i and rData.pathList[i]
