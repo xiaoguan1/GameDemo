@@ -112,14 +112,16 @@ function DStarLite:AddRoleEvent(uid, start, goal)
 
 	rData = {
 		uid = uid,
-		current = table.copy(start),	-- 玩家当前位置
 		start = table.copy(start),
 		goal = table.copy(goal),
+		moveTime = nil,					-- 开始移动时间
+		current = nil,					-- 玩家当前位置
 
 		-- minheap：优先队列(最小堆)
 		-- openList：存放节点状态为OPEN的节点。且其按照节点的k值从小到大进行排序
 		openList = minheap:New("key", {"f", "g", "h"}, true),
 		openSet = {},
+		closeList = {},
 		pathList = {},	-- 计算后，生成的路径。
 	}
 	self.role_data[uid] = rData
@@ -158,21 +160,27 @@ function DStarLite:ComputePath(uid)
 		end
 		max_steps = max_steps - 1
 		local pNode = rData.openList:Pop()
+		rData.closeList[pNode.key] = true
 		if pNode.x == startX and pNode.y == startY then
 			-- 到达终点,记录路径
+			self:OutPutPath(uid)
 			break
 		end
 		for _, v in pairs(self:GetNbrList(uid, pNode) or {}) do
-			local nbrNode = self:GetNode(uid, v.x, v.y)
-			if nbrNode.g > pNode.g then
-				nbrNode.g = pNode.g + MOVECOST
-				nbrNode.f = nbrNode.g + nbrNode.h
-				nbrNode.parent = pNode.key
-				self:UpdateOpenList(uid, nbrNode)
+			if not rData.closeList[_GetKey(v.x, v.y)] then
+				local nbrNode = self:GetNode(uid, v.x, v.y)
+				if nbrNode.g > pNode.g then
+					nbrNode.g = pNode.g + MOVECOST
+					nbrNode.f = nbrNode.g + nbrNode.h
+					nbrNode.parent = pNode.key
+					self:UpdateOpenList(uid, nbrNode)
+				end
 			end
 		end
 	end
-	self:OutPutPath(uid)
+	-- if rData.is then
+		print("max_steps run count:", 99999 - max_steps)
+	-- end
 end
 
 function DStarLite:AgainComputePath(uid, index)
@@ -188,22 +196,28 @@ function DStarLite:AgainComputePath(uid, index)
 	for i = 1, index - 1 do
 		local p = i and rData.pathList[i]
 		if p then
-			rData.openSet[_GetKey(p.x, p.y)] = nil
+			local key = _GetKey(p.x, p.y)
+			rData.openSet[key] = nil
+			rData.closeList[key] = nil
 		end
 	end
 
 	-- 收集当前障碍的前驱节点和该前驱节点的邻居，选举一个最合适的节点出发。
-	local ballot = {node}
+	local sortList = {}
+	table.insert(sortList, node)
 	for _, v in pairs(self:GetNbrList(uid, node) or {}) do
-		table.insert(ballot, self:GetNode(uid, v.x, v.y))
-	end
-	table.sort(ballot, function (a, b)
-		if a.f < b.f then
-			return true
+		if node.parent ~= _GetKey(v.x, v.y) then
+			table.insert(sortList, self:GetNode(uid, v.x, v.y))
 		end
-		return false
-	end)
-	self:UpdateOpenList(uid, ballot[1])
+	end
+
+	self:UpdateOpenList(uid, node)
+	for _, v in pairs(self:GetNbrList(uid, node) or {}) do
+		if node.parent ~= _GetKey(v.x, v.y) then
+			self:UpdateOpenList(uid, self:GetNode(uid, v.x, v.y))
+		end
+	end
+
 	self:ComputePath(uid)
 end
 
@@ -211,9 +225,8 @@ function DStarLite:OutPutPath(uid)
 	local rData = self:GetRoleData(uid)
 	if not rData then return end
 
-	local pathList = {}
-
 	-- 生成新的路径
+	local pathList = {}
 	local node = self:GetNode(uid, rData.start.x, rData.start.y)
 	while node do
 		table.insert(pathList, {x = node.x, y = node.y})
@@ -222,7 +235,6 @@ function DStarLite:OutPutPath(uid)
 		end
 		node = self:GetNode(uid, _SplitKey(node.parent))
 	end
-
 	rData.pathList = pathList
 	rData.openList:Clear()
 end
@@ -244,6 +256,10 @@ function DStarLite:modifyMap(x, y, isObs)
 		self.map_modify[key] = nPosType
 	end
 
+	if nPosType ~= POS_TYPE0 then
+		-- 非障碍则结束
+		return
+	end
 	for uid, rData in pairs(self.role_data) do
 		local index = rData.pathList and IsSamePos(rData.pathList, x, y)
 		if index then
@@ -259,9 +275,38 @@ function DStarLite:modifyMap(x, y, isObs)
 	end
 end
 
+function DStarLite:StartMove(uid)
+	local rData = self:GetRoleData(uid)
+	if not rData or rData.moveTime then
+		return
+	end
+
+	rData.moveTime = os.time()
+
+end
+
 -- 打印玩家路径
 function DStarLite:Print(uid)
 	local rData = self:GetRoleData(uid)
 	if not rData then return end
-	print(tool.dumptree(rData.pathList))
+	local mapData = table.deepcopy(self.map_data)
+	for key, v in pairs(self.map_modify) do
+		if v == POS_TYPE0 then
+			local x, y = _SplitKey(key)
+			mapData[y][x] = "O"
+		end
+	end
+
+	for _, v in pairs(rData.pathList) do
+		mapData[v.y][v.x] = "E"
+	end
+
+	for y = 1, #mapData do
+		local m = ""
+		for x = 1, #mapData[1] do
+			m = m .. mapData[y][x] .. " "
+		end
+		print(m)
+	end
+	print()
 end
