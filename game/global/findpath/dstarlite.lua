@@ -192,7 +192,18 @@ function DStarLite:AgainComputePath(uid, index)
 		end
 	end
 
-	self:UpdateOpenList(uid, node)
+	-- 收集当前障碍的前驱节点和该前驱节点的邻居，选举一个最合适的节点出发。
+	local ballot = {node}
+	for _, v in pairs(self:GetNbrList(uid, node) or {}) do
+		table.insert(ballot, self:GetNode(uid, v.x, v.y))
+	end
+	table.sort(ballot, function (a, b)
+		if a.f < b.f then
+			return true
+		end
+		return false
+	end)
+	self:UpdateOpenList(uid, ballot[1])
 	self:ComputePath(uid)
 end
 
@@ -200,7 +211,7 @@ function DStarLite:OutPutPath(uid)
 	local rData = self:GetRoleData(uid)
 	if not rData then return end
 
-	local pathList, nopenSet = {}, {}
+	local pathList = {}
 
 	-- 生成新的路径
 	local node = self:GetNode(uid, rData.start.x, rData.start.y)
@@ -212,15 +223,7 @@ function DStarLite:OutPutPath(uid)
 		node = self:GetNode(uid, _SplitKey(node.parent))
 	end
 
-	-- 仅保留有效路径的数据结果
-	for _, v in pairs(pathList) do
-		local key = _GetKey(v.x, v.y)
-		local node = rData.openSet[key]
-		nopenSet[key] = node
-	end
-
 	rData.pathList = pathList
-	rData.openSet = nopenSet
 	rData.openList:Clear()
 end
 
