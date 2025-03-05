@@ -58,8 +58,6 @@ function MinHeap:SideUp(index)
 		end
 
 		self:Swap(index, smallest)
-		-- heap[smallest] = heap[index]
-		-- heap[index] = parent
 		index = smallest
 	end
 end
@@ -100,9 +98,6 @@ function MinHeap:SideDown(index)
 			break
 		end
 		self:Swap(index, smallest)
-		-- local parent = self.heap[index]
-		-- self.heap[index] = self.heap[smallest]
-		-- self.heap[smallest] = parent
 		index = smallest
 	end
 end
@@ -200,7 +195,7 @@ function MinHeap:GetTop()
 	if self:IsEmpty() then
 		return
 	end
-	return self.heap[1]
+	return self.heap[1] and self.heap[1].ele
 end
 
 function MinHeap:Clear()
@@ -213,17 +208,19 @@ function MinHeap:Pop()
 	if self:IsEmpty() then
 		return
 	end
+
+	local unique = self.unique
 	local top = self:GetTop()
 	local size = self:Size()
 	if size == 1 then
 		self:Clear()
 	elseif size > 1 then
 		self.heap[1] = nil
-		self.stub[top.unique] = nil
+		self.stub[top[unique]] = nil
 		self:Swap(1, size)
 		self:SideDown()
 	end
-	return top and top.ele
+	return top
 end
 
 function MinHeap:Remove(unique)
@@ -235,8 +232,19 @@ function MinHeap:Remove(unique)
 	if not node then
 		return
 	end
-	self:Swap(index, self:Size())
-	self:SideDown(index)
+
+	local size = self:Size()
+	if index == size then
+		table.remove(self.heap)
+		self.stub[unique] = nil
+	else
+		local node1 = self.heap[index]
+		local node2 = table.remove(self.heap)
+		self.stub[node1.unique] = nil
+		self.stub[node2.unique] = index
+		self.heap[index] = node2
+		self:SideDown(index)
+	end
 	return node
 end
 
