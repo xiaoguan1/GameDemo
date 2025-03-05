@@ -14,6 +14,9 @@ local DIRS = {
 -- 节点移动代价
 local MOVECOST = 1
 
+-- 每一个节点的移动消耗时间(可根据格子种类自定义时间、秒单位)
+local MOVETIME = 10
+
 -- 局部函数 ---------------------------------
 -- 启发式函数（切比雪夫距离）
 local function _Heuristic(a, b)
@@ -181,18 +184,14 @@ function DStarLite:AgainComputePath(uid, index)
 	if not node then return end
 	-- 这里还可以再细化，因为玩家是移动的，根据rData.current做最新的起点(start)
 
-	-- 清除无用的计算结果
+	-- 清除 1 ~ index-1 的无效路径结果
 	for i = 1, index - 1 do
 		local p = i and rData.pathList[i]
 		if p then
-			-- for _, v in pairs(self:GetNbrList(uid, p) or {}) do
-			-- 	if not (v.x == node.x and v.y == node.y) then
-			-- 		rData.openSet[_GetKey(v.x, v.y)] = nil
-			-- 	end
-			-- end
 			rData.openSet[_GetKey(p.x, p.y)] = nil
 		end
 	end
+
 	self:UpdateOpenList(uid, node)
 	self:ComputePath(uid)
 end
@@ -201,7 +200,9 @@ function DStarLite:OutPutPath(uid)
 	local rData = self:GetRoleData(uid)
 	if not rData then return end
 
-	local pathList = {}
+	local pathList, nopenSet = {}, {}
+
+	-- 生成新的路径
 	local node = self:GetNode(uid, rData.start.x, rData.start.y)
 	while node do
 		table.insert(pathList, {x = node.x, y = node.y})
@@ -210,9 +211,17 @@ function DStarLite:OutPutPath(uid)
 		end
 		node = self:GetNode(uid, _SplitKey(node.parent))
 	end
+
+	-- 仅保留有效路径的数据结果
+	for _, v in pairs(pathList) do
+		local key = _GetKey(v.x, v.y)
+		local node = rData.openSet[key]
+		nopenSet[key] = node
+	end
+
 	rData.pathList = pathList
+	rData.openSet = nopenSet
 	rData.openList:Clear()
-	-- rData.openSet = {}
 end
 
 -- 修改地图（设置障碍 or 清除障碍）
