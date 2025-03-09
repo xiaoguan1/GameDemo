@@ -17,8 +17,12 @@ local MOVECOST = 1
 local POS_TYPE0 = 0
 local POS_TYPE1 = 1
 
+local COLORS = {
+	POS_TYPE0,
+	POS_TYPE1,
+}
+
 -- 局部函数 ---------------------------------
--- 启发式函数（切比雪夫距离）
 local function _GetKey(x, y)
 	return x << 8 | y
 end
@@ -35,28 +39,132 @@ local function _Heuristic(a, b)
 	return math.max(dx, dy)
 end
 
+local function IsSamePos(t, x, y)
+	for k, v in pairs(t) do
+		if v.x == x and v.y == y then
+			return k
+		end
+	end
+end
+
+-- 洪水填充算法(目的：划分地图区域，处理死路问题！)
+local function _FloodFill(mapData)
+	if not mapData then
+		-- 不能容忍参数为nil\false的情况
+		error("arg mapData is nil!")
+		return
+	end
+	local area2key, key2area = {}, {}
+	if table.empty(mapData) then
+		return area2key, key2area
+	end
+
+	mapData = table.deepcopy(mapData)
+	local maxY = #mapData
+	local maxX = #mapData[maxY]
+	local maxDeep = maxX * maxY	-- 最大深度
+
+	-- 深度探索递归方法（注意：如果地图极大，有可能栈溢出）
+	local function dfs(areaNo, areaList, x, y, ocolor, ncolor, deep)
+		if not (1 <= x and x <= maxX and 1 <= y and y <= maxY) then
+			return
+		end
+		if not mapData[y][x] or mapData[y][x] ~= ocolor then
+			return
+		end
+		if deep > maxDeep then
+			error("loop count too deep!")
+		end
+		deep = deep + 1
+		mapData[y][x] = ncolor
+		local key = _GetKey(x, y)
+		areaList[key] = ocolor
+		key2area[key] = areaNo
+		for _, v in pairs(DIRS) do
+			dfs(areaNo, areaList, x + v[1], y + v[2], ocolor, ncolor, deep)
+		end
+	end
+
+	local areaNo = 1
+	for _, color in pairs(COLORS) do
+		for x = 1, maxX do
+			for y = 1, maxY do
+				if mapData[y][x] == color then
+					area2key[areaNo] = area2key[areaNo] or {}
+					dfs(areaNo, area2key[areaNo], x,  y, color, tostring(color), 1)
+					areaNo = areaNo + 1
+				end
+			end
+		end
+	end
+
+	return area2key, key2area
+end
+
 
 -- LPA Star 类 ---------------------------------
 LpaStar = {}
 function LpaStar:New(map_data)
+	local area2key, key2area = _FloodFill(map_data)
 	local o = {
 		map_data = map_data,	-- 地图配置
+		area2key = area2key,
+		key2area = key2area,
 		map_modify = {},		-- 地图修改（判断坐标状态优先以它为准，其次以map_data为准）
-
 		role_data = {},			-- 玩家寻路路径数据
 	}
 	setmetatable(o, {__index = self})
 	return o
 end
 
+-- 洪水填充：根据坐标获取对应的区域编号
+function LpaStar:GetArea(x, y)
+	if x and y then
+		local key = _GetKey(x, y)
+		return self.key2area[key]
+	elseif x and not y then
+		return self.key2area[x]
+	end
+end
+
+-- 洪水填充：根据区域编号获取该区域的坐标列表信息
+function LpaStar:GetKeys(areaNo)
+	return areaNo and self.area2key[areaNo]
+end
+
+-- 洪水填充：因地图的信息有变化，所以再次洪水填充！
+function LpaStar:AgainFloodFill()
+	local area2key, key2area = _FloodFill(self.map_data)
+	self.area2key = area2key
+	self.key2area = key2area
+end
+
+-- 洪水填充：判断是否相同区域
+function LpaStar:IsSameAreaByNode(aNode, bNode)
+	local aAreaNo = self:GetArea(aNode.key)
+	local bAreaNo = self:GetArea(bNode.key)
+	return aAreaNo == bAreaNo
+end
+function LpaStar:IsSameArea(sx, sy, gx, gy)
+	return self:GetArea(sx, sy) == self:GetArea(gx, gy)	
+end
+
+-- 获取玩家寻路事件数据
 function LpaStar:GetRoleData(uid)
 	return uid and self.role_data[uid]
 end
 
+-- 添加玩家的寻路事件
 function LpaStar:AddRoleEvent(uid, start, goal)
 	local rData = self:GetRoleData(uid)
 	if not uid or rData then
 		_ERROR_F("please not repeat add data, uid: start:%s goal:%s", uid, start, goal)
+		return
+	end
+
+	-- 判断起点和终点是否可达！
+	if not self:IsSameArea(start.x, start.y, goal.x, goal.y) then
+		_ERROR_F("start:%s goal:%s not in the same area", tool.dumptree(start), tool.dumptree(goal))
 		return
 	end
 
@@ -213,16 +321,26 @@ function LpaStar:UpdateMap(x, y, isObs)
 	-- 	return
 	-- end
 	for uid, rData in pairs(self.role_data) do
-		local node = self:GetNode(uid, x, y)
-		node.g = math.huge
-		node.rhs = math.huge
-		for _, nbr in pairs(self:GetNbrList(uid, node) or {}) do
-			if nbr.parent == node.key then
-				nbr.parent = nil
-				self:UpdateVertex(uid, nbr)
+		local index = rData.pathList and IsSamePos(rData.pathList, x, y)
+		if index then
+			local startNode = self:GetNode(uid, rData.start.x, rData.start.y)
+			local goalNode = self:GetNode(uid, rData.goal.x, rData.goal.y)
+			if self:IsSameAreaByNode(startNode, goalNode) then
+				local node = self:GetNode(uid, x, y)
+				node.g = math.huge
+				node.rhs = math.huge
+				for _, nbr in pairs(self:GetNbrList(uid, node) or {}) do
+					if nbr.parent == node.key then
+						nbr.parent = nil
+						self:UpdateVertex(uid, nbr)
+					end
+				end
+				self:ComputeShortestPath(uid)
+			else
+				-- 起点和终点已经不是同一片区域了，不可到达！
+
 			end
 		end
-		self:ComputeShortestPath(uid)
 	end
 end
 
@@ -252,7 +370,7 @@ function LpaStar:Print(uid)
 	for key, v in pairs(self.map_modify) do
 		if v == POS_TYPE0 then
 			local x, y = _SplitKey(key)
-			mapData[y][x] = "O"
+			mapData[y][x] = "0"
 		elseif v == POS_TYPE1 then
 			local x, y = _SplitKey(key)
 			mapData[y][x] = "1"
