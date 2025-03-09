@@ -128,7 +128,7 @@ function LpaStar:GetArea(x, y)
 end
 
 -- 洪水填充：根据区域编号获取该区域的坐标列表信息
-function LpaStar:GetKeys(areaNo)
+function LpaStar:GetFFKeys(areaNo)
 	return areaNo and self.area2key[areaNo]
 end
 
