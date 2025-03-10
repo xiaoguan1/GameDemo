@@ -154,15 +154,6 @@ function LpaStar:GetRoleData(uid)
 	return uid and self.role_data[uid]
 end
 
--- 是否为第一次寻路
-function LpaStar:IsFirst(uid)
-	local rData = self:GetRoleData(uid)
-	if not rData then
-		return
-	end
-	return not rData.pathList or table.empty(rData.pathList)
-end
-
 -- 添加玩家的寻路事件
 function LpaStar:AddRoleEvent(uid, start, goal)
 	local rData = self:GetRoleData(uid)
@@ -207,7 +198,7 @@ function LpaStar:GetNode(uid, x, y)
 			x = x,
 			y = y,
 			g = math.huge,
-			rhs = math.huge,
+			rhs = 0,
 			k1 = 0,
 			k2 = 0,
 			parent = nil,
@@ -226,6 +217,7 @@ function LpaStar:IsWalk(x, y)
 	end
 	return state == POS_TYPE1
 end
+
 
 function LpaStar:GetNbrList(uid, node)
 	local rData = uid and self:GetRoleData(uid)
@@ -259,27 +251,18 @@ function LpaStar:UpdateVertex(uid, node)
 		return
 	end
 
-	local isFirst = self:IsFirst(uid)
 	if not (node.x == rData.goal.x and node.y == rData.goal.y) then
 		local newRhs = math.huge
+		local newParent
 		for _, nbr in pairs(self:GetNbrList(uid, node) or {}) do
-			if isFirst then
-				local tmpRhs = nbr.g + MOVECOST
-				if tmpRhs < newRhs then
-					newRhs = tmpRhs
-					node.parent = nbr.key
-				end
-			else
-				if node.parent == nbr.key then
-					local tmpRhs = nbr.g + MOVECOST
-					if tmpRhs < newRhs then
-						newRhs = tmpRhs
-						node.parent = nbr.key
-					end
-				end
+			local tmpRhs = nbr.g + MOVECOST
+			if tmpRhs < newRhs then
+				newRhs = tmpRhs
+				newParent = nbr.key
 			end
 		end
 		node.rhs = newRhs
+		node.parent = newParent
 	end
 
 	if rData.openList:HasUnique(node.key) then
@@ -295,44 +278,39 @@ function LpaStar:ComputeShortestPath(uid)
 	local rData = uid and self:GetRoleData(uid)
 	if not rData then return end
 
-	local startNode = self:GetNode(uid, rData.start.x, rData.start.y)
-	self:UpdateKey(uid, startNode)
 	local openList = rData.openList
-	local isFirst = self:IsFirst(uid)
+	local maxStep = 99999
 
 	while openList:Size() > 0 do
-		local topNode = openList:Pop()
-		if (topNode.k1 > startNode.k1 or
-			(topNode.k1 == startNode.k1 and topNode.k2 > startNode.k2)) or
-			(startNode.rhs == startNode.g and startNode.rhs ~= math.huge)
-		then
-			return
+		maxStep = maxStep - 1
+		local top = openList:Pop()
+		-- local startNode = self:GetNode(uid, rData.start.x, rData.start.y)
+		-- local condi1 = startNode.k1 > top.k1 or (startNode.k1 == top.k1 and startNode.k2 > top.k2)
+		-- local condi2 = startNode.rhs ~= startNode.g and startNode.g ~= math.huge
+		-- if not (condi1 or condi2) then
+		-- 	if top.x == 1 and top.y == 1 then
+		-- 		print(top.x, top.y, maxStep)
+		-- 	end
+		-- end
+		if top.x == rData.start.x and top.y == rData.start.y then
+			-- 到达终点，设置局部一致。
+			top.g = top.rhs
+			break
 		end
-		if topNode.g > topNode.rhs then
-			topNode.g = topNode.rhs
-			for _, nbr in pairs(self:GetNbrList(uid, topNode) or {}) do
-				if isFirst then
-					self:UpdateVertex(uid, nbr)
-				else
-					if nbr.parent == topNode.key then
-						self:UpdateVertex(uid, nbr)
-					end
-				end
+		if top.g > top.rhs then
+			top.g = top.rhs
+			for _, nbr in pairs(self:GetNbrList(uid, top) or {}) do
+				self:UpdateVertex(uid, nbr)
 			end
-		else
-			topNode.g = math.huge
-			self:UpdateVertex(uid, topNode)
-			for _, nbr in pairs(self:GetNbrList(uid, topNode) or {}) do
-				if isFirst then
-					self:UpdateVertex(uid, nbr)
-				else
-					if nbr.parent == topNode.key then
-						self:UpdateVertex(uid, nbr)
-					end
-				end
+		elseif top.g < top.rhs then
+			top.g = math.huge
+			self:UpdateVertex(uid, top)
+			for _, nbr in pairs(self:GetNbrList(uid, top) or {}) do
+				self:UpdateVertex(uid, nbr)
 			end
 		end
 	end
+	_INFO_F("loop:%s", maxStep)
 end
 
 -- 动态更新地图
@@ -351,10 +329,6 @@ function LpaStar:UpdateMap(x, y, isObs)
 	else
 		self.map_modify[key] = nPosType
 	end
-	-- if nPosType ~= POS_TYPE0 then
-	-- 	-- 非障碍则结束
-	-- 	return
-	-- end
 	for uid, rData in pairs(self.role_data) do
 		local index = rData.pathList and IsSamePos(rData.pathList, x, y)
 		if index then
@@ -362,11 +336,9 @@ function LpaStar:UpdateMap(x, y, isObs)
 			local goalNode = self:GetNode(uid, rData.goal.x, rData.goal.y)
 			if self:IsSameAreaByNode(startNode, goalNode) then
 				local node = self:GetNode(uid, x, y)
-				node.g = math.huge
-				node.rhs = math.huge
+				rData.openSet[node.key] = nil
 				for _, nbr in pairs(self:GetNbrList(uid, node) or {}) do
 					if nbr.parent == node.key then
-						nbr.parent = nil
 						nbr.rhs = math.huge
 						self:UpdateVertex(uid, nbr)
 					end
