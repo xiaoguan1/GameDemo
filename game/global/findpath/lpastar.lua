@@ -154,6 +154,15 @@ function LpaStar:GetRoleData(uid)
 	return uid and self.role_data[uid]
 end
 
+-- 是否为第一次寻路
+function LpaStar:IsFirst(uid)
+	local rData = self:GetRoleData(uid)
+	if not rData then
+		return
+	end
+	return not rData.pathList or table.empty(rData.pathList)
+end
+
 -- 添加玩家的寻路事件
 function LpaStar:AddRoleEvent(uid, start, goal)
 	local rData = self:GetRoleData(uid)
@@ -198,7 +207,7 @@ function LpaStar:GetNode(uid, x, y)
 			x = x,
 			y = y,
 			g = math.huge,
-			rhs = 0,
+			rhs = math.huge,
 			k1 = 0,
 			k2 = 0,
 			parent = nil,
@@ -217,7 +226,6 @@ function LpaStar:IsWalk(x, y)
 	end
 	return state == POS_TYPE1
 end
-
 
 function LpaStar:GetNbrList(uid, node)
 	local rData = uid and self:GetRoleData(uid)
@@ -251,13 +259,24 @@ function LpaStar:UpdateVertex(uid, node)
 		return
 	end
 
+	local isFirst = self:IsFirst(uid)
 	if not (node.x == rData.goal.x and node.y == rData.goal.y) then
 		local newRhs = math.huge
 		for _, nbr in pairs(self:GetNbrList(uid, node) or {}) do
-			local tmpRhs = nbr.g + MOVECOST
-			if tmpRhs < newRhs then
-				newRhs = tmpRhs
-				node.parent = nbr.key
+			if isFirst then
+				local tmpRhs = nbr.g + MOVECOST
+				if tmpRhs < newRhs then
+					newRhs = tmpRhs
+					node.parent = nbr.key
+				end
+			else
+				if node.parent == nbr.key then
+					local tmpRhs = nbr.g + MOVECOST
+					if tmpRhs < newRhs then
+						newRhs = tmpRhs
+						node.parent = nbr.key
+					end
+				end
 			end
 		end
 		node.rhs = newRhs
@@ -277,24 +296,40 @@ function LpaStar:ComputeShortestPath(uid)
 	if not rData then return end
 
 	local startNode = self:GetNode(uid, rData.start.x, rData.start.y)
+	self:UpdateKey(uid, startNode)
 	local openList = rData.openList
+	local isFirst = self:IsFirst(uid)
+
 	while openList:Size() > 0 do
-		local top = openList:Pop()
-		self:UpdateKey(uid, startNode)
-		self:UpdateKey(uid, top)
-		if not (top.k1 < startNode.k1 or startNode.rhs ~= startNode.g) then
+		local topNode = openList:Pop()
+		if (topNode.k1 > startNode.k1 or
+			(topNode.k1 == startNode.k1 and topNode.k2 > startNode.k2)) or
+			(startNode.rhs == startNode.g and startNode.rhs ~= math.huge)
+		then
 			return
 		end
-		if top.g > top.rhs then
-			top.g = top.rhs
-			for _, nbr in pairs(self:GetNbrList(uid, top) or {}) do
-				self:UpdateVertex(uid, nbr)
+		if topNode.g > topNode.rhs then
+			topNode.g = topNode.rhs
+			for _, nbr in pairs(self:GetNbrList(uid, topNode) or {}) do
+				if isFirst then
+					self:UpdateVertex(uid, nbr)
+				else
+					if nbr.parent == topNode.key then
+						self:UpdateVertex(uid, nbr)
+					end
+				end
 			end
 		else
-			top.g = math.huge
-			self:UpdateVertex(uid, top)
-			for _, nbr in pairs(self:GetNbrList(uid, top) or {}) do
-				self:UpdateVertex(uid, nbr)
+			topNode.g = math.huge
+			self:UpdateVertex(uid, topNode)
+			for _, nbr in pairs(self:GetNbrList(uid, topNode) or {}) do
+				if isFirst then
+					self:UpdateVertex(uid, nbr)
+				else
+					if nbr.parent == topNode.key then
+						self:UpdateVertex(uid, nbr)
+					end
+				end
 			end
 		end
 	end
@@ -332,6 +367,7 @@ function LpaStar:UpdateMap(x, y, isObs)
 				for _, nbr in pairs(self:GetNbrList(uid, node) or {}) do
 					if nbr.parent == node.key then
 						nbr.parent = nil
+						nbr.rhs = math.huge
 						self:UpdateVertex(uid, nbr)
 					end
 				end
