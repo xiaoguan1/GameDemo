@@ -42,6 +42,7 @@ function socket_channel.channel(desc)
 		__overload_notify = desc.overload,
 		__overload = false,
 		__socket_meta = channel_socket_meta,
+		__close_event = desc.close_event,	-- todo add by ghost
 	}
 	if desc.socket_read or desc.socket_readline then
 		c.__socket_meta = {
@@ -66,6 +67,9 @@ local function close_channel_socket(self)
 		end
 		-- never raise error
 		pcall(socket.close,so[1])
+		if self.__close_event then
+			pcall(self.__close_event, so[1])
+		end
 	end
 end
 
@@ -507,20 +511,53 @@ local function sock_err(self)
 	error(socket_error)
 end
 
-function channel:request(request, response, padding)
+function channel:sockfd()					-- todo add by ghost
+	if self.__sock and self.__sock[1] then
+		return self.__sock[1]
+	end
+end
+
+-- 请求是指针类型的，有些需求优化用到
+function channel:request_ptr(reqFunc, response, ...)
+	assert(block_connect(self, true))
+	local fd = self.__sock[1]
+
+	local request_ptr, request_sz = reqFunc(...)
+	if not socket_write(fd, request_ptr, request_sz) then
+		sock_err(self)
+	end
+	if response == nil then
+		-- no response
+		return
+	end
+	return wait_for_response(self, response)
+end
+
+function channel:request(request, response, padding, notlwrite)
 	assert(block_connect(self, true))	-- connect once
 	local fd = self.__sock[1]
 
 	if padding then
-		-- padding may be a table, to support multi part request
-		-- multi part request use low priority socket write
-		-- now socket_lwrite returns as socket_write
-		if not socket_lwrite(fd , request) then
-			sock_err(self)
-		end
-		for _,v in ipairs(padding) do
-			if not socket_lwrite(fd, v) then
+		if notlwrite then
+			if not socket_write(fd, request) then
 				sock_err(self)
+			end
+			for _, v in ipairs(padding) do
+				if not socket_write(fd, v) then
+					sock_err(self)
+				end
+			end
+		else
+			-- padding may be a table, to support multi part request
+			-- multi part request use low priority socket write
+			-- now socket_lwrite returns as socket_write
+			if not socket_lwrite(fd , request) then
+				sock_err(self)
+			end
+			for _,v in ipairs(padding) do
+				if not socket_lwrite(fd, v) then
+					sock_err(self)
+				end
 			end
 		end
 	else
