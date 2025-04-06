@@ -42,7 +42,6 @@ skynet.start(function ()
 	end
 	skynet.setenv("dpcluster", tool.dumptree(dpcluster))
 	DPCLUSTER_NODE = dpcluster
-	print(tool.dumptree(dpcluster))
 
 	dofile "./game/global/log.lua"
 	for _, v in pairs(START_UNIQ_SERVICE) do
