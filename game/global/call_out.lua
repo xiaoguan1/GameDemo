@@ -24,7 +24,7 @@ MEM_IGNORE_ALARM = {
 	["UpdateAreaRankData"] = true,		-- 竞技场欺负需要刷新排行榜
 }
 if not PROXYSVR then
-	PROXYSVR = Import("lualib/base/proxysvr.lua")
+	PROXYSVR = Import("game/global/proxysvr.lua")
 end
 
 local stimerld = NODE_ONLYSERVER_MIRROR and NODE_ONLYSERVER_MIRROR.stimer and NODE_ONLYSERVER_MIRROR.stimer.named

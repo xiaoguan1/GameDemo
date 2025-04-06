@@ -60,6 +60,10 @@ function skynet.get_prototype_unpack(key)
 	return key and proto[key] and proto[key].unpack
 end
 
+function skynet.get_proto(key)
+	return key and proto[key]
+end
+
 -- code cache
 skynet.cache = require "skynet.codecache"
 skynet._proto = proto

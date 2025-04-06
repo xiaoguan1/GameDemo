@@ -1,4 +1,10 @@
 local skynet = require "skynet"
+local traceback = debug.traceback
+
+local dpcluster = skynet.getenv("dpcluster")
+if dpcluster then
+	DPCLUSTER_NODE = load("return " .. dpcluster)()
+end
 
 if not _G.Import then
 	local func, err = loadfile("tool/luaplugins/import.lua", "bt", _G)
@@ -41,3 +47,16 @@ skynet.register_protocol({
 	unpack = skynet.unpack,
 	pack = skynet.pack,
 })
+
+-- 容错执行函数
+local function _RetFunc(isOk, ...)
+	if not isOk then
+		print(...)	-- 缺了日志输出，暂用print代替
+	end
+	return isOk, ...
+end
+
+function TryCall(func, ...)
+	return _RetFunc(xpcall(func, traceback, ...))
+end
+

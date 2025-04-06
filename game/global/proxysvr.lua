@@ -289,21 +289,21 @@ function GetProxyByServiceName(serviceName, prototype, serverId)
 		return GetProxy(namedData.named, selfnode_name, namedData.clustertype, prototype)
 	end
 
-	namedData = NODE_SERVER_INFO_MIRROR[serviceName]
-	if namedData then
-		assert(namedData.named)
-		local node_name = nil
-		if namedData.node then
-			node_name = DPCLUSTER_NODE[namedData.node]
-			if type(node_name) == "table" then
-				if not serverId then
-					error("servercross, has not 3th param")
-				end
-				node_name = node_name[serverId]
-			end
-			assert(node_name, namedData.node)
-		end
-		return GetProxy(namedData.named, node_name, namedData.clustertype, prototype)
-	end
-	error("not proxy:" .. serviceName)
+	-- namedData = UNIQ_SERVICE[serviceName]
+	-- if namedData then
+	-- 	assert(namedData.named)
+	-- 	local node_name = nil
+	-- 	if namedData.node then
+	-- 		node_name = DPCLUSTER_NODE[namedData.node]
+	-- 		if type(node_name) == "table" then
+	-- 			if not serverId then
+	-- 				error("servercross, has not 3th param")
+	-- 			end
+	-- 			node_name = node_name[serverId]
+	-- 		end
+	-- 		assert(node_name, namedData.node)
+	-- 	end
+	-- 	return GetProxy(namedData.named, node_name, namedData.clustertype, prototype)
+	-- end
+	-- error("not proxy:" .. serviceName)
 end

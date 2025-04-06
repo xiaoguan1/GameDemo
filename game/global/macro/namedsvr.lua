@@ -1,23 +1,32 @@
 -- 节点的宏文件
 
+local CUSE1 = {mod_send = true, mod_call = true} -- RPC通信类型
+-- local CUSE2 = ...
+
+local skynet = require "skynet"
+local is_crossserver = skynet.getenv("is_cross") == "true" and true or false
+
+-- 每个节点的基础服务
 START_UNIQ_SERVICE = {
 	{svr = "stimer", named = ".STIMER"},
 	{svr = "gamelog", named = ".GAMELOG"},
+	{svr = "databased", named = ".DATABASED"},
 }
 UNIQ_SERVICE = {}
 for _, v in ipairs(START_UNIQ_SERVICE) do
 	UNIQ_SERVICE[v.svr] = v
 end
 
--- 跨服服务
+-- 跨服服务配置
 CROSS_NAMED_SERVER_NODE = {
 	["crosssvr/cadvarena"] = {
 		named = ".CADVARENA",
 		node = "cadvarena_node",	-- 注意：根据区服跨服，需要根据需求设置
 		servercross = true,
 		subsvc = {	-- 跨服内的其他子服务
-			["crosssvr/svrbattle"] = {named = ".SVRBATTLE"},
-			["crosssvr/display"] = {named = ".DISPLAY"},
+			-- ["crosssvr/svrbattle"] = {named = ".SVRBATTLE"},
+			-- ["crosssvr/display"] = {named = ".DISPLAY"},
+			["display"] = {named = ".DISPLAY"},
 		},
 	},
 	-- ["crosssvr/centerchat"] = {
@@ -50,3 +59,25 @@ CROSS_NAMED_SERVER_NODE = {
 	-- },
 	-- ...
 }
+
+-- 普通跨服启动服务详情
+START_CROSS_SERVICE = {
+	{svr = "display", named = ".DISPLAY", cuse = CUSE1, servercross = true,}
+}
+
+-- 游戏服启动服务详情
+START_GAME_SERVICE = {
+	{svr = "display", named = ".DISPLAY", cuse = CUSE1},
+}
+
+-- 当前节点的服务列表信息
+SERVICE_MAP = {}
+if is_crossserver then
+	for _, v in pairs(START_CROSS_SERVICE) do
+		SERVICE_MAP[v.svr] = v
+	end
+else
+	for _, v in pairs(START_GAME_SERVICE) do
+		SERVICE_MAP[v.svr] = v
+	end
+end

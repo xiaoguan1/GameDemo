@@ -1,0 +1,55 @@
+-- 普通跨服节点配置
+
+thread = 8 --启用多少个工作线
+cpath = "./skynet/cservice/?.so" --用C编写的服务模块的位置
+bootstrap = "snlua bootstrap" --启动的第一个服务
+--bootstrap配置
+start = "cross" --主服务
+harbor = 0 --不使用主从节点模式
+
+--lua配置
+lualoader = "./skynet/lualib/loader.lua" 
+luaservice = "./skynet/service/?.lua;" .. "./skynet/test/?.lua;" .. "./tool/startup/?.lua;" .. "./game/service/?.lua"
+lua_path = "./lualib/?.lua;" .. "./skynet/lualib/?.lua;" .. "./skynet/lualib/?/init.lua;" .. "./game/global/?.lua;" .."./game/global/findpath/?.lua"
+lua_cpath = "./luaclib/?.so;" .. "./skynet/luaclib/?.so;" .. "./tool/cplugins-so/?.so"
+
+--后台模式（必要时开启）
+-- daemon = "./log/skynet.pid"
+-- logger = "./log/userlog"
+
+profile = true		-- 默认位true的
+profile_cmd = true	-- 细化指令检测
+
+preload = "tool/luaplugins/preload.lua"
+
+------------------ 节点信息 ------------------
+is_cross = true
+server_id = 55001
+nowaiting = true			-- 不挂起【其中利弊还未考量】
+node = "cross"				-- 节点名
+dpcluster_auths = "!#df@&%s1idf"
+is_testserver = true		-- 测试服
+
+------------------ 数据库 ------------------
+database_cachecnt = 100		-- 每个数据库链接缓存数据数量
+database_num = 10			-- 每个链接数据库的个数
+database_info = [[{
+	dbhost = "127.0.0.1",
+	dbport = 3306,
+	dbname = "server55001",
+	dbuser = "root",
+	dbpasswd = "root",
+}]]
+
+data_dirname	= "cross"
+
+centerdatadb_info = [[{
+	dbhost = "127.0.0.1",
+	dbport = 3306,
+	dbname = "centerdata",
+	dbuser = "root",
+	dbpasswd = "root",
+}]]
+
+------------------ 日志 ------------------
+log_stdin = true		-- true:控制台打印日志
