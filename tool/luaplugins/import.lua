@@ -283,7 +283,7 @@ end
 
 local function ReplaceTbl(Dest,Src)
 	local function RealFun(Dest, Src, Depth)
-		assert(type(Dest)=='table'and type(Src) == 'table',
+		assert(type(Dest)=='table'and type(Src)=='table',
 			'ReplaceTbl error data type', Dest, Src)
 
 		if not Depth then
@@ -297,9 +297,9 @@ local function ReplaceTbl(Dest,Src)
 		for k, v in pairs(Dest)do
 			if type(v) == 'table' then
 				--不更新 SubClass
-				if k ~= 'Subclass' then
-					-- index and Superclass 不做deep替换
-					if type(Src[k]) == 'table' and k ~= '__index' and k ~= '__Superclass' then
+				if k ~= '__SubClass' then
+					-- __index and __SuperClass 不做deep替换
+					if type(Src[k]) == 'table' and k ~= '__index' and k ~= '__SuperClass' then
 						RealFun(v, Src[k], Depth + 1)
 					else
 						Dest[k] = Src[k]
@@ -313,8 +313,8 @@ local function ReplaceTbl(Dest,Src)
 
 		-- 把新增的数据或者方法引用进来
 		for k, v in pairs(Src)do
-			-- 注意一定要使用rawget,否则庄以下情况更新会失败.
-			-- 父类实现了test函数，子类A1未实现，然后在线添加A1.test的实现并更新。
+			-- 注意一定要使用rawget,否则在以下情况更新会失败.
+			-- 父类A实现了test函数，子类A1未实现，然后在线添加A1.test的实现并更新。
 			-- 这时候Dest[k]实际上防问了metatable中父类的实现，所以不为nil,于是更新失败
 			if rawget(Dest, k) == nil then
 				Dest[k] = v
@@ -555,7 +555,7 @@ local function SafeImport(PathFile, Reload, LoadMethod)
 	   if TmpNewData then
 			if type(v) == 'table' then -- 原来的类型是table
 				if type(TmpNewData) == 'table' then	-- 更新之后的类型依然是table
-					-- 如果是一个class则需要全部更新，其他则同能只是一些数据，不需要更新
+					-- 如果是一个class则需要全部更新，其他则可能只是一些数据，不需要更新
 					if v.__ClassType then
 						local mt = getmetatable(v)
 						-- 如果是一个对象数据则不需要更新
