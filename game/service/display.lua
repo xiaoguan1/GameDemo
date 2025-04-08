@@ -13,6 +13,10 @@ local SELF_ADDR = skynet.self()
 ACCEPT = {}
 RESPONSE = {}
 
+function RESPONSE.AAA()
+	return true
+end
+
 skynet.register_protocol {
 	name = "client",
 	id = skynet.PTYPE_CLIENT,
@@ -62,8 +66,8 @@ skynet.start(function ()
 	-- SHUTDOWN_SVR.send.register_csdevent(SELF_ADDR)
 
 	if not is_crossserver then
-		local proxySvr = PROXYSVR.GetProxy(".DISPLAY", "127.0.0.1:32527", nil, "lua")
-		proxySvr.send.AAA()
+		local proxySvr = PROXYSVR.GetProxy(".DISPLAY", "127.0.0.1:32527", "lua")
+		print(proxySvr.call.AAA())
 	end
 
 

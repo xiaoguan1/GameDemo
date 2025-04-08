@@ -11,14 +11,10 @@ local selfnode_name = DPCLUSTER_NODE.node_ipport
 assert(selfnode_name)
 
 local DPCLUSTER = Import("game/global/dpcluster.lua")
-local readonly_meta = {__newindex = function () error("read only") end}
-local cluster = require "skynet.cluster"
 
 local skynet_send = skynet.send
 local skynet_call = skynet.call
-
-local cluster_send = cluster.send
-local cluster_call = cluster.call
+local READONLY_META = { __newindex = function () error("read only") end }
 
 local is_testserver = (skynet.getenv("is_testserver") == "true") and true or false
 local function _obj_check(...)
@@ -41,7 +37,7 @@ ALL_PROXYSVR = {
 	-- ....
 }
 
-local function gen_send(addr, nodeName, clustertype, prototype)
+local function gen_send(addr, nodeName, prototype)
 	prototype = prototype or "lua"
 	if nodeName == selfnode_name then
 		local addrtype = type(addr)
@@ -80,45 +76,25 @@ local function gen_send(addr, nodeName, clustertype, prototype)
 		})
 	else
 		local cache_func = {}
-		if clustertype == "cluster" then
-			return setmetatable({}, {
-				__index = function (t, k)
-					if not cache_func[k] then
-						cache_func[k] = function (...)
-							_obj_check(...)
-							cluster_send(nodeName, addr, prototype, k, ...)
-						end
+		return setmetatable({}, {
+			__index = function (t, k)
+				if not cache_func[k] then
+					cache_func[k] = function (...)
+						_obj_check(...)
+						return DPCLUSTER.send(nodeName, addr, prototype, k, ...)	-- skynet.send那里有返回是否有那个节点的信息
 					end
-					return cache_func[k]
-				end,
-				__call = function (t, ...)
-					_obj_check(...)
-					cluster_send(nodeName, addr, prototype, ...)
 				end
-			})
-		elseif not clustertype or clustertype == "dpcluster" then
-			return setmetatable({}, {
-				__index = function (t, k)
-					if not cache_func[k] then
-						cache_func[k] = function (...)
-							_obj_check(...)
-							return DPCLUSTER.send(nodeName, addr, prototype, k, ...)	-- skynet.send那里有返回是否有那个节点的信息
-						end
-					end
-					return cache_func[k]
-				end,
-				__call = function (t, ...)
-					_obj_check(...)
-					return DPCLUSTER.send(nodeName, addr, prototype, ...)				-- skynet.send那里有返回是否有那个节点的信息
-				end
-			})
-		else
-			error(string.format("error clustertype:%s, addr:%s, nodeName:%s", clustertype, addr, nodeName))
-		end
+				return cache_func[k]
+			end,
+			__call = function (t, ...)
+				_obj_check(...)
+				return DPCLUSTER.send(nodeName, addr, prototype, ...)				-- skynet.send那里有返回是否有那个节点的信息
+			end
+		})
 	end
 end
 
-local function gen_call(addr, nodeName, clustertype, prototype)
+local function gen_call(addr, nodeName, prototype)
 	prototype = prototype or "lua"
 	if nodeName == selfnode_name then
 		local addrtype = type(addr)
@@ -161,84 +137,59 @@ local function gen_call(addr, nodeName, clustertype, prototype)
 			error("not math host:port " .. nodeName)
 		end
 		local cache_func = {}
-		if clustertype == "cluster" then
-			return setmetatable({}, {
-				__index = function (t, k)
-					if not cache_func[k] then
-						cache_func[k] = function (...)
-							_obj_check(...)
-							cluster_call(nodeName, addr, prototype, k, ...)
-						end
+		return setmetatable({}, {
+			__index = function (t, k)
+				if not cache_func[k] then
+					cache_func[k] = function (...)
+						_obj_check(...)
+						return DPCLUSTER.call(nodeName, addr, prototype, k, ...)
 					end
-					return cache_func[k]
-				end,
-				__call = function (t, ...)
-					_obj_check(...)
-					cluster_call(nodeName, addr, prototype, ...)
 				end
-			})
-		elseif not clustertype or clustertype == "dpcluster" then
-			return setmetatable({}, {
-				__index = function (t, k)
-					if not cache_func[k] then
-						cache_func[k] = function (...)
-							_obj_check(...)
-							return DPCLUSTER.call(nodeName, addr, prototype, k, ...)
-						end
-					end
-					return cache_func[k]
-				end,
-				__call = function (t, ...)
-					_obj_check(...)
-					return DPCLUSTER.call(nodeName, addr, prototype, ...)
-				end
-			})
-		else
-			error(string.format("error clustertype:%s, addr:%s, nodeName:%s", clustertype, addr, nodeName))
-		end
+				return cache_func[k]
+			end,
+			__call = function (t, ...)
+				_obj_check(...)
+				return DPCLUSTER.call(nodeName, addr, prototype, ...)
+			end
+		})
 	end
 end
 
-local READONLY_META = { __newindex = function () error("read only") end }
-
-local function create_proxysvr(addr, nodeName, clustertype, prototype)
+local function create_proxysvr(addr, nodeName, prototype)
 	return setmetatable({
 		addr = addr,
 		nodeName = nodeName,
-		clustertype = clustertype,
 		prototype = prototype,
 
-		send = gen_send(addr, nodeName, clustertype, prototype),
-		call = gen_call(addr, nodeName, clustertype, prototype),
+		send = gen_send(addr, nodeName, prototype),
+		call = gen_call(addr, nodeName, prototype),
 	}, READONLY_META)
 end
 
 
 -- 外部接口 ------------------------------
-function GetProxy(addr, node_name, clustertype, prototype)
+function GetProxy(addr, node_name, prototype)
 	if node_name == selfnode_name then
 		-- 本服节点
 		if ALL_PROXYSVR.self_node[addr] and ALL_PROXYSVR.self_node[addr].prototype == prototype then
 			return ALL_PROXYSVR.self_node[addr]
 		else
-			local proxy = create_proxysvr(addr, node_name, clustertype, prototype)
+			local proxy = create_proxysvr(addr, node_name, prototype)
 			ALL_PROXYSVR.self_node[addr] = proxy
 			return proxy
 		end
 	else
 		-- 跨服节点
 		assert(node_name)
-		if ALL_PROXYSVR.othernode[addr] and ALL_PROXYSVR.othernode[addr][node_name] and ALL_PROXYSVR.othernode[addr][node_name].prototype == prototype then
-			local proxy = ALL_PROXYSVR.othernode[addr][node_name]
-			assert(clustertype == proxy.clustertype)
-			return proxy
-		else
-			local proxy = create_proxysvr(addr, node_name, clustertype, prototype)
-			ALL_PROXYSVR.othernode[addr] = ALL_PROXYSVR.othernode[addr] or {}
-			ALL_PROXYSVR.othernode[addr][node_name] = ALL_PROXYSVR.othernode[addr][node_name] or {}
-			ALL_PROXYSVR.othernode[addr][node_name] = proxy
+		local proxy = ALL_PROXYSVR.othernode[addr] and ALL_PROXYSVR.othernode[addr][node_name]
+		if proxy and proxy.prototype == prototype then
 			return proxy
 		end
+		proxy = create_proxysvr(addr, node_name, prototype)
+		ALL_PROXYSVR.othernode[addr] = ALL_PROXYSVR.othernode[addr] or {}
+		ALL_PROXYSVR.othernode[addr][node_name] = ALL_PROXYSVR.othernode[addr][node_name] or {}
+		ALL_PROXYSVR.othernode[addr][node_name] = proxy
+		return proxy
 	end
 end
 
@@ -283,11 +234,11 @@ end
 -- end
 
 function GetProxyByServiceName(serviceName, prototype, serverId)
-	local namedData = UNIQ_SERVICE[serviceName]
-	if namedData then
-		assert(namedData.named)
-		return GetProxy(namedData.named, selfnode_name, namedData.clustertype, prototype)
-	end
+	-- local namedData = UNIQ_SERVICE[serviceName]
+	-- if namedData then
+	-- 	assert(namedData.named)
+	-- 	return GetProxy(namedData.named, selfnode_name, namedData.clustertype, prototype)
+	-- end
 
 	-- namedData = UNIQ_SERVICE[serviceName]
 	-- if namedData then

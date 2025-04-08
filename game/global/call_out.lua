@@ -31,7 +31,7 @@ local stimerld = NODE_ONLYSERVER_MIRROR and NODE_ONLYSERVER_MIRROR.stimer and NO
 if not stimerld then
 	error("stimer service not localname")
 end
-local SCALLOUT_SVR = PROXYSVR.GetProxy(stimerld, SNODE_NAME, nil, "callout")
+local SCALLOUT_SVR = PROXYSVR.GetProxy(stimerld, SNODE_NAME, "callout")
 
 local CALLOUT_RT = 0.1					-- 定时器响应时间x秒以上则打印(精确度0.01)
 local ALARM_CALLOUT_RT = 1.5			-- 定时器响应时间x秒以上则警报

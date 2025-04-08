@@ -326,10 +326,11 @@ end
 
 local function deal_rpc(source_node, des_addr, session, msg_type, proto_type, msg, sz)
 	if msg_type == MSG_TYPE_REQUEST then
-		if not skynet.isstartDk() then
-           skynet.error("dpclusterd not ready for rpc request!! des_addr, session, msg_type:", des_addr, session, msg_type)
-           return
-       end
+		-- 这里要确认好本节点是否启动成功了，若启动成功了才能接收外部的链接操作（可以在启动节点逻辑中，完成时先该服务发送消息 打标记）
+		-- if not skynet.isstartDk() then
+		-- 	skynet.error("dpclusterd not ready for rpc request!! des_addr, session, msg_type:", des_addr, session, msg_type)
+		-- 	return
+		-- end
 
 		des_addr = _addr_number(des_addr)
 		local isOk, msg, sz = xpcall(skynet.rawcall, traceback, des_addr, proto_type, msg, sz)	-- 肯定是当前节点的，所以不用代理了
@@ -339,14 +340,14 @@ local function deal_rpc(source_node, des_addr, session, msg_type, proto_type, ms
     	rpc_response(source_node, session, isOk, msg, sz)
     elseif msg_type == MSG_TYPE_RESPONSE then
 		-- 由于msg, sz是可能别的打包方式所以加一个skynet.pack在外层，因为外层是由dpcluste穿过来的，必定是lua类型
-       deal_response(session, true, skynet.pack(msg, sz))
+		deal_response(session, true, skynet.pack(msg, sz))
     elseif msg_type == MSG_TYPE_RESPONSE_E then
-       deal_response(session, false, msg, sz)
+		deal_response(session, false, msg, sz)
 	elseif msg_type == MSG_TYPE_NOTIFY then
-       des_addr = _addr_number(des_addr)
-       skynet.rawsend(des_addr, proto_type, msg, sz)
+		des_addr = _addr_number(des_addr)
+		skynet.rawsend(des_addr, proto_type, msg, sz)
 	elseif msg_type == MSG_TYPE_W_PROTO then
-       _write_direct(msg, sz, skynet.unpack(msg, sz))
+		_write_direct(msg, sz, skynet.unpack(msg, sz))
     elseif msg_type == MSG_TYPE_PINGPONG then
 		rpc_response(source_node, session, true, msg, sz)
 	else
