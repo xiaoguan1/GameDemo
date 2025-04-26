@@ -37,6 +37,8 @@ end
 local function _OpenLogPath()
 	local alogpath = skynet.getenv("alogpath")
 	if not alogpath then
+		local _print = _ERROR or skynet.error
+		_print("open logpath error, Please set skynet env alogpath!")
 		return
 	end
 
