@@ -22,7 +22,7 @@ profile_cmd = true	-- 细化指令检测
 
 preload = "tool/luaplugins/preload.lua"
 
-alogpath = "./log/main/logpath/"
+alogpath = "./log/main/logpath/" -- logpath 日志文件
 
 ------------------ 节点信息 ------------------
 is_cross = false

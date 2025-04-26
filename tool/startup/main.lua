@@ -36,8 +36,17 @@ end
 
 local function _OpenLogPath()
 	local alogpath = skynet.getenv("alogpath")
-	skynet.setenv("logpath",
-		alogpath .. os.date("%Y-%m-%d %H-%M-%S", util.realtime()) .. "/")
+	if not alogpath then
+		return
+	end
+
+	local logpath = skynet.getenv("logpath")
+	if not logpath then
+		local lpath = os.date("%Y-%m-%d %H-%M-%S", util.realtime())
+		lpath = alogpath .. lpath .. "/"
+		skynet.setenv("logpath", lpath)
+	end
+
 	skynet.send(".launcher", "lua", "ALL_LOGLAUNCH")
 end
 
