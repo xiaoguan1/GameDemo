@@ -8,6 +8,9 @@ local command = {}
 local instance = {} -- for confirm (function command.LAUNCH / command.ERROR / command.LAUNCHOK)
 local launch_session = {} -- for command.QUERY, service_address -> session
 
+-- add guanguowei
+local posix = require "posix"
+
 local function handle_to_address(handle)
 	return tonumber("0x" .. string.sub(handle , 2))
 end
@@ -114,6 +117,17 @@ end
 function command.LOGLAUNCH(_, service, ...)
 	local inst = launch_service(service, ...)
 	if inst then
+		core.command("LOGON", skynet.address(inst))
+	end
+	return NORET
+end
+
+-- add guanguowei 
+function command.ALL_LOGLAUNCH()
+	local logPath = skynet.getenv("logpath")
+	assert(logPath and logPath ~= "", "Please set skynet env logpath")
+	posix.mkdir_p(logPath)
+	for inst in pairs(services or {}) do
 		core.command("LOGON", skynet.address(inst))
 	end
 	return NORET

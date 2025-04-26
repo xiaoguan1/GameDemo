@@ -34,6 +34,14 @@ local function _GetAllFiles(path, result)
 	return result
 end
 
+local function _OpenLogPath()
+	local alogpath = skynet.getenv("alogpath")
+	skynet.setenv("logpath",
+		alogpath .. os.date("%Y-%m-%d %H-%M-%S", util.realtime()) .. "/")
+	skynet.send(".launcher", "lua", "ALL_LOGLAUNCH")
+end
+
+
 skynet.start(function ()
 	local nodeInfo = Import("game/global/nodeInfo.lua")
 	local isOk, dpcluster = nodeInfo.GetGameNodeInfoByDatabase()
@@ -56,6 +64,7 @@ skynet.start(function ()
 		skynet.name(v.named, id)
 	end
 
+	_OpenLogPath()
 
 	-- local result = _GetAllFiles( )
 	-- print(tool.dumptree(result))
