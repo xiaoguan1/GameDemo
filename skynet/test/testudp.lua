@@ -13,9 +13,16 @@ local function client()
 	local c = socket.udp(function(str, from)
 		print("client v4 recv", str, socket.udp_address(from))
 	end)
-	socket.udp_connect(c, "127.0.0.1", 8765)
-	for i=1,20 do
-		socket.write(c, "hello " .. i)	-- write to the address by udp_connect binding
+
+	-- 方式1
+	-- socket.udp_connect(c, "127.0.0.1", 8765)
+	-- for i=1,20 do
+	-- 	socket.write(c, "hello " .. i)	-- write to the address by udp_connect binding
+	-- end
+
+	-- 方式2
+	for i=1, 20 do
+		socket.sendto(c, socket.udp_raddress("127.0.0.1", 8765), "hello " .. i)
 	end
 end
 
@@ -33,10 +40,16 @@ local function client_v6()
 	local c = socket.udp_dial("::1", 8766, function(str, from)
 		print(string.format("client recv v6 response str:%s from:%s", str, socket.udp_address(from)))
 	end)
-	
+
+	-- 方式1
 	print("create client succeed. "..c)
-	for i=1,20 do
-		socket.write(c, "hello " .. i)	-- write to the address by udp_connect binding
+	-- for i=1,20 do
+	-- 	socket.write(c, "hello " .. i)	-- write to the address by udp_connect binding
+	-- end
+
+	-- 方式2
+	for i=1, 20 do
+		socket.sendto(c, socket.udp_raddress("::1", 8766), "hello " .. i)
 	end
 end
 
