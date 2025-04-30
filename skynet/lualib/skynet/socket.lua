@@ -485,6 +485,10 @@ end
 
 socket.sendto = assert(driver.udp_send)
 socket.udp_address = assert(driver.udp_address)
+
+-- add guanguowei 通过ip、port获得凭证(driver.udp_address的反向操作)
+socket.udp_raddress = assert(driver.udp_raddress)
+
 socket.netstat = assert(driver.info)
 socket.resolve = assert(driver.resolve)
 

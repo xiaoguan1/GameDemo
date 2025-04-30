@@ -754,6 +754,59 @@ ludp_address(lua_State *L) {
 	return 2;
 }
 
+static int
+ludp_raddress(lua_State *L) {
+	size_t sz = 0;
+	const char * addr = luaL_checklstring(L, 1, &sz);
+	char tmp[sz];
+	int port = 0;
+	const char * host = NULL;
+	if (addr)
+		host = address_port(L, tmp, addr, 2, &port);
+
+	char portstr[16];
+	sprintf(portstr, "%d", port);
+
+	struct addrinfo ai_hints;
+	struct addrinfo *ai_list = NULL;
+	memset(&ai_hints, 0, sizeof(ai_hints));
+	ai_hints.ai_family = AF_UNSPEC;
+	ai_hints.ai_socktype = SOCK_DGRAM;
+	ai_hints.ai_protocol = IPPROTO_UDP;
+
+	if (getaddrinfo(host, portstr, &ai_hints, &ai_list) != 0)
+		return luaL_error(L, "Invalid udp address");
+
+	uint8_t uaddr[19]; // 19 = UDP_ADDRESS_SIZE
+	int addrsz = 1;
+	if (ai_list->ai_family == AF_INET) {
+		uaddr[0] = 1;	// 1 = PROTOCOL_UDP
+
+		struct sockaddr_in *v4 = (struct sockaddr_in *)ai_list->ai_addr;
+		memcpy(uaddr+addrsz, &v4->sin_port, sizeof(v4->sin_port));
+		addrsz += sizeof(v4->sin_port);
+		memcpy(uaddr+addrsz, &v4->sin_addr, sizeof(v4->sin_addr));
+		addrsz += sizeof(v4->sin_addr);
+
+	} else if (ai_list->ai_family == AF_INET6) {
+		uaddr[0] = 2;	// 2 = PROTOCOL_UDPv6
+
+		struct sockaddr_in6 *v6 = (struct sockaddr_in6 *)ai_list->ai_addr;
+		memcpy(uaddr+addrsz, &v6->sin6_port, sizeof(v6->sin6_port));
+		addrsz += sizeof(v6->sin6_port);
+		memcpy(uaddr+addrsz, &v6->sin6_addr, sizeof(v6->sin6_addr));
+		addrsz += sizeof(v6->sin6_addr);
+
+	} else {
+		freeaddrinfo(ai_list);
+		return luaL_error(L, "Invalid udp address");
+	}
+
+	lua_pushlstring(L, (const char*)uaddr, addrsz);
+	freeaddrinfo(ai_list);
+	return 1;
+}
+
 static void
 getinfo(lua_State *L, struct socket_info *si) {
 	lua_newtable(L);
@@ -891,6 +944,7 @@ luaopen_skynet_socketdriver(lua_State *L) {
 		{ "udp_listen", ludp_listen},
 		{ "udp_send", ludp_send },
 		{ "udp_address", ludp_address },
+		{ "udp_raddress", ludp_raddress },
 		{ "resolve", lresolve },
 		{ NULL, NULL },
 	};
