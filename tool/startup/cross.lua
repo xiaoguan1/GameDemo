@@ -50,8 +50,8 @@ skynet.start(function ()
 	end
 	Import("game/global/dpcluster.lua")
 
-
-	for _, v in pairs(START_CROSS_SERVICE) do
+	local self_ipport = DPCLUSTER_NODE.node_ipport
+	for _, v in pairs(CROSS_SERVICE_CFG) do
 		local id = skynet.newservice(v.svr)
 		skynet.name(v.named, id)
 	end

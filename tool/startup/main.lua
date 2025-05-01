@@ -70,9 +70,9 @@ skynet.start(function ()
 	Import("game/global/dpcluster.lua")
 
 
-	for _, v in pairs(START_GAME_SERVICE) do
-		local id = skynet.newservice(v.svr)
-		skynet.name(v.named, id)
+	for _, service in pairs(GAME_SERVICE_STARTSEQ) do
+		local id = skynet.newservice(service)
+		skynet.name(GAME_SERVICE_CFG[service].named, id)
 	end
 
 	_OpenLogPath()

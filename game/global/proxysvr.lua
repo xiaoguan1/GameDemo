@@ -234,13 +234,18 @@ end
 -- end
 
 function GetProxyByServiceName(serviceName, prototype, serverId)
-	-- local namedData = UNIQ_SERVICE[serviceName]
-	-- if namedData then
-	-- 	assert(namedData.named)
-	-- 	return GetProxy(namedData.named, selfnode_name, namedData.clustertype, prototype)
-	-- end
+	local namedData = UNIQ_SERVICE_CFG[serviceName]
+	if namedData then
+		assert(namedData.named)
+		return GetProxy(namedData.named, selfnode_name, prototype)
+	end
 
-	-- namedData = UNIQ_SERVICE[serviceName]
+	namedData = GAME_SERVICE_CFG[serviceName]
+	if namedData then
+		assert(namedData.named)
+		return GetProxy(namedData.named, selfnode_name, prototype)
+	end
+
 	-- if namedData then
 	-- 	assert(namedData.named)
 	-- 	local node_name = nil
