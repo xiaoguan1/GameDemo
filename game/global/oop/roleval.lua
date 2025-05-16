@@ -64,7 +64,7 @@ function DoAutoCreate(fieldList, saveStr)
 	end
 end
 DoAutoCreate(DbField, "__Data")
-DoAutoCreate(TempField, "__TempData")
+DoAutoCreate(TempField, "__Tmp")
 strList = "\n" .. strList .. "\n"
 
 function GenFile(data)

@@ -5,6 +5,8 @@
 --- 			__ObjectType 不进行热更新，因为这仅仅是一堆数据。仅需关注类模板（__ClassType）
 -----------------------
 
+local ostime = os.time
+
 -- 在线玩家对象 ------
 ROLE_OBJS = {}
 
@@ -19,25 +21,31 @@ end
 -- 玩家类 ------
 RoleClass = { __ClassType = "<<role class>>" }
 function RoleClass:New(o)
-	o = o or {}
+	o = o or { __Data = {}, }
 	if type(o.uid) ~= "string" or ROLE_OBJS[o.uid] then
 		_ERROR_F("RoleClass new fail! o:%s", tool.dumptree(o))
 		return
 	end
 
-	o.__SuperClass = self	-- 标记RoleClass为父类
-	o.__ObjectType = true	-- 标记为实例对象
-	o.__TempData = {}		-- 重置临时数据
+	o.__SuperClass = self		-- 标记RoleClass为父类
+	o.__IsObject = ostime()		-- 标记为实例对象
+	o.__Tmp = {}				-- 重置临时数据
 
 	-- 直接将RoleClass放入o原表的__index里面。
 	-- 	若o已设置A函数 且 RoleClass也设置A函数，o:A() 会调用o的而非RoleClass
 	setmetatable(o, {__index = self})
-
 	ROLE_OBJS[o.uid] = o
+
+	return o
 end
 
 function RoleClass:GetUid()
 	return self.uid
+end
+
+-- 将玩家数据保存至数据库中
+function RoleClass:SaveDb()
+	local data = self.__Data or {}
 end
 
 -- 存盘数据
@@ -50,10 +58,14 @@ end
 
 -- 临时数据（上线、下线就没有了）
 function RoleClass:SetTempData(fieldName, data)
-	self.__TempData[fieldName] = data
+	self.__Tmp[fieldName] = data
 end
 function RoleClass:GetTempData(fieldName)
-	return self.__TempData[fieldName]
+	return self.__Tmp[fieldName]
+end
+
+function RoleClass:Update(NewRoleClass)
+	
 end
 
 --autogen-begin
@@ -65,17 +77,17 @@ function RoleClass:SetSex(Sex)
 end
 
 function RoleClass:GetLike1()
-    return self.__TempData.Like1
+    return self.__Tmp.Like1
 end
 function RoleClass:SetLike1(Like1)
-    self.__TempData.Like1 = Like1
+    self.__Tmp.Like1 = Like1
 end
 
 function RoleClass:GetLike2()
-    return self.__TempData.Like2
+    return self.__Tmp.Like2
 end
 function RoleClass:SetLike2(Like2)
-    self.__TempData.Like2 = Like2
+    self.__Tmp.Like2 = Like2
 end
 
 
