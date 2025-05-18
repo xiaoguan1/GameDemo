@@ -12,6 +12,7 @@ START_UNIQ_SERVICE = {
 	{svr = "gamelog", named = ".GAMELOG"},
 	{svr = "stimer", named = ".STIMER"},
 	{svr = "databased", named = ".DATABASED"},
+	{svr = "manage", named = ".MANAGE"}
 }
 
 UNIQ_SERVICE_CFG = {}

@@ -1,4 +1,5 @@
 local string = string
+local table = table
 
 function string.beginswith(str, pattern)
 	local sIdx, eIdx = str:find(pattern)
@@ -14,4 +15,12 @@ function string.endswith(str, pattern)
 	end
 	local _sIdx = str:find(pattern, sIdx)
 	return _sIdx == sIdx
+end
+
+function string.split(str, sep)
+	local res = {}
+	for w in str:gmatch(sep) do
+		table.insert(res, w)
+	end
+	return res
 end
