@@ -2,6 +2,7 @@ local skynet = require "skynet"
 local core = require "skynet.core"
 require "skynet.manager"	-- import manager apis
 local string = string
+local cc = require "skynet.codecache"
 
 local services = {}
 local command = {}
@@ -165,6 +166,18 @@ function command.QUERY(_, request_session)
 		end
 	end
 end
+
+-- 热更新
+function command.UPDATE_FILES(address, updatefiles)
+	for _, v in pairs(updatefiles or {}) do
+		cc.clearone(v.file)
+	end
+	for k in pairs(services) do
+		skynet.send(k, "debug", "UPDATE_FILES", updatefiles)
+	end
+	return true
+end
+
 
 -- for historical reasons, launcher support text command (for C service)
 

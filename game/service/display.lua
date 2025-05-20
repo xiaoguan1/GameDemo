@@ -13,7 +13,9 @@ local SELF_ADDR = skynet.self()
 ACCEPT = {}
 RESPONSE = {}
 
+local ROLECLASS = Import("game/global/oop/roleclass.lua")
 function RESPONSE.AAA()
+	print(SERVICE_NAME, ROLECLASS.RoleClass.__ClassType, skynet.self())
 	return true
 end
 
@@ -61,14 +63,14 @@ skynet.start(function ()
 		end
 	end)
 
-	local PROXYSVR = Import("game/global/proxysvr.lua")
+	-- local PROXYSVR = Import("game/global/proxysvr.lua")
 	-- local SHUTDOWN_SVR = PROXYSVR.GetProxyByServiceName("shutdown")
 	-- SHUTDOWN_SVR.send.register_csdevent(SELF_ADDR)
 
-	if not is_crossserver then
-		local proxySvr = PROXYSVR.GetProxy(".DISPLAY", "127.0.0.1:32527", "lua")
-		print(proxySvr.call.AAA())
-	end
+	-- if not is_crossserver then
+	-- 	local proxySvr = PROXYSVR.GetProxy(".DISPLAY", "127.0.0.1:32527", "lua")
+	-- 	print(proxySvr.call.AAA())
+	-- end
 
 
 end)

@@ -8,6 +8,10 @@ local HTTPD_POST = "POST "
 
 local ROUTER = Import("game/module/manage/router.lua")
 
+local function _Response(id, ...)
+	httpd.write_response(sockethelper.writefunc(id), ...)
+end
+
 function DealMcs(id, addr)
 	socket.start(id)
 	local cmdline = socket.readline(id, "\n")
@@ -28,26 +32,27 @@ function DealMcs(id, addr)
 	local code, url, method, header, body = httpd.read_request(sockethelper.readfunc(id, cmdline .. "\n"), 8192)
 	if code ~= 200 then
 		_ERROR_F("code ~= 200, addr:%s request error!", addr)
+		_Response(id, code)
+		socket.close(id)
 		return
 	end
 
 	if hpType == HTTPD_GET then
 		-- get请求
 		local path, query = urllib.parse(url)
-		local q
-		if query then
-			q = urllib.parse_query(query)
-		end
-		local uPath = path:sub(2):upper()
-		local m = ROUTER[uPath]
-		if not m then
+		local args = query and urllib.parse_query(query) or {}
+		local uPath = path and path:sub(2) and path:sub(2):upper()
+		local mod = uPath and ROUTER[uPath]
+		if mod then
+			local isOk1, isOk2, responseData = TryCall(mod.Handle_Request, args)
+			if isOk1 and isOk2 then
+				_Response(id, code)
+			else
+				_ERROR_F("path:%s uPath:%s run Handle_Request fail!, isOk1:%s isOk2:%s error:%s",
+					path, uPath, isOk1, isOk2, responseData)
+			end
+		else
 			_ERROR_F("path:%s, not find", path)
-		end
-		local isOk1, isOk2, responseData = TryCall(m.Handle_Request, q)
-		if not isOk1 then
-			_ERROR_F("path:%s uPath:%s run fail111! err:%s", path, uPath, isOk2)
-		elseif not isOk2 then
-			_ERROR_F("path:%s uPath:%s run fail222! err:%s", path, uPath, responseData)
 		end
 	else
 		-- post请求

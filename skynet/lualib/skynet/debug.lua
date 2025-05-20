@@ -375,6 +375,72 @@ local function init(skynet, export)
 			return true, updateList
 		end
 
+		function dbgcmd.UPDATE_FILES(files)
+			if not files or
+				table.empty(files) or
+				(table.size(files) ~= #files)
+			then
+				error("update auto listfile error!")
+			end
+			if not Import then
+				return skynet.retpack(nil)
+			end
+
+			local _ImportModule = _ImportModule or {}
+			local UPDATE_TYPE = UPDATE_TYPE or {MACROS = 1, IMPORT = 2, DOFILE = 3}
+
+			-- 热更新文件
+			local updateFiles = {
+				[UPDATE_TYPE.MACROS] = {},
+				[UPDATE_TYPE.IMPORT] = {},
+				[UPDATE_TYPE.DOFILE] = {},
+			}
+			for _, v in ipairs(files) do
+				if _ImportModule[v.file] then
+					if v.utype == UPDATE_TYPE.MACROS then
+						table.insert(updateFiles[UPDATE_TYPE.MACROS], v.file)
+					elseif v.utype == UPDATE_TYPE.IMPORT then
+						table.insert(updateFiles[UPDATE_TYPE.IMPORT], v.file)
+					elseif v.utype == UPDATE_TYPE.DOFILE then
+						table.insert(updateFiles[UPDATE_TYPE.DOFILE], v.file)
+					else
+						error(string.format("[%s] file invalid utype:%s, file:%s",
+							SERVICE_NAME, v.utype, v.file))
+					end
+				else
+					-- skynet.error(string.format("[%s] file:%s not hot update", SERVICE_NAME, v.file))
+				end
+			end
+
+			-- 热更新（注意：热更新代码里面也有可能加载新的代码文件）
+			local ok, ret, reterr = nil, nil, nil
+
+			-- 1.优先更新macros
+
+			-- 2.更新Import文件
+			for _, file in ipairs(updateFiles[UPDATE_TYPE.IMPORT]) do
+				skynet.error(string.format("[%s] auto update import file:%s", SERVICE_NAME, file))
+				ok, ret = xpcall(Update, debug.traceback, file)
+				if not ok and ret then
+					if reterr then
+						reterr = reterr .. "\n".. ret
+					else
+						reterr = ret
+					end
+				end
+			end
+
+			-- 3.更新dofile文件
+
+
+			if reterr then
+				error(reterr)
+			else
+				skynet.retpack(nil)
+			end
+		end
+
+		-- ailin的热更逻辑
 		function dbgcmd.UPDATE_AUTO_LISTFILE(updatefiles)
 			if Import then
 				local UPDATE_TYPE = UPDATE_TYPE or {MACROS = 1, IMPORT = 2, DOFILE = 3}
@@ -403,7 +469,7 @@ local function init(skynet, export)
 					end
 				end
 
-				-- 2.更新1mport文件
+				-- 2.更新Import文件
 				for _, _fData in ipairs(updatefiles) do
 					local updatefile = _fData.file
 					local utype = _fData.utype

@@ -365,25 +365,12 @@ local function SafeImport(PathFile, Reload)
 end
 
 function Import(pathFile)
-	local isInsert = false
-	local oMod = _ImportModule[pathFile]
-	if not oMod then
-		isInsert = true
-	else
-		local co = coroutine.running()
-		if DEEP_IMPORT[co] then
-			isInsert = true
-		end
-	end
-	if isInsert then
-		-- 添加自动更新层级，如果之前就加载过那么就不用处理了
-		_InsertDeepImport(pathFile)
+	assert(pathFile, "Please input pathFile")
+	local module = _ImportModule[pathFile]
+	if module then
+		return module
 	end
 	local ok, Module, err = xpcall(SafeImport, traceback, pathFile, false)
-	if isInsert then
-		-- 删除自动更新层级，获取列表信息，如果之前就加载过那么就不用处理了
-		_DeleteDeepImport(pathFile)
-	end
 	if not ok then
 		error(Module)
 	end
@@ -392,6 +379,36 @@ function Import(pathFile)
 	end
 	return Module
 end
+
+
+-- function Import(pathFile)
+-- 	local isInsert = false
+-- 	local oMod = _ImportModule[pathFile]
+-- 	if not oMod then
+-- 		isInsert = true
+-- 	else
+-- 		local co = coroutine.running()
+-- 		if DEEP_IMPORT[co] then
+-- 			isInsert = true
+-- 		end
+-- 	end
+-- 	if isInsert then
+-- 		-- 添加自动更新层级，如果之前就加载过那么就不用处理了
+-- 		_InsertDeepImport(pathFile)
+-- 	end
+-- 	local ok, Module, err = xpcall(SafeImport, traceback, pathFile, false)
+-- 	if isInsert then
+-- 		-- 删除自动更新层级，获取列表信息，如果之前就加载过那么就不用处理了
+-- 		_DeleteDeepImport(pathFile)
+-- 	end
+-- 	if not ok then
+-- 		error(Module)
+-- 	end
+-- 	if not Module then
+-- 		error(err)
+-- 	end
+-- 	return Module
+-- end
 
 -- 并不是所有模块都能够Update，比如一些包含local动态数据的模块
 -- 如果更新这些模块，则会导致数据丢失。
