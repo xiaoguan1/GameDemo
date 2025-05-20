@@ -1,4 +1,5 @@
 local skynet = require "skynet"
+local posix = require "posix"
 local traceback = debug.traceback
 
 local dpcluster = skynet.getenv("dpcluster")
@@ -6,33 +7,29 @@ if dpcluster then
 	DPCLUSTER_NODE = load("return " .. dpcluster)()
 end
 
-if not _G.Import then
-	local func, err = loadfile("tool/luaplugins/import.lua", "bt", _G)
-	if not func then
-		error(err)
-	end
-	func()
-end
-
--- 这些文件的全局变量不会附在_G，若有赋在_G的要求可参考tool.lua的做法
-local ToolFiles = {
+-- lua原生接口函数的拓展（优先加载）
+_G.TOOL_FILES = {
 	"tool/luaplugins/table.lua",
 	"tool/luaplugins/string.lua",
 	"tool/luaplugins/tool.lua",
 	"tool/luaplugins/posix.lua",
 }
-for _, f in pairs(ToolFiles) do
-	dofile(f)
+for _, pathFile in pairs(TOOL_FILES) do
+	dofile(pathFile)
 end
 
--- 这些文件的全局变量直接赋在_G(慎用)
-local GlobalFiles = {
+-- 宏定义
+_G.MACRO_FILES = {
 	"game/global/macro/common.lua",
 	"game/global/macro/namedsvr.lua",
 	"game/global/macro/fenv.lua",
 }
-for _, f in pairs(GlobalFiles) do
-	local func, err = loadfile(f, "bt", _G)
+for _, pathFile in pairs(MACRO_FILES) do
+	dofile(pathFile)
+end
+
+if not _G.Import then
+	local func, err = loadfile("tool/luaplugins/import.lua", "bt", _G)
 	if not func then
 		error(err)
 	end

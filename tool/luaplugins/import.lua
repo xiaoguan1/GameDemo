@@ -2,10 +2,11 @@
 --	使用方法Import('base/util.lua')，代替Lua的require机制
 local skynet = require "skynet"
 local traceback = debug.traceback
-local tinsert = table.insert
 
 _G._ImportModule = _G._ImportModule or {}
 local _ImportModule = _G._ImportModule
+
+local IMPORT_FILE = {}
 
 function tempty(tbl)
 	for k, v in pairs(tbl) do
@@ -53,74 +54,6 @@ local function GetAllClass(Module)
 		end
 	end
 	return ClassList
-end
-
-local IMPORT_FILE = {}
-local DEEP_IMPORT = {}
-local AUTO_UPDATE_PARENTFILE = {}
-
-local function _InsertAutoUpdateFile(filePath, parentList)
-	if not parentList or tempty(parentList) then return end
-
-	if not AUTO_UPDATE_PARENTFILE[filePath] then
-		AUTO_UPDATE_PARENTFILE[filePath] = {}
-	end
-
-	-- local msg = ""
-	-- for k, v in ipairs(parentList) do
-	-- 	msg = msg .. "->" .. v
-	-- end
-	-- skynet.error("---:", filePath, msg)
-
-	tinsert(AUTO_UPDATE_PARENTFILE[filePath], parentList)
-end
-
-local function _InsertDeepImport(filePath)
-	local co = coroutine.running()
-	local cData = DEEP_IMPORT[co]
-	if not cData then
-		cData = {
-			filePath = filePath,
-			chiid = {},
-		}
-		DEEP_IMPORT[co] = cData
-		return true
-	end
-	for i = 1, 100 do
-		if i == 100 then
-			error("deep import")
-		end
-		if not cData.child then
-			break
-		end
-		cData = cData.child
-	end
-	cData.filePath = filePath
-	cData.child = {}
-	return true
-end
-
-local function _DeleteDeepImport(filePath)
-	local co = coroutine.running()
-	local cData = DEEP_IMPORT[co]
-	if not cData then return end
-
-	local fData = cData
-	local parentList = {}
-	for i = 1, 100 do
-		if cData.filePath == filePath then
-			cData.filePath = nil
-			cData.child = nil
-			if cData == fData then
-				DEEP_IMPORT[co] = nil
-			end
-			break
-		else
-			tinsert(parentList, 1, cData.filePath)
-			cData = cData.child
-		end
-	end
-	_InsertAutoUpdateFile(filePath, parentList)
 end
 
 local function ReplaceTbl(Dest,Src)
