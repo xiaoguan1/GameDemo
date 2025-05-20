@@ -1324,11 +1324,22 @@ static int cache_clearone(lua_State *L) {
   return 0;
 }
 
+// add guanguowei
+static int cache_print(lua_State *L) {
+  if (CC.L == NULL) {
+    return 0;
+  }
+  lua_pushvalue(CC.L, LUA_REGISTRYINDEX);
+  lua_xmove(CC.L, L, 1);
+  return 1;
+}
+
 LUAMOD_API int luaopen_cache(lua_State *L) {
 	luaL_Reg l[] = {
 		{ "clear", cache_clear },
 		{ "clearone", cache_clearone },
 		{ "mode", cache_mode },
+		{ "dump", cache_print },
 		{ NULL, NULL },
 	};
 	luaL_newlib(L,l);
