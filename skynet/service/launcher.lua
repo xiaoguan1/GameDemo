@@ -169,8 +169,10 @@ end
 
 -- 热更新
 function command.UPDATE_FILES(address, updatefiles)
-	for _, v in pairs(updatefiles or {}) do
-		cc.clearone(v.file)
+	for _, files in pairs(updatefiles or {}) do
+		for _, f in pairs(files) do
+			cc.clearone(f)
+		end
 	end
 	for k in pairs(services) do
 		skynet.send(k, "debug", "UPDATE_FILES", updatefiles)

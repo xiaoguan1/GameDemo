@@ -8,9 +8,9 @@ ONE_HOUR_SEC = 3600	-- 一小时秒数
 ONE_MIN_SEC = 60	-- 一分钟秒数
 
 UPDATE_TYPE = {
-	MACROS = 1,     -- macros类型 
-	IMPORT = 2,     -- import类型 
-	DOFILE = 3,     -- dofile类型 
+	TOOL = 1,		-- tool拓展类型
+	MACROS = 2,		-- macros类型 
+	IMPORT = 3,		-- import类型 
 }
 
 UPDATE_DOFILE_FILE = {

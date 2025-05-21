@@ -13,3 +13,8 @@ https://github.com/liuhaopen/SkynetMMO          git@github.com:liuhaopen/SkynetM
 
 temp目录是一些临时文件，
 
+-- 热更新相关简介
+--	tool目录下的文件最好是无调用其他模块，或者仅仅调用lua原生提供的接口
+--  macors常量文件，主要是为了写死一些固定的值而设定的，至多调用lua原生接口或者tool目录下接口内容等等
+--  game目录下的代码文件，可调用tool和macors两个类型的文件接口内容
+-- 注释：目前没有想到很好的手段，从自动化的角度限制 tool、macors、game非法引用的情况。。。。。。

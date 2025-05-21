@@ -375,63 +375,63 @@ local function init(skynet, export)
 			return true, updateList
 		end
 
-		function dbgcmd.UPDATE_FILES(files)
-			if not files or
-				table.empty(files) or
-				(table.size(files) ~= #files)
-			then
-				error("update auto listfile error!")
-			end
+		function dbgcmd.UPDATE_FILES(updatefiles)
 			if not Import then
 				return skynet.retpack(nil)
 			end
 
+			local TOOL_FILES = TOOL_FILES or {}
+			local MACRO_FILES = MACRO_FILES or {}
 			local _ImportModule = _ImportModule or {}
-			local UPDATE_TYPE = UPDATE_TYPE or {MACROS = 1, IMPORT = 2, DOFILE = 3}
-
-			-- 热更新文件
-			local updateFiles = {
-				[UPDATE_TYPE.MACROS] = {},
-				[UPDATE_TYPE.IMPORT] = {},
-				[UPDATE_TYPE.DOFILE] = {},
-			}
-			for _, v in ipairs(files) do
-				if _ImportModule[v.file] then
-					if v.utype == UPDATE_TYPE.MACROS then
-						table.insert(updateFiles[UPDATE_TYPE.MACROS], v.file)
-					elseif v.utype == UPDATE_TYPE.IMPORT then
-						table.insert(updateFiles[UPDATE_TYPE.IMPORT], v.file)
-					elseif v.utype == UPDATE_TYPE.DOFILE then
-						table.insert(updateFiles[UPDATE_TYPE.DOFILE], v.file)
-					else
-						error(string.format("[%s] file invalid utype:%s, file:%s",
-							SERVICE_NAME, v.utype, v.file))
-					end
-				else
-					-- skynet.error(string.format("[%s] file:%s not hot update", SERVICE_NAME, v.file))
-				end
-			end
+			local UPDATE_TYPE = UPDATE_TYPE or {TOOL = 1, MACROS = 2, IMPORT = 3}
 
 			-- 热更新（注意：热更新代码里面也有可能加载新的代码文件）
 			local ok, ret, reterr = nil, nil, nil
 
-			-- 1.优先更新macros
-
-			-- 2.更新Import文件
-			for _, file in ipairs(updateFiles[UPDATE_TYPE.IMPORT]) do
-				skynet.error(string.format("[%s] auto update import file:%s", SERVICE_NAME, file))
-				ok, ret = xpcall(Update, debug.traceback, file)
-				if not ok and ret then
-					if reterr then
-						reterr = reterr .. "\n".. ret
-					else
-						reterr = ret
+			-- 1.更新tool工具类的拓展
+			for _, file in ipairs(updatefiles[UPDATE_TYPE.TOOL]) do
+				if TOOL_FILES[file] then
+					skynet.error(string.format("[%s] auto update dofile tool file:%s", SERVICE_NAME, file))
+					ok, ret = xpcall(dofile, debug.traceback, file)
+					if not ok and ret then
+						if reterr then
+							reterr = reterr .. "\n".. ret
+						else
+							reterr = ret
+						end
 					end
 				end
 			end
 
-			-- 3.更新dofile文件
+			-- 2.更新宏定义
+			for _, file in ipairs(updatefiles[UPDATE_TYPE.MACROS]) do
+				if MACRO_FILES[file] then
+					skynet.error(string.format("[%s] auto update dofile macros file:%s", SERVICE_NAME, file))
+					ok, ret = xpcall(dofile, debug.traceback, file)
+					if not ok and ret then
+						if reterr then
+							reterr = reterr .. "\n".. ret
+						else
+							reterr = ret
+						end
+					end
+				end
+			end
 
+			-- 3.更新Import文件
+			for _, file in ipairs(updatefiles[UPDATE_TYPE.IMPORT]) do
+				if _ImportModule[file] then
+					skynet.error(string.format("[%s] auto update import file:%s", SERVICE_NAME, file))
+					ok, ret = xpcall(Update, debug.traceback, file)
+					if not ok and ret then
+						if reterr then
+							reterr = reterr .. "\n".. ret
+						else
+							reterr = ret
+						end
+					end
+				end
+			end
 
 			if reterr then
 				error(reterr)

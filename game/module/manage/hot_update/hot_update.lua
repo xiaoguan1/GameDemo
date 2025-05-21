@@ -1,7 +1,11 @@
 local skynet = require "skynet"
 local posix = require "posix"
 local string = string
+local table = table
+local tinsert = table.insert
 local selfnode_name = DPCLUSTER_NODE.node_ipport
+
+-- 执行命令：wget -q -O - "http://127.0.0.1:40001/hot_update"
 
 -- 热更新的具体逻辑
 -- 	热更新后必须保证两个事情：
@@ -16,12 +20,6 @@ local selfnode_name = DPCLUSTER_NODE.node_ipport
 --		使用loadfile加载，每个模块都有特定的env。所有热更新后得到的新的env和旧的env进行比对，并修改旧的env。
 --
 --	此外，热更新若想新增一个模块则需要在旧的模块中使用Import。而不是在热更新中新增全新未加载的模块
-
-local function _senddisplay()
-	local PROXYSVR = Import("game/global/proxysvr.lua")
-	local p = PROXYSVR.GetProxyByServiceName("display")
-	p.call.AAA()
-end
 
 TOOL_FILEMTIME = {}	-- 工具库文件的最近一次修改时间
 MACRO_FILETIME = {}	-- 常量文件的最近一次修改时间
@@ -65,7 +63,7 @@ local function _GetFileMtimes()
 			elseif table.has_value(MACRO_FILES, fileName) then
 				-- 常量文件
 				t2[fileName] = mtime
-			elseif string.beginswith(fileName, "game/") and _ImportModule[fileName] then
+			elseif string.beginswith(fileName, "game/") then
 				-- game目录下的逻辑文件
 				t3[fileName] = mtime
 			end
@@ -76,28 +74,48 @@ local function _GetFileMtimes()
 	return t1, t2, t3
 end
 
-
 -- 热更新逻辑处理
 function Handle_Request(data)
 	local nTOOL_FILEMTIME, nMACRO_FILETIME, nGAME_FILEMTIME = _GetFileMtimes()
 
-	-- 1.更新工具拓展文件
-	-- 2.更新宏定义文件
-	-- 3.更新game目录下的逻辑文件（如果后续增加了配置，则细分先更新配置再更新逻辑文件）
+	-- 收集有改动的代码文件
+	local UPDATE_TYPE = UPDATE_TYPE or {TOOL = 1, MACROS = 2, IMPORT = 3}
+	local updateFiles = {
+		[UPDATE_TYPE.TOOL] = {},
+		[UPDATE_TYPE.MACROS] = {},
+		[UPDATE_TYPE.IMPORT] = {},
+	}
+	for pathFile, mtime in pairs(nTOOL_FILEMTIME) do
+		if TOOL_FILEMTIME[pathFile] and mtime > TOOL_FILEMTIME[pathFile] then
+			tinsert(updateFiles[UPDATE_TYPE.TOOL], pathFile)
+		end
+	end
+	for pathFile, mtime in pairs(nMACRO_FILETIME) do
+		if MACRO_FILETIME[pathFile] and mtime > MACRO_FILETIME[pathFile] then
+			tinsert(updateFiles[UPDATE_TYPE.MACROS], pathFile)
+		end
+	end
+	for pathFile, mtime in pairs(nGAME_FILEMTIME) do
+		if GAME_FILEMTIME[pathFile] and mtime > GAME_FILEMTIME[pathFile] then
+			tinsert(updateFiles[UPDATE_TYPE.IMPORT], pathFile)
+		end
+	end
 
+	if table.empty(updateFiles[UPDATE_TYPE.TOOL]) and
+		table.empty(updateFiles[UPDATE_TYPE.MACROS]) and
+		table.empty(updateFiles[UPDATE_TYPE.IMPORT])
+	then
+		_WARN("not code hot update!")
+		return true
+	end
 
-	-- _senddisplay()
-	-- local updatefile = {
-	-- 	{ file = "game/global/oop/roleclass.lua", utype = UPDATE_TYPE.IMPORT,}
-	-- }
-
-	-- local PROXYSVR = Import("game/global/proxysvr.lua")
-	-- local lsvr = PROXYSVR.GetProxy(".launcher", selfnode_name)
-	-- lsvr.call.UPDATE_FILES(updatefile)
-
-	-- local ROLECLASS = Import("game/global/oop/roleclass.lua")
-	-- print(ROLECLASS.RoleClass.__ClassType)
-	-- _senddisplay()
+	local PROXYSVR = Import("game/global/proxysvr.lua")
+	local lsvr = PROXYSVR.GetProxy(".launcher", selfnode_name)
+	if lsvr.call.UPDATE_FILES(updateFiles) then
+		TOOL_FILEMTIME = nTOOL_FILEMTIME
+		MACRO_FILES = nMACRO_FILETIME
+		GAME_FILEMTIME = nGAME_FILEMTIME
+	end
 
 	return true
 end
