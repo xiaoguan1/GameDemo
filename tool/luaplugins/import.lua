@@ -43,19 +43,6 @@ function ICopy(src, rel)
 	return rel
 end
 
-local function GetAllClass(Module)
-	local ClassList = {}
-	for k, v in pairs(Module) do
-		if type(v) == "table" then
-			-- 如果是一个class则需要全部更新，其他则可能只是一些数据，不需要更新
-			if v.__ClassType then
-				ClassList[k] = v
-			end
-		end
-	end
-	return ClassList
-end
-
 local function ReplaceTbl(Dest,Src)
 	local function RealFun(Dest, Src, Depth)
 		assert(type(Dest) == "table" and type(Src) == "table",
@@ -232,13 +219,6 @@ local function SafeImport(PathFile, Reload)
 			error(err)
 		end
 
-		local ClassList = GetAllClass(New)
-		-- 一定要放在函数的最后出口
-		-- 虽然是新的模块，但是在这里把模块或者类的继承依赖传播下去，可以处理一个class写在几个文件里面，比如：
-		-- Import(Parent1)
-		-- Import(Child)
-		-- Import(Parent2)
-		-- PropagateInherit(ClassList, ClassList)
 		return New
 	end
 
@@ -271,7 +251,7 @@ local function SafeImport(PathFile, Reload)
 			if type(v) == "table" then -- 原来的类型是table
 				if type(TmpNewData) == "table" then	-- 更新之后的类型依然是table
 					-- 如果是一个class则需要全部更新，其他则可能只是一些数据，不需要更新
-					if v.__ClassType then
+					if rawget(v, "__ClassType") then
 						OldClassList[k] = ICopy(v)
 						ReplaceTbl(v, TmpNewData)
 						NewClassList[k] = v
@@ -292,8 +272,6 @@ local function SafeImport(PathFile, Reload)
 	end
 	CallUpdate(New)
 
-	-- 一定要放在函数的最后出口
-	-- PropagateInherit(NewClassList, OldClassList)
 	return New
 end
 
