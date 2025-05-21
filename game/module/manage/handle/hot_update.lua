@@ -113,7 +113,7 @@ function Handle_Request(data)
 	local lsvr = PROXYSVR.GetProxy(".launcher", selfnode_name)
 	if lsvr.call.UPDATE_FILES(updateFiles) then
 		TOOL_FILEMTIME = nTOOL_FILEMTIME
-		MACRO_FILES = nMACRO_FILETIME
+		MACRO_FILETIME = nMACRO_FILETIME
 		GAME_FILEMTIME = nGAME_FILEMTIME
 	end
 

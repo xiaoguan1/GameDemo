@@ -13,9 +13,9 @@ local SELF_ADDR = skynet.self()
 ACCEPT = {}
 RESPONSE = {}
 
-local ROLECLASS = Import("game/global/oop/roleclass.lua")
+-- local ROLECLASS = Import("game/global/oop/roleclass.lua")
 function RESPONSE.AAA()
-	print(SERVICE_NAME, ROLECLASS.RoleClass.__ClassType, skynet.self())
+	-- print(SERVICE_NAME, ROLECLASS.RoleClass.__ClassType, skynet.self())
 	return true
 end
 
