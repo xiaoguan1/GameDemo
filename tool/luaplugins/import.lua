@@ -134,10 +134,11 @@ local function SafeImport(PathFile, Reload)
 		end
 	end
 
+	local __update__ = "__update__"
 	local function CallUpdate(Module)
-		if Module.__update__ then
+		if Module[__update__] then
 			local oCallFunc = CALLOUT and ICopy(CALLOUT.callout_func) or {}
-			Module.__update__()
+			Module[__update__]()
 			if is_pool_service then
 				local nCallFunc = CALLOUT and CALLOUT.callout_func or {}
 				if not tequal(oCallFunc, nCallFunc) then
@@ -228,7 +229,9 @@ local function SafeImport(PathFile, Reload)
 	-- 先缓存原来的旧内容
 	local OldCache = {}
 	for k, v in pairs(Old) do
-		OldCache[k] = v
+		if k ~= __update__ then
+			OldCache[k] = v
+		end
 		Old[k] = nil
 	end
 
@@ -241,7 +244,6 @@ local function SafeImport(PathFile, Reload)
 	-- 协议立即处理，不考虑其他错误，防止global对象被改
 	CallProto(New)
 
-	local NewClassList, OldClassList = {}, {}
 	-- 还原table(copy by value)
 	for k, v in pairs(OldCache) do
 		local TmpNewData = New[k]
@@ -252,9 +254,7 @@ local function SafeImport(PathFile, Reload)
 				if type(TmpNewData) == "table" then	-- 更新之后的类型依然是table
 					-- 如果是一个class则需要全部更新，其他则可能只是一些数据，不需要更新
 					if rawget(v, "__ClassType") then
-						OldClassList[k] = ICopy(v)
 						ReplaceTbl(v, TmpNewData)
-						NewClassList[k] = v
 					end
 					local mt = getmetatable(TmpNewData)
 					if mt then setmetatable(v, mt) end
@@ -290,36 +290,6 @@ function Import(pathFile)
 	end
 	return Module
 end
-
-
--- function Import(pathFile)
--- 	local isInsert = false
--- 	local oMod = _ImportModule[pathFile]
--- 	if not oMod then
--- 		isInsert = true
--- 	else
--- 		local co = coroutine.running()
--- 		if DEEP_IMPORT[co] then
--- 			isInsert = true
--- 		end
--- 	end
--- 	if isInsert then
--- 		-- 添加自动更新层级，如果之前就加载过那么就不用处理了
--- 		_InsertDeepImport(pathFile)
--- 	end
--- 	local ok, Module, err = xpcall(SafeImport, traceback, pathFile, false)
--- 	if isInsert then
--- 		-- 删除自动更新层级，获取列表信息，如果之前就加载过那么就不用处理了
--- 		_DeleteDeepImport(pathFile)
--- 	end
--- 	if not ok then
--- 		error(Module)
--- 	end
--- 	if not Module then
--- 		error(err)
--- 	end
--- 	return Module
--- end
 
 -- 并不是所有模块都能够Update，比如一些包含local动态数据的模块
 -- 如果更新这些模块，则会导致数据丢失。
