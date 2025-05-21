@@ -44,12 +44,9 @@ function DealMcs(id, addr)
 		local uPath = path and path:sub(2) and path:sub(2):upper()
 		local mod = uPath and ROUTER[uPath]
 		if mod then
-			local isOk1, isOk2, responseData = TryCall(mod.Handle_Request, args)
-			if isOk1 and isOk2 then
-				_Response(id, code)
-			else
-				_ERROR_F("path:%s uPath:%s run Handle_Request fail!, isOk1:%s isOk2:%s error:%s",
-					path, uPath, isOk1, isOk2, responseData)
+			local isOk1, responseMsg = TryCall(mod.Handle_Request, args)
+			if isOk1 then
+				_Response(id, code, responseMsg)
 			end
 		else
 			_ERROR_F("path:%s, not find", path)
