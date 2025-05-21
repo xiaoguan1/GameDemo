@@ -14,6 +14,11 @@ local listenPortIpv6 = "::"
 local backlog = 128
 MGE_SOCKETID = nil
 
+-- ip地址的白名单
+local WHITE_IPLIST = {
+	"127.0.0.1"
+}
+
 local function _IsAcceptIp(addr)
 	if not addr then
 		return
@@ -23,7 +28,7 @@ local function _IsAcceptIp(addr)
 	if not host then
 		return
 	end
-	if host == "127.0.0.1" then
+	if table.has_value(WHITE_IPLIST, host) then
 		-- 白名单
 		return true
 	end
