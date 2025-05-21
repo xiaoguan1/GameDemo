@@ -2,7 +2,7 @@ local skynet = require "skynet"
 local socket = require "skynet.socket"
 local string = string
 local table = table
-
+local SERVICE_NAME = SERVICE_NAME
 local MCONSOLE = Import("game/module/manage/mconsole.lua")
 
 -- wget -q -O - "http://127.0.0.1:8888/pings"
@@ -61,7 +61,7 @@ skynet.start(function ()
 	socket.start(MGE_SOCKETID, function(id, addr)
 		-- LOG.LOG_EVEHT("mcs_connected.log", addr)
 
-		_INFO_F("%s connected to mcs", addr)
+		_INFO_F("%s connected to %s", addr, SERVICE_NAME)
 		-- skynet.error(string.format("%s connected to mcs", addr))	-- 需要判断addr的地址，防止不是内剖人员用mcs
 		if _IsAcceptIp(addr) then
 			MCONSOLE.DealMcs(id, addr)
