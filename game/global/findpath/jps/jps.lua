@@ -2,98 +2,40 @@
 local table = table
 local utf8 = utf8
 
--- 四边形的方向配置
-local DIRECTION_4 = {
-	{x = 0, y = 1}, {x = 0, y = -1}, -- 上、下
-	{x = -1, y = 0}, {x = 1, y = 0}, -- 左、右
-	{x = 1, y = 1}, {x = 1, y = -1}, -- 右上、右下
-	{x = -1, y = 1}, {x = -1, y = -1}, -- 左上、左下
-}
-assert(#DIRECTION_4 == table.size(DIRECTION_4))
+local MISC = Import("game/global/findpath/jps/misc.lua")
 
--- 坐标位置的特性
-local POS_STATE0 = 0	-- 障碍
-local POS_STATE1 = 1	-- 正常可行走
+local DIRECTION_4 = MISC.DIRECTION_4
 
-local BYTE_SIZE = 8
-local function _Key(x, y)
-	return x << BYTE_SIZE | y
-end
-local function _RKey(key)
-	local x = key >> BYTE_SIZE
-	local y = key ~ (x << BYTE_SIZE)
-	return x, y
-end
-
-local function _CNode(x, y)
-	assert(x and y)
-	return {
-		x = x,
-		y = y,
-		key = _Key(x, y),
-		pkey = nil, -- 父节点的key值
-		h = 0,
-		g = 0,
-		f = 0,
-	}
-end
-
--- 判断父坐标p 和 子坐标s 的移动方向
-local function _CalcDir(p, s)
-	assert(p and s)
-	local diff = s - p
-	if diff > 0 then
-		-- 前进
-		return 1
-	elseif diff < 0 then
-		-- 后退
-		return -1
-	end
-	return 0
-end
-
--- 预估值（曼哈顿距离）
-local function _CalcH(x, y, goalX, goalY)
-	return math.abs(goalX - x) + math.abs(goalY - y)
-end
-
-local function _CompareF(p1, p2)
-	if p1.f < p2.f then
-		return true
-	elseif p1.f == p2.f and p1.g < p2.g then
-		return true
-	end
-end
-
--- 输出路径
-local function _PrintPath(closeList, node)
-	local path = ""
-	while node do
-		path = path .. string.format("(%s, %s) <-", node.x, node.y)
-		node = node.pkey and closeList[node.pkey]
-	end
-	print(path)
-end
+local POS_STATE0 = MISC.POS_STATE0
+local POS_STATE1 = MISC.POS_STATE1
 
 -- 类
 Mapping = { __ClassType = "<<mapping class>>" }
 
 -- 坐标是否有效
 function Mapping:IsValid(x, y)
-	return x and y and self.data[x] and self.data[x][y]
+	return x and y and self.mapData[x] and self.mapData[x][y]
 end
 
 function Mapping:IsWalk(x, y)
-	local state = x and y and self.data[x] and self.data[x][y]
+	local state = x and y and self.mapData[x] and self.mapData[x][y]
 	return state == POS_STATE1
 end
 
 function Mapping:IsObs(x, y)
-	local state = x and y and self.data[x] and self.data[x][y]
+	local state = x and y and self.mapData[x] and self.mapData[x][y]
 	return state == POS_STATE0
 end
 
-function Mapping:CalcNeighbors(node)
+-- 两个坐标点是否可达
+function Mapping:IsCanGo(startX, startY, goalX, goalY)
+	local startKey = MISC.Key(startX, startY)
+	local goalKey = MISC.Key(goalX, goalY)
+	return self.key2area[startKey] == self.key2area[goalKey]
+end
+
+-- 获取node节点邻居
+function Mapping:GetNeighbors(node)
 	node = node or {}
 	if not self:IsWalk(node.x, node.y) then
 		return
@@ -112,8 +54,8 @@ function Mapping:CalcNeighbors(node)
 		return neighbs
 	end
 
-	local px, py = _RKey(node.pkey)
-	local xDir, yDir = _CalcDir(px, x), _CalcDir(py, y)
+	local px, py = MISC.RKey(node.pkey)
+	local xDir, yDir = MISC.CalcDir(px, x), MISC.CalcDir(py, y)
 	local nextX, nextY = x + xDir, y + yDir
 	local preX, preY = x - xDir, y - yDir
 	if xDir ~= 0 and yDir ~= 0 then
@@ -192,11 +134,18 @@ end
 function Mapping:Jsp(startX, startY, goalX, goalY)
 	assert(self:IsValid(startX, startY) and self:IsValid(goalX, goalY))
 
-	-- 这里缺少了洪水填充，判断两个坐标点是否处于同一片区域！
+	if not self:IsCanGo(startX, startY, goalX, goalY) then
+		_ERROR_F("start:(%s, %s) can go goal:(%s, %s) !!!", startX, startY, goalX, goalY)
+		return
+	end
 
-	-- 待检测节点列表、辅助节点列表、已检测节点列表
-	local openList, openSet, closeList = {}, {}, {}
-	local startNode = _CNode(startX, startY)
+	local result = {
+		openList = {},		-- 待检测节点列表
+		openSet = {},		-- 辅助节点列表
+		closeList = {},		-- 已检测节点列表
+	}
+	local openList, openSet, closeList = result.openList, result.openSet, result.closeList
+	local startNode = MISC.CreateNode(startX, startY)
 	table.insert(openList, startNode)
 	openSet[startNode.key] = startNode
 
@@ -258,14 +207,14 @@ function Mapping:Jsp(startX, startY, goalX, goalY)
 		openSet[current.key] = nil
 		closeList[current.key] = current
 		if current.x == goalX and current.y == goalY then
-			_PrintPath(closeList, current)
-			return
+			result.node = current
+			return result
 		end
 
 		local jumpPoints = {}
-		local neighbs = self:CalcNeighbors(current) or {}
+		local neighbs = self:GetNeighbors(current) or {}
 		for _, v in ipairs(neighbs) do
-			local xDir, yDir = _CalcDir(current.x, v.x), _CalcDir(current.y, v.y)
+			local xDir, yDir = MISC.CalcDir(current.x, v.x), MISC.CalcDir(current.y, v.y)
 			local point = _SeekJumpPoint(v.x, v.y, xDir, yDir)
 			if point then
 				table.insert(jumpPoints, point)
@@ -274,7 +223,7 @@ function Mapping:Jsp(startX, startY, goalX, goalY)
 
 		local newG = current.g + 1
 		for _, v in ipairs(jumpPoints) do
-			local key = _Key(v.x, v.y)
+			local key = MISC.Key(v.x, v.y)
 			if not closeList[key] then
 				local existV = openSet[key]
 				if existV then
@@ -284,23 +233,40 @@ function Mapping:Jsp(startX, startY, goalX, goalY)
 						existV.pkey = current.key
 					end
 				else
-					local node = _CNode(v.x, v.y)
-					node.g = newG
-					node.h = _CalcH(v.x, goalX, v.y, goalY)
+					local node = MISC.CreateNode(v.x, v.y)
+					node.g, node.h = newG, MISC.CalcH(v.x, goalX, v.y, goalY)
 					node.f = node.g + node.h
 					node.pkey = current.key
 					table.insert(openList, node)
 					openSet[node.key] = node
-					table.sort(openList, _CompareF)
+					table.sort(openList, MISC.CompareF)
 				end
 			end
 		end
 	end
 end
 
--- 初始化
-function Mapping:Test1()
-	local mapData = {
+-- 初始化地图
+function Mapping:New(m)
+	assert(m and table.size(m) == #m, "map arg error")
+
+	local area2key, key2area
+	local mapData = MISC.MapStrToTable(m)
+	area2key, key2area = MISC.FloodFill(mapData)
+
+	local o = {
+		__IsObject = os.time(),
+		mapData = mapData,	-- 地图数据 {[x] = {[y] = state, .. }}  注：0：障碍、1：可行走
+		area2key = area2key,
+		key2area = key2area,
+	}
+	setmetatable(o, {__index = self})
+	return o
+end
+
+function Mapping:Test()
+	-- start:(10, 16)  ->  goal:(40, 27)
+	local m = {
 		"############################################################",
 		'#..........................................................#',
 		'#.............................#............................#',
@@ -316,7 +282,7 @@ function Mapping:Test1()
 		'#.............................#............................#',
 		'#######.#######################################............#',
 		'#....#........#............................................#',
-		'#....#...S....#............................................#',
+		'#....#........#............................................#',
 		'#....##########............................................#',
 		'#..........................................................#',
 		'#..........................................................#',
@@ -327,50 +293,38 @@ function Mapping:Test1()
 		'#...............................#............#.............#',
 		'#...............................#............#.............#',
 		'#...............................#....####....#.............#',
-		'#...............................#....#.E...................#',
+		'#...............................#....#.....................#',
 		'#...............................##############.............#',
 		'#..........................................................#',
 		'#..........................................................#',
 		'############################################################',
 	}
-	assert(table.size(mapData) == #mapData, "mapData len error")
 
-	local o = {
-		__IsObject = os.time(),
-		obsList = { -- 障碍坐标
-			-- [x] = y
-		},
-		data = {	-- 地图数据
-			-- [x] = { [y] = state, ... }	state（0：障碍、1：可行走）
-		},
-	}
-	local start, goal = nil, nil
-	for y = 1, #mapData do
-		for x, byte in utf8.codes(mapData[y]) do
-			local c = utf8.char(byte)
-			local state = POS_STATE1
-			if c == "#" then
-				state = POS_STATE0
-			elseif c == "S" then
-				start = {x = x, y = y}
-			elseif c == "E" then
-				goal = {x = x, y = y}
-			end
-			o.data[x] = o.data[x] or {}
-			o.data[x][y] = state
-		end
+	local mapObj = self:New(m)
+	local result = mapObj:Jsp(10, 16, 40, 27)
+
+	local node = result.node
+	local openList, openSet, closeList = result.openList, result.openSet, result.closeList
+	local path = {}
+	while node do
+		path[node.x] = node.y
+		node = node.pkey and closeList[node.pkey]
 	end
 
-	print(string.format("起始和目标点坐标信息 (%s, %s) --> (%s, %s)",
-		start.x, start.y, goal.x, goal.y))
-
-	setmetatable(o, {__index = self})
-	o:Jsp(start.x, start.y, goal.x, goal.y)
-
-
+	local newM = {}
+	for y = 1, #m do
+		local p = ""
+		for x, byte in utf8.codes(m[y]) do
+			local c = utf8.char(byte)
+			if path[x] == y then
+				p = p .. "L"
+			else
+				p = p .. c
+			end
+		end
+		table.insert(newM, p)
+	end
+	for _, v in ipairs(newM) do
+		print(v)
+	end
 end
-
-
-
-
-
