@@ -11,8 +11,8 @@ local is_crossserver = skynet.getenv("is_cross") == "true" and true or false
 START_UNIQ_SERVICE = {
 	{svr = "gamelog", named = ".GAMELOG"},
 	{svr = "stimer", named = ".STIMER"},
-	{svr = "databased", named = ".DATABASED"},
-	{svr = "manage", named = ".MANAGE"}
+	{svr = "dbserver", named = ".DBSERVER"},
+	{svr = "manage", named = ".MANAGE"},
 }
 
 UNIQ_SERVICE_CFG = {}
