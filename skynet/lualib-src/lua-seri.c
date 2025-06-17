@@ -606,6 +606,52 @@ luaseri_unpack(lua_State *L) {
 	return lua_gettop(L) - 1;
 }
 
+int
+luaseri_unexpack(lua_State *L) {
+	if (lua_isnoneornil(L,1)) {
+		return 0;
+	}
+	void * buffer;
+	int len;
+	if (lua_type(L,1) == LUA_TSTRING) {
+		size_t sz;
+		 buffer = (void *)lua_tolstring(L,1,&sz);
+		len = (int)sz;
+	} else {
+		buffer = lua_touserdata(L,1);
+		len = luaL_checkinteger(L,2);
+	}
+	if (len == 0) {
+		return 0;
+	}
+	if (buffer == NULL) {
+		return luaL_error(L, "deserialize null pointer");
+	}
+
+	int ex = luaL_checkinteger(L, 3);
+	if (ex <= 0)
+		return luaL_error(L, "unpack arg ex:%d error", ex);
+
+	lua_settop(L,1);
+	struct read_block rb;
+	rball_init(&rb, buffer, len);
+
+	int i;
+	for (i=0; i<ex; i++) {
+		if (i%8==7) {
+			luaL_checkstack(L,LUA_MINSTACK,NULL);
+		}
+		uint8_t type = 0;
+		const uint8_t * t = (const uint8_t *)rb_read(&rb, sizeof(type));
+		if (t==NULL)
+			break;
+		type = *t;
+		push_value(L, &rb, type & 0x7, type>>3);
+	}
+
+	return lua_gettop(L) - 1;
+}
+
 LUAMOD_API int
 luaseri_pack(lua_State *L) {
 	struct block temp;

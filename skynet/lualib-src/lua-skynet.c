@@ -515,6 +515,7 @@ luaopen_skynet_core(lua_State *L) {
 		{ "tostring", ltostring },
 		{ "pack", luaseri_pack },
 		{ "unpack", luaseri_unpack },
+		{ "unexpack", luaseri_unexpack },
 		{ "packstring", lpackstring },
 		{ "trash" , ltrash },
 		{ "now", lnow },

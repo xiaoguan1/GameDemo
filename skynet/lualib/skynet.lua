@@ -728,6 +728,7 @@ end
 skynet.pack = assert(c.pack)
 skynet.packstring = assert(c.packstring)
 skynet.unpack = assert(c.unpack)
+skynet.unexpack = assert(c.unexpack)
 skynet.tostring = assert(c.tostring)
 skynet.trash = assert(c.trash)
 
@@ -981,7 +982,7 @@ local function raw_dispatch_message(prototype, msg, sz, session, source)
 end
 
 function skynet.dispatch_message(...)
-	local succ, err = pcall(raw_dispatch_message,...)
+	local succ, err = xpcall(raw_dispatch_message, debug.traceback, ...)
 	while true do
 		if fork_queue.h > fork_queue.t then
 			-- queue is empty
