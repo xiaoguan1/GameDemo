@@ -25,6 +25,11 @@ end
 
 
 -- call方法
+function RESPONSE.showtables()
+	local db = MISC.ConnDb()
+	local result = db:query("show tables;")
+	return result
+end
 
 skynet.start(function ()
 	skynet.register(".DBCELL_" .. no)
@@ -37,7 +42,7 @@ skynet.start(function ()
 			end
 			func(...)
 		else
-			local func = ACCEPT[command]
+			local func = RESPONSE[command]
 			if not func then
 				error("not find func:" .. command)
 			end

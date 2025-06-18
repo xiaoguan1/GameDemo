@@ -46,6 +46,7 @@ local skynet = {
 	PTYPE_RPC = 14,		-- by GGW
 	PTYPE_CALLOUT = 15,	-- by GGW
 	PTYPE_TRANS = 16,	-- by GGW
+	PTYPE_DB = 17,		-- by GGW
 }
 
 function skynet.get_prototype_id(key)
@@ -58,6 +59,12 @@ end
 
 function skynet.get_prototype_unpack(key)
 	return key and proto[key] and proto[key].unpack
+end
+
+function skynet.update_prototype_unpack(key, unpack)
+	if key and unpack and proto[key] then
+		proto[key].unpack = unpack
+	end
 end
 
 function skynet.get_proto(key)
