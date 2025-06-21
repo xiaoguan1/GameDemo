@@ -4,12 +4,14 @@
 
 ----------------------------
 
+local json = require "cjson"
 local pcall = pcall
 local pairs = pairs
 local ipairs = ipairs
 local type = type
 local string = string
 local tostring = tostring
+local table = table
 if not tool then
 	tool = {}
 	_G.tool = tool
@@ -27,6 +29,23 @@ local function _normalize(value)
 		retval = tostring(value)
 	end
 	return retval
+end
+
+local function is_array(tbl)
+	local len, maxK = 0, 0
+	for k, b in pairs(tbl) do
+		if type(k) ~= "number" then
+			return false
+		end
+		len = len + 1
+		if maxK < k then
+			maxK = k
+		end
+	end
+	if maxK ~= len then
+		return false
+	end
+	return true, maxK
 end
 
 function tool.repr(value)
@@ -191,3 +210,63 @@ function tool.traceback(msg)
 	return string.format("tool.traceback: \n%s\n%s\n%s\n%s", msg, localMsg, upvalueMsg, debug.traceback("", 2))
 end
 
+local function serialise_table(value, depth)
+	depth = depth + 1
+	if depth > 50 then
+		return "Cannot serialise_table any further: too many nested tables"
+	end
+
+	local isArr, len = is_array(value)
+	local fragment = { "{" }
+	local comma
+	if isArr then
+		-- array
+		for i = 1, len, 1 do
+			if comma then
+				table.insert(fragment, ",")
+			end
+			table.insert(fragment, tool.serialise(value[i], depth))
+			comma = true
+		end
+	else
+		-- map
+		local indexs = {}
+		for k in ipairs(value) do
+			indexs[k] = k
+		end
+		for k, v in pairs(value) do
+			if comma then
+				table.insert(fragment, ",")
+			end
+			local ser
+			if indexs[k] then
+				ser = ("%s"):format(tool.serialise(v, depth))
+			else
+				ser = ("[%s]=%s"):format(tool.serialise(k, depth), tool.serialise(v, depth))
+			end
+			table.insert(fragment, ser)
+			comma = true
+		end
+	end
+	table.insert(fragment, "}")
+	return table.concat(fragment)
+end
+
+function tool.serialise(value, depth)
+	if depth == nil then depth = 0 end
+
+	if value == json.null then
+		return "json.null"
+	elseif type(value) == "string" then
+		return ("%q"):format(value)
+	elseif type(value) == "nil" or
+			type(value) == "number" or
+			type(value) == "boolean"
+	then
+		return tostring(value)
+	elseif type(value) == "table" then
+		return serialise_table(value, depth)
+	else
+		return "\"<" .. type(value) .. ">\""
+	end
+end
