@@ -23,6 +23,24 @@ function ACCEPT.Insert_Cache(cache)
 	MISC.InsertCache(cache)
 end
 
+local MODDATA_DEFAULT = mysql.quote_sql_str('{}')
+function ACCEPT.modcreatenexist(saveName)
+	local db = MISC.ConnDb()
+	if not db or not saveName then
+		return
+	end
+
+	-- INSERT IGNORE : 在唯一索引或主键冲突时什么都不做
+	saveName = mysql.quote_sql_str(saveName)
+	local sql = string.format("insert ignore into module(mod_name, data) values (%s, %s);",
+			saveName, MODDATA_DEFAULT)
+	local result = db:query(sql)
+	if result["badresult"] then
+		_ERROR_F("saveName:%s result:%s", saveName, tool.dumptree(result))
+		return
+	end
+	return true
+end
 
 -- call方法
 function RESPONSE.showtables()

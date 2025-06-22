@@ -10,14 +10,16 @@ skynet.register_protocol({
 })
 
 function Call_ShowTables()
-	local a, b, c = DBSERVER.call.showtables(skynet.self())
-	print(tool.dump(a))
 	return DBSERVER.call.showtables(skynet.self())
 end
 
+function Send_ModCreateNexist(saveName)
+	DBSERVER.send.modcreatenexist(saveName)
+end
 
-
-
+function Call_ModData()
+	
+end
 
 
 

@@ -18,7 +18,7 @@ EOF
 ######################create table######################
 mysql -hlocalhost -uroot -proot $dbname << EOF 2>/dev/null
 CREATE TABLE module (
-	mod_name varchar(64) NOT NULL COMMENT '模块名',
+	mod_name varchar(128) NOT NULL COMMENT '模块名',
 	data LONGTEXT NOT NULL COMMENT '模块数据',
 	PRIMARY KEY (mod_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

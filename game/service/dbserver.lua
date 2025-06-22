@@ -27,12 +27,14 @@ local function _GetCellAddr(eig)
 end
 
 function ACCEPT.REDIRECT(session, source, command, eig, msg, sz)
-	local addr = _GetCellAddr(eig)
+	local addr = eig and _GetCellAddr(eig)
 	if not addr then
-		skynet.trash(msg, sz)
+		if msg then
+			skynet.trash(msg, sz)
+		end
 		return
 	end
-	skynet.redirect(addr, source, "lua", session, command, msg, sz)
+	skynet.redirect(addr, source, "lua", session, msg, sz)
 end
 
 function RESPONSE.REDIRECT(session, source, command, eig, msg, sz)
