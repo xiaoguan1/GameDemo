@@ -14,14 +14,21 @@ echo $path
 centerdata_create=$path/script/database/centerdata_create.sh
 centerdata_insert=$path/script/database/centerdata_insert.sh
 
+# 数据库脚本
+gamedata=$path/script/database/game_create.sh
 
 echo "选择题:"
-select w in 重置中心数据库
+select w in 重置中心数据库 重置游戏数据库
 do
 	case $w in
 		重置中心数据库)
 			sh $centerdata_create centerdata
 			sh $centerdata_insert centerdata
+			break
+			;;
+		重置游戏数据库)
+			DbName=`cat ../config/main_node | grep -E '\"server[0-9]+\",?' | grep -oP '\s*dbname\s*=\s*"\Kserver[0-9]+'`
+			sh $gamedata $DbName
 			break
 			;;
 	esac
