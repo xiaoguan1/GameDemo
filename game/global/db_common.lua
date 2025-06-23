@@ -17,8 +17,8 @@ function Send_ModCreateNexist(saveName)
 	DBSERVER.send.modcreatenexist(saveName)
 end
 
-function Call_ModData()
-	
+function Call_ModGetData(saveName)
+	return DBSERVER.call.modgetdata(saveName)
 end
 
 

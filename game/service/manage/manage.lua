@@ -3,7 +3,7 @@ local socket = require "skynet.socket"
 local string = string
 local table = table
 local SERVICE_NAME = SERVICE_NAME
-local MCONSOLE = Import("game/module/manage/mconsole.lua")
+local MCONSOLE = Import("game/service/manage/mconsole.lua")
 
 -- wget -q -O - "http://127.0.0.1:8888/pings"
 

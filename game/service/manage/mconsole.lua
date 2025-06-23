@@ -6,7 +6,7 @@ local urllib = require "http.url"
 local HTTPD_GET = "GET "
 local HTTPD_POST = "POST "
 
-local ROUTER = Import("game/module/manage/router.lua")
+local ROUTER = Import("game/service/manage/router.lua")
 
 local function _Response(id, ...)
 	httpd.write_response(sockethelper.writefunc(id), ...)

@@ -7,7 +7,7 @@ local no = ...
 assert(no)
 
 ACCEPT, RESPONSE = {}, {}
-local MISC = Import("game/module/dbcell/dbcell_misc.lua")
+local MISC = Import("game/service/dbcell/dbcell_misc.lua")
 
 -- 心跳方法
 local HbTime = 1 * 100
@@ -35,7 +35,7 @@ function ACCEPT.modcreatenexist(saveName)
 	local sql = string.format("insert ignore into module(mod_name, data) values (%s, %s);",
 			saveName, MODDATA_DEFAULT)
 	local result = db:query(sql)
-	if result["badresult"] then
+	if not result or result.badresult then
 		_ERROR_F("saveName:%s result:%s", saveName, tool.dumptree(result))
 		return
 	end
@@ -49,7 +49,23 @@ function RESPONSE.showtables()
 	return result
 end
 
+function RESPONSE.modgetdata(saveName)
+	local db = MISC.ConnDb()
+	if not db or not saveName then
+		return
+	end
+	saveName = mysql.quote_sql_str(saveName)
+	local sql = string.format("select data from module where mod_name = %s;", saveName)
+	local result = db:query(sql)
+	if not result or result.badresult then
+		_ERROR_F("saveName:%s result:%s", saveName, tool.dumptree(result))
+		return
+	end
+	return result[1].data
+end
+
 skynet.start(function ()
+	dofile "./game/global/log.lua"
 	skynet.register(".DBCELL_" .. no)
 
 	skynet.dispatch("lua", function (session, source, command, ...)

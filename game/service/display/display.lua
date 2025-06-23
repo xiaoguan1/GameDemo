@@ -26,6 +26,12 @@ skynet.register_protocol {
 }
 
 skynet.start(function ()
+	local DB_COMMON = Import("game/global/db_common.lua")
+	skynet.fork(function ()
+		DB_COMMON.Call_ShowTables()
+		local a, b, c = DB_COMMON.Call_ModGetData("haha")
+		print(tool.dumptree(a), b, c, "----")
+	end)
 	skynet.dispatch("lua", function (session, _, command, ...)
 		local f
 		local isRecord = PROFILE_CMD.CmdCal_S()
