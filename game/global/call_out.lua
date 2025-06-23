@@ -15,7 +15,7 @@ local tpack = table.pack
 local tunpack = table.unpack
 local collectgarbage = collectgarbage
 local _MEM_ALARM_F = _MEM_ALARM_F
-local SNODE_NAME = DPCLUSTER_NODE.self
+local SNODE_NAME = DPCLUSTER_NODE.node_ipport
 local sformat = string.format
 MEM_ALARM_THRESHOLD = 5120				-- 超5m内存警报阈值
 MEM_IGNORE_ALARM = {
@@ -27,7 +27,7 @@ if not PROXYSVR then
 	PROXYSVR = Import("game/global/proxysvr.lua")
 end
 
-local stimerld = NODE_ONLYSERVER_MIRROR and NODE_ONLYSERVER_MIRROR.stimer and NODE_ONLYSERVER_MIRROR.stimer.named
+local stimerld = UNIQ_SERVICE_CFG and UNIQ_SERVICE_CFG.stimer and UNIQ_SERVICE_CFG.stimer.named
 if not stimerld then
 	error("stimer service not localname")
 end

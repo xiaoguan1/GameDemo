@@ -16,7 +16,7 @@ local type = type
 
 assert(CALLOUT)
 local DB_COMMON = Import("game/global/db_common.lua")
-local LOG = Import("lualib/base/log.lua")
+local _LOG_EVENT = assert(_LOG_EVENT)
 
 -- 注意：
 -- 1.服务关闭的需要调用一下来存储
@@ -179,7 +179,7 @@ function SaveOneModule(module, isTmm)
 			end
 			local save_name = module.__SAVE_NAME
 			DB_COMMON.Send_ModSave(save_name, tmp, isTmm)
-			LOG.LOG_EVENT("module2dbsave.log", save_name, IS_SHUTDOWN)
+			_LOG_EVENT("module2dbsave.log", save_name, IS_SHUTDOWN)
 		end
 		local ok, err = xpcall(_DoModuleRegTblSave, traceback)
 		if not ok then

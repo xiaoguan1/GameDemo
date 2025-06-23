@@ -25,6 +25,7 @@ local _WARN_LOG_PATH = "./log/" .. node .. "/warn/"
 local _ERROR_LOG_PATH =	"./log/" .. node .. "/error/"
 local _MEM_LOG_PATH = "./log/" .. node .. "/mem/"
 local _ERROR_A_ALARM_PATH = "./log/" .. node .. "/runtime/login_alarm/"
+local _LOG_EVENT_PATH = "./log/" .. node .. "/log_event/%s/%s"
 
 -- 字体颜色
 local FONTCOLOUR = {
@@ -50,10 +51,21 @@ local BACKGROUNDCOLOUR = {
 	White	=	";47m",		-- 白色
 }
 
+-- 白字绿底
 local INFO_M = HEADER .. FONTCOLOUR.White .. BACKGROUNDCOLOUR.Green
+
+-- 黑子黄底
 local WARN_M = HEADER ..  FONTCOLOUR.Black .. BACKGROUNDCOLOUR.Yellow
+
+-- 黑子红底
 local ERROR_M = HEADER ..  FONTCOLOUR.Black .. BACKGROUNDCOLOUR.Red
+
+-- 黑子紫底
 local MEM_M = HEADER .. FONTCOLOUR.Black .. BACKGROUNDCOLOUR.Purple
+
+-- 绿字黄底
+local EVENT_M = HEADER .. FONTCOLOUR.Green .. BACKGROUNDCOLOUR.Yellow
+
 local SERVICE_INFO = sformat("%s %0x ", SERVICE_NAME, skynet.self())
 
 -- 被调用的函数信息
@@ -79,6 +91,7 @@ local _LEVEL_COLOR = {
 	[2] = WARN_M,
 	[3] = ERROR_M,
 	[4] = MEM_M,
+	[5] = EVENT_M,
 }
 
 local function _info_context(fileInfo, msg)
@@ -112,6 +125,18 @@ local function _mem_context(fileInfo, msg)
 		fileInfo,
 		msg,
 	}, " ")
+end
+local function _log_event_context(fileInfo, ...)
+	local p = table.pack(...)
+	local t = {
+		os_date("%Y-%m-%d %H:%M:%S"),
+		"[LOG_EVENT]",
+		fileInfo,
+	}
+	for i = 1, p.n do
+		table.insert(t, tostring(p[i]))
+	end
+	return tconcat(t, " ")
 end
 
 -- 控制台打印
@@ -224,4 +249,18 @@ function _ERROR_A_ALARM(...)
 		_log_print(3, context)
 	end
 	_L_ERROR(4, ...)
+end
+
+-- 指定缓存文件名，记录信息！
+local function _L_EVENT(deep, fileName, ...)
+	local cfile = sformat(_LOG_EVENT_PATH, os_date("%Y%m%d"), fileName)
+	LogToFile(cfile, LOG_LEVEL.WRITE_DELAY, FileInfo(deep), ...)
+end
+function _LOG_EVENT(fileName, ...)
+	assert(fileName)
+	if logStdin then
+		local context = _log_event_context(FileInfo(), ...)
+		_log_print(5, context)
+	end
+	_L_EVENT(4, fileName, ...)
 end

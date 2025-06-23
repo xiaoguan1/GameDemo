@@ -13,12 +13,6 @@ local SELF_ADDR = skynet.self()
 ACCEPT = {}
 RESPONSE = {}
 
--- local ROLECLASS = Import("game/global/oop/roleclass.lua")
-function RESPONSE.AAA()
-	-- print(SERVICE_NAME, ROLECLASS.RoleClass.__ClassType, skynet.self())
-	return true
-end
-
 skynet.register_protocol {
 	name = "client",
 	id = skynet.PTYPE_CLIENT,
@@ -26,12 +20,6 @@ skynet.register_protocol {
 }
 
 skynet.start(function ()
-	local DB_COMMON = Import("game/global/db_common.lua")
-	skynet.fork(function ()
-		DB_COMMON.Call_ShowTables()
-		local a, b, c = DB_COMMON.Call_ModGetData("haha")
-		print(tool.dumptree(a), b, c, "----")
-	end)
 	skynet.dispatch("lua", function (session, _, command, ...)
 		local f
 		local isRecord = PROFILE_CMD.CmdCal_S()
@@ -51,32 +39,6 @@ skynet.start(function ()
 		end
 	end)
 
-	skynet.dispatch("client", function (session, _, id, struct_name, proto_data)
-		-- local roleObj = CHAR_MGR.GetRoleById(id)
-		-- if roleObj then
-		-- 	error(string.format("not role by id:%s", id))
-		-- end
-
-		-- local isRecord = PROFILE_CMD.CmdCal_S()
-		-- roleObj:ResetIdleCnt()
-		-- PROTOCOLEVENT.dispatch(id, struct_name, roleObj, proto_data)
-		-- if isRecord then
-		-- 	PROFILE_CMD.CmdCal_E(struct_name)
-		-- end
-
-		if session ~= 0 then
-			skynet.retpack(nil)
-		end
-	end)
-
-	-- local PROXYSVR = Import("game/global/proxysvr.lua")
-	-- local SHUTDOWN_SVR = PROXYSVR.GetProxyByServiceName("shutdown")
-	-- SHUTDOWN_SVR.send.register_csdevent(SELF_ADDR)
-
-	-- if not is_crossserver then
-	-- 	local proxySvr = PROXYSVR.GetProxy(".DISPLAY", "127.0.0.1:32527", "lua")
-	-- 	print(proxySvr.call.AAA())
-	-- end
-
-
+	dofile "game/global/log.lua"
+	dofile "game/service/display/global.lua"
 end)

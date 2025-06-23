@@ -1118,6 +1118,10 @@ function skynet.mqlen()
 	return c.intcommand("STAT", "mqlen")
 end
 
+function skynet.cpu_cost()
+	return c.intcommand("STAT", "cpu")
+end
+
 function skynet.stat(what)
 	return c.intcommand("STAT", what)
 end
