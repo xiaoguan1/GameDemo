@@ -1,18 +1,13 @@
--------------------------------
--- 创建者：Ghost
--- 创建日期：2019/08/02
--- 模块作用：模块存盘接口
--------------------------------
-
+-- 模块存盘接口
 local skynet = require "skynet"
 local string = string
-local table = table
 local pairs = pairs
-local ipairs = ipairs
 local traceback = debug.traceback
 local assert = assert
-local xpcall = xpcall
 local type = type
+local rawset = rawset
+local skyent_queue = require "skynet_queue"
+CS = skyent_queue()
 
 assert(CALLOUT)
 local DB_COMMON = Import("game/global/db_common.lua")
@@ -23,6 +18,7 @@ local _LOG_EVENT = assert(_LOG_EVENT)
 -- 2.恢复文件数据是可能会有重入的，所以一般尽量保证启动service就加载了所以模块，如果不能保证就要自己处理重入的问题
 -- 3.每个模块的存储数据都应该为，
 -- 		(1).设置__SAVE_NAME = "xxx/xxx"，例如 __SAVE_NAME = "login/login"下
+--		(2).模块的env必须将MODULE_DATA设置为全局变量，例如MODULE_DATA = false
 --		(2).在__init__函数中MOUDLE_DB.Register("需要保存的table或者全局变量","需要保存的table或者全局变量", 等等)
 
 local SAVE_TIME = 8 * 60							-- 8分钟一次数据存盘
@@ -31,11 +27,9 @@ local SAVE_NORMALCNT = 5							-- 每SAVE_MODULETIME存储的个数
 local SAVE_MODULETIME = 1							-- 模块数据分时存储 1秒存SAVE_NORMALCNT个模块
 
 IS_SHUTDOWN = false
-SaveRegTbl = {}
 ModuleCache = {}
-
-local mt = {__mode = "k"}
-setmetatable(SaveRegTbl, mt)
+SaveDataTarget = {}
+SaveDataQueue = { h = 1, t = 0, total = 0 }
 
 local function _DumpWarn(fmt, ...)
 	if _WARN_F then
@@ -55,179 +49,89 @@ local function _RestoreModuleFormDb(saveName)
 	end
 end
 
-local function _ModuleRestore(module)
-	local saveName = module.__SAVE_NAME
-	-- 已经注册的module，不覆盖数据
-	if SaveRegTbl[module] then return end
+local function _ModuleRestore(saveName)
+	local saveData = ModuleCache[saveName]
+	if saveData then
+		-- 一般而言，saveData只能获取一次，同服务下想要访问可以直接进行模块调用即可，其他服务想要访问这份数据可以通过rpc获得！
+		error(string.format("%s repeated register, traceback:%s", saveName, traceback()))
+	end
 
 	-- 在数据库中创建，判断是否有这个数据，没有就insert into
 	DB_COMMON.Send_ModCreateNexist(saveName)
 
-	local tblData, sz = _RestoreModuleFormDb(saveName)
-	if not tblData then
+	local saveData, sz = _RestoreModuleFormDb(saveName)
+	if not saveData then
 		return
-	else
-		for k, v in pairs(tblData) do
-			module[k] = v
-		end
-		return sz
-	end
-end
-
--- 注册关闭服务事件
-local function _RegisterShutdownEvent(saveName)
-	-- SHUTDOWN_SVR.send.register_moudle_sdevent(saveName, SELF_ADDR, SNODE_NAME)	-- 使用call比较容易出错，send在写代码如果有重复应该就知道了
-end
-
--- 注册module的变量名以供存储
-function RegisterByEnv(module, ...)
-	local sz = _ModuleRestore(module) or 0
-	if not SaveRegTbl[module] then
-		_RegisterShutdownEvent(module.__SAVE_NAME)
 	end
 
-	local arg = table.pack(...)
-	arg.n = nil	-- 去掉n的大小
-	for _, v in pairs(arg) do
-		assert(type(v) == "string", string.format("module %s register var key is not string", module.__SAVE_NAME))
-		if module[v] == nil then
-			local fmt = [[
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-module:%s key:%s save data is nil
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-------------------------------------------------------------------------
-			]]
-			_DumpWarn(fmt, module.__SAVE_NAME, v)
-		end
-	end
-
-	SaveRegTbl[module] = arg
-	return sz
-end
-
--- 注册module的变量名以供存储
-function Register(...)
-	local module = getfenv(2)
-	return RegisterByEnv(module, ...)
-end
-
-function SaveModuleOnFrame(isFull)
-	if not IS_SHUTDOWN then			-- 没有停服
-		local cnt = 0
-		for _module, _data in pairs(ModuleCache) do
-			if not isFull then
-				cnt = cnt + 1
-				if cnt > SAVE_NORMALCNT then break end
+	setmetatable(saveData, {
+		__newindex = function (data, k, v)
+			if not SaveDataTarget[saveName] then
+				SaveDataTarget[saveName] = true
+				SaveDataQueue.t = SaveDataQueue.t + 1
+				SaveDataQueue[SaveDataQueue.t] = saveName
 			end
-			SaveOneModule(_module)
+			return rawset(data, k, v)
 		end
-	end
+	})
+	ModuleCache[saveName] = saveData
+	SaveDataQueue.total = SaveDataQueue.total + 1
+	return saveData, sz
 end
 
-function FlushCache()
-	SaveModuleOnFrame(true)
+-- 注册saveName的变量名以供存储
+function Register(saveName)
+	assert(not IS_SHUTDOWN, string.format("%s register fail, because is shutdown!", saveName))
+	assert(type(saveName) == "string" and #saveName > 0)
+	return CS(_ModuleRestore, saveName)
 end
 
-function SaveOneModule(module, isTmm)
-	if ModuleCache[module] then
-		ModuleCache[module] = nil
+function SaveModule()
+	if IS_SHUTDOWN then
+		return
+	end
+	if SaveDataQueue.h > SaveDataQueue.t then
+		return
 	end
 
-	if SaveRegTbl[module] then
-		local varList = SaveRegTbl[module]
-		local function _DoModuleRegTblSave()
-			local tmp = {}
-			for _, _var in ipairs(varList) do
-				tmp[_var] = module[_var]
-			end
-			local save_name = module.__SAVE_NAME
-			DB_COMMON.Send_ModSave(save_name, tmp, isTmm)
-			_LOG_EVENT("module2dbsave.log", save_name, IS_SHUTDOWN)
+	local saveCount = math.ceil(SaveDataQueue.total / SAVE_TIME)
+	local h
+	for i = 1, saveCount, 1 do
+		if h then
+			SaveDataQueue.h = SaveDataQueue.h + 1
+			h = SaveDataQueue.h
+		else
+			h = SaveDataQueue.h
 		end
-		local ok, err = xpcall(_DoModuleRegTblSave, traceback)
-		if not ok then
-			skynet.error("_DoModuleRegTblSave error:", module.__SAVE_NAME, err)
-			local tmp = {}
-			for _, _var in ipairs(varList) do
-				tmp[_var] = module[_var]
-			end
-			skynet.error("_DoModuleRegTblSave error varList:", module.__SAVE_NAME, sys.dumptree(tmp))
+		local saveName = SaveDataQueue[h]
+		SaveDataQueue[h] = nil
+		local saveData = saveName and ModuleCache[saveName]
+		if not saveData then
+			break
 		end
+		DB_COMMON.Send_ModSave(saveName, saveData)
+		_LOG_EVENT("module2dbsave.log", saveName, IS_SHUTDOWN)
+	end
+	if SaveDataQueue.h > SaveDataQueue.t then
+		SaveDataQueue.h = 1
+		SaveDataQueue.t = 0
 	end
 end
 
-function SaveAllModule()
-	-- 模块注册变量存盘
-	local cnt = 0
-	for _module, _data in pairs(SaveRegTbl) do
-		ModuleCache[_module] = _data
-		cnt = cnt + 1
-	end
-	SAVE_NORMALCNT = math.ceil(cnt / SAVE_TIME)
-end
-
-function SaveAll()
-	FlushCache()		-- Cache里面可能有数据，所以要先FlushCache
-	SaveAllModule()		-- 模块存盘
-end
-
-function Shutdown_SaveModule()
-	IS_SHUTDOWN = true
-	SaveAllModule()
-
-	local tM = {}
-	for _k, _v in pairs(ModuleCache) do
-		tM[_k] = _v
-	end
-
-	for _module, _data in pairs(tM) do	-- 用tM防止因为最后的call保存导致中间停止了
-		SaveOneModule(_module)
-	end
-end
-
-function FirstSaveAll()
-	CALLOUT.CallFre("SaveAll", SAVE_TIME)
-	SaveAll()
-end
 
 function __init__()
-	CALLOUT.CallOut("FirstSaveAll", SAVE_TIME_F)
-	CALLOUT.CallFre("SaveModuleOnFrame", SAVE_MODULETIME)
+	CALLOUT.CallFre("SaveModule", SAVE_TIME)
+end
+
+-- 关服处理
+function Shutdown_SaveModule()
+	if IS_SHUTDOWN then
+		return
+	end
+	IS_SHUTDOWN = true
+
+	-- 将全部数据发送数据库服务进行保存
+	for saveName, saveData in pairs(ModuleCache) do
+		DB_COMMON.Call_ModSave(saveName, saveData)
+	end
 end

@@ -8,6 +8,7 @@ assert(no)
 
 ACCEPT, RESPONSE = {}, {}
 local MISC = Import("game/service/dbcell/dbcell_misc.lua")
+local MODDATA_DEFAULT = mysql.quote_sql_str('{}')
 
 -- 心跳方法
 local HbTime = 1 * 100
@@ -23,7 +24,6 @@ function ACCEPT.Insert_Cache(cache)
 	MISC.InsertCache(cache)
 end
 
-local MODDATA_DEFAULT = mysql.quote_sql_str('{}')
 function ACCEPT.modcreatenexist(saveName)
 	local db = MISC.ConnDb()
 	if not db or not saveName then
@@ -40,6 +40,19 @@ function ACCEPT.modcreatenexist(saveName)
 		return
 	end
 	return true
+end
+
+function ACCEPT.modsave(saveName, saveData)
+	local db = MISC.ConnDb()
+	if not db or not saveName or not saveData then
+		_ERROR_F("modsave saveName:%s saveData:%s fail", saveName, saveData)
+		return
+	end
+	local sql = string.format("update module set data = %s where mod_name = %s;", saveData, saveName)
+	local result = db:query(sql)
+	if not result or result.badresult then
+		_ERROR_F("saveName:%s result:%s", saveName, tool.dumptree(result))
+	end
 end
 
 -- call方法
@@ -62,6 +75,19 @@ function RESPONSE.modgetdata(saveName)
 		return
 	end
 	return result[1].data
+end
+
+function RESPONSE.modsave(saveName, saveData)
+	local db = MISC.ConnDb()
+	if not db or not saveName or not saveData then
+		_ERROR_F("modsave saveName:%s saveData:%s fail", saveName, saveData)
+		return
+	end
+	local sql = string.format("update module set data = %s where mod_name = %s;", saveData, saveName)
+	local result = db:query(sql)
+	if not result or result.badresult then
+		_ERROR_F("saveName:%s result:%s", saveName, tool.dumptree(result))
+	end
 end
 
 skynet.start(function ()
