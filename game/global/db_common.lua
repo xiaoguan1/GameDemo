@@ -27,6 +27,7 @@ function Send_ModSave(saveName, saveData)
 	saveName = tool.serialise(saveName)
 	saveData = mysql.quote_sql_str(tool.serialise(saveData))
 	DBSERVER.send.modsave(saveName, saveData)
+	return saveData:len()
 end
 
 function Call_ModSave(saveName, saveData)

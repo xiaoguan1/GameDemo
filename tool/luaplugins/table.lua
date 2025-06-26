@@ -49,3 +49,9 @@ function table.deepcopy(t)
 	end
 	return tt
 end
+
+function table.clear(tbl)
+	for k in pairs(tbl) do
+		tbl[k] = nil
+	end
+end

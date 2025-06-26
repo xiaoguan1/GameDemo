@@ -43,7 +43,8 @@ end
 local function _RestoreModuleFormDb(saveName)
 	local isOk, data = pcall(DB_COMMON.Call_ModGetData, saveName)
 	if isOk and data then
-		return assert(load("return " .. data, "unserialize module error"))(), #data
+		local a = load("return " .. data, "unserialize module error")()
+		return assert(load("return " .. data, "unserialize module error")()), #data
 	else
 		error("restore module error:" .. saveName)
 	end
@@ -58,7 +59,6 @@ local function _ModuleRestore(saveName)
 
 	-- 在数据库中创建，判断是否有这个数据，没有就insert into
 	DB_COMMON.Send_ModCreateNexist(saveName)
-
 	local saveData, sz = _RestoreModuleFormDb(saveName)
 	if not saveData then
 		return
@@ -109,7 +109,8 @@ function SaveModule()
 		if not saveData then
 			break
 		end
-		DB_COMMON.Send_ModSave(saveName, saveData)
+		local sz = DB_COMMON.Send_ModSave(saveName, saveData)
+		TryCall(CLSSAVE.SetSaveNameSz, saveName, sz)
 		_LOG_EVENT("module2dbsave.log", saveName, IS_SHUTDOWN)
 	end
 	if SaveDataQueue.h > SaveDataQueue.t then
@@ -130,8 +131,13 @@ function Shutdown_SaveModule()
 	end
 	IS_SHUTDOWN = true
 
+	TryCall(CLSSAVE.TryDoSplit, true)
 	-- 将全部数据发送数据库服务进行保存
 	for saveName, saveData in pairs(ModuleCache) do
 		DB_COMMON.Call_ModSave(saveName, saveData)
 	end
+end
+
+function IsShutDown()
+	return IS_SHUTDOWN
 end

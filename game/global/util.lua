@@ -1,5 +1,7 @@
 local util = require "util.core"
 local type = type
+local string = string
+local sformat = string.format
 
 -- 反向解析util.new_uid函数，获得serverId
 local BITCHARS = {
@@ -59,4 +61,14 @@ function CheckHttpAddr(address)
 		return false, "invalid proto"
 	end
 	return true
+end
+
+function HashNo(uniqueKey, hashNum)
+	if type(uniqueKey) == "number" then
+		return uniqueKey % hashNum
+	elseif type(uniqueKey) == "string" then
+		return util.strhash(uniqueKey, hashNum)
+	else
+		error(sformat("uniqueKey:%s hashNum:%s", uniqueKey, hashNum))
+	end
 end

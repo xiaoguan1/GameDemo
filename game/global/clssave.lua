@@ -1,0 +1,235 @@
+-- 模块作用：分table存盘，不用一堆数据旨在一个table里
+
+local skynet = require "skynet"
+local table = table
+local tclear = table.clear
+local string = string
+local pairs = pairs
+local type = type
+local assert = assert
+local _ERROR = _ERROR
+local _INFO_F = _INFO_F
+local ostime = os.time
+local UTIL = Import("game/global/util.lua")
+
+assert(MODULE_DB, "not Import MODULE_DB")
+local THRESHOLD_DATALEN = 4 * 1024 * 1024 -- 内存4m
+local THRESHOLD_WARN_DATALEN = 3 * 1024 * 1024 + 1024 * 0.5 -- 内存3.5m，报警
+
+local SAVE_SPLIT_MAXCNT = 2048	-- 最大分行数量
+local SAVE_SPLIT_INITCNT = 8	-- 默认分行数量
+
+SaveName2Sz = {}
+AllClsSave = {}
+
+local CHECK_SPLIT_SECORDS = 60 * 10	-- 10分钟检测一次
+
+local function _SizeGreaterThanX(tbl, x)
+	local size = 0
+	for _, _ in pairs(tbl) do
+		size = size + 1
+		if size > x then
+			return true
+		end
+	end
+end
+
+
+DivideSave = { __ClassType = "<<dividesave class>>" }
+
+-- 注意：此函数是有调用call的，所以要在__init__或者__startup__的时候创建存盘的对象.
+--          不然不在__init__或者__startup__中创建，热更的时候又重新创建对象会出问题
+-- @params : __SAVE_NAME    存盘文件名
+-- @params : __SAVE_CNT     有 __SAVE_CNT 个 table 来分开序列化存盘(默认为8个)
+function DivideSave:New(saveName)
+	assert(type(saveName) == "string" and saveName:len() > 0)
+	local o = {
+		__TOTAL_DATA = {},
+		__SAVE_NAME = saveName,
+		__IS_MERGE = false,
+		__HEAD_DATA = MODULE_DB.Register(saveName)
+	}
+
+	local headData = o.__HEAD_DATA
+	if table.empty(headData) then
+		headData.__SAVE_NAME = saveName
+		headData.__SAVE_CNT = SAVE_SPLIT_INITCNT
+	end
+	assert(headData.__SAVE_NAME == saveName)
+	o.__SAVE_CNT = headData.__SAVE_CNT
+
+	local nowSplitCnt = headData.__SAVE_CNT
+	local isSplit
+	for i = 1, nowSplitCnt do
+		o.__TOTAL_DATA[i] = {
+			__SAVE_NAME = saveName .. "_" .. i,
+			__DATA = {},		-- {[unique1] = {}, [unique2] = {}, ...}
+		}
+		local data, sz = MODULE_DB.Register(o.__TOTAL_DATA[i].__SAVE_NAME)
+		o.__TOTAL_DATA[i].__DATA = data
+		if sz > THRESHOLD_WARN_DATALEN then
+			isSplit = true
+			-- 检测分盘存储大小！
+			if _SizeGreaterThanX(o.__TOTAL_DATA[i].__DATA, 1) then
+				local newSplitCnt = nowSplitCnt * 2
+				if newSplitCnt > SAVE_SPLIT_MAXCNT then
+					_ERROR(string.format("error sz:%s > THRESHOLD_WARN_DATALEN:%s to change __SAVE_CNT, because tCnt:%s > %s in DivideSave.New:%s",
+						sz, THRESHOLD_WARN_DATALEN, newSplitCnt, SAVE_SPLIT_MAXCNT, saveName
+					))
+				else
+					_ERROR(string.format("sz:%s > THRESHOLD_WARN_DATALEN:%s to change __SAVE_CNT from %d to %d in DivideSave.New:%s",
+					sz, THRESHOLD_WARN_DATALEN, nowSplitCnt, newSplitCnt, saveName
+				))
+				end
+			else
+				_ERROR(string.format("error sz:%s > THRESHOLD_WARN_DATALEN:%s to change __SAVE_CNT, because size:%s <= 1 in DivideSave.New:%s",
+					sz, THRESHOLD_WARN_DATALEN, table.size(o.__TOTAL_DATA[i].__DATA), saveName
+				))
+			end
+		end
+	end
+
+	o.__SuperClass = self		-- 标记DivideSave为父类
+	o.__IsObject = ostime()		-- 标记为实例对象
+	setmetatable(o, {__index = self})
+	if isSplit then
+		o:DoSplit()
+	end
+	AllClsSave[saveName] = o
+	for _, v in pairs(o.__TOTAL_DATA) do
+		AllClsSave[v.__SAVE_NAME] = o
+	end
+	return o
+end
+
+function DivideSave:DoSplit()
+	local headData = assert(self.__HEAD_DATA)
+	local saveName = headData.__SAVE_NAME
+	local nowSplitCnt = headData.__SAVE_CNT
+	local newSplitCnt = nowSplitCnt * 2
+	if newSplitCnt > SAVE_SPLIT_MAXCNT then
+		error(string.format("%s new split cnt:%s > %s!", saveName, newSplitCnt, SAVE_SPLIT_MAXCNT))
+	end
+
+	local tmpData = {}
+	for _, v in pairs(self.__TOTAL_DATA) do
+		for uniqueKey, sData in pairs(v.__DATA) do
+			tmpData[uniqueKey] = sData
+		end
+		tclear(v.__DATA)
+	end
+	for i = nowSplitCnt + 1, newSplitCnt do
+		self.__TOTAL_DATA[i] = {
+			__SAVE_NAME = saveName .. "_" .. i,
+			__DATA = MODULE_DB.Register(self.__TOTAL_DATA[i].__SAVE_NAME)
+		}
+	end
+
+	for uniqueKey, sData in pairs(tmpData) do
+		local hashNo = UTIL.HashNo(uniqueKey, newSplitCnt)
+		self.__TOTAL_DATA[hashNo].__DATA[uniqueKey] = sData
+	end
+	headData.__SAVE_CNT = newSplitCnt
+	self.__SAVE_CNT = newSplitCnt
+	_INFO_F("saveName:%s add old:%s to new:%s split finish!", saveName, nowSplitCnt, newSplitCnt)
+end
+
+-- func(uniqueKey, data, ...)	注意：该函数内部不能有增加排行榜名单的，但可以删除名单，不然遍历有问题
+function DivideSave:Foreach(func, ...)
+	for _, _aData in pairs(self.__TOTAL_DATA) do
+		for _uniqueKey, _data in pairs(_aData.__DATA) do
+			if func(_uniqueKey, _data, ...) then
+				return
+			end
+		end
+	end
+end
+
+function DivideSave:Clear()
+	for _, _aData in pairs(self.__TOTAL_DATA) do
+		for _uniqueKey, _data in pairs(_aData.__DATA) do
+			_aData.__DATA[_uniqueKey] = nil
+		end
+	end
+end
+
+function DivideSave:GetData(uniqueKey)
+	local hNo = UTIL.HashNo(uniqueKey, self.__SAVE_CNT)
+	local aData = self.__TOTAL_DATA[hNo]
+	return aData and aData.__DATA[uniqueKey]
+end
+
+function DivideSave:GetOneKey(uniqueKey, key)
+	local aData = self:GetData(uniqueKey)
+	if aData then
+		return aData[key]
+	end
+end
+
+function DivideSave:SetData(uniqueKey, sData)
+	local hNo = UTIL.HashNo(uniqueKey, self.__SAVE_CNT)
+	self.__TOTAL_DATA[hNo].__DATA[uniqueKey] = sData
+end
+
+function DivideSave:SetOneData(uniqueKey, key, value)
+	local hNo = UTIL.HashNo(uniqueKey, self.__SAVE_CNT)
+	local sData = self.__TOTAL_DATA[hNo].__DATA[uniqueKey]
+	if not sData then
+		sData = {}
+		self.__TOTAL_DATA[hNo].__DATA[uniqueKey] = sData
+	end
+	sData[key] = value
+end
+
+function SetSaveNameSz(saveName, sz)
+	if not AllClsSave[saveName] then
+		return
+	end
+	SaveName2Sz[saveName] = sz
+end
+
+function TryDoSplit(IsForce)
+	local result = {}
+	local name2sz = SaveName2Sz
+	SaveName2Sz = {}
+
+	local function _IsSplit(l)
+		for k, v in pairs(l) do
+			local sz = name2sz[v.__SAVE_NAME]
+			if (sz or 0) >= THRESHOLD_DATALEN then
+				return true
+			end
+		end
+	end
+
+	for _, obj in pairs(AllClsSave) do
+		if _IsSplit(obj.__TOTAL_DATA) then
+			result[obj.__SAVE_NAME] = true
+		end
+	end
+
+	for saveName in pairs(result) do
+		if not IsForce and MODULE_DB.IsShutDown() then
+			return
+		end
+		local obj = AllClsSave[saveName]
+		if obj then
+			obj:DoSplit()
+		end
+	end
+end
+
+function CheckSaveData()
+	while true do
+		skynet.sleep(100 * 600)
+		local ntime = ostime()
+		if ntime % CHECK_SPLIT_SECORDS == 0 then
+			TryDoSplit()
+		end
+	end
+end
+
+function __init__()
+	local modEnv = getfenv(1)
+	skynet.fork(modEnv.CheckSaveData)
+end
