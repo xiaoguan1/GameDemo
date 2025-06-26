@@ -21,11 +21,7 @@ end
 DB_HLE = false
 function ConnDb()
 	if DB_HLE then
-		local res = DB_HLE:query("show tables")
-		if not res["badresult"] then
-			return DB_HLE
-		end
-		DB_HLE = false
+		return DB_HLE
 	end
 
 	local function on_connect(db)
