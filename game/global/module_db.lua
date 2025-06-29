@@ -138,22 +138,24 @@ function Shutdown_SaveModule()
 	end
 	IS_SHUTDOWN = true
 
-	-- 刷新ClsSave
+	-- 刷新ClsSave，并发送数据库进行保存
 	local clsName2Data = CLSSAVE.ShutDown_SaveCls()
-
-	-- 将全部数据发送数据库服务进行保存
-	for saveName, saveData in pairs(ModuleCache) do
-		local salData = clsName2Data[saveName]
-		if salData then
-			clsName2Data[saveName] = nil
-			ModuleCache[saveData] = nil
-		else
-			salData = DB_COMMON.ModDataSerialise(saveData)
+	for name2data in pairs(clsName2Data) do
+		for saveName, salData in pairs(name2data) do
+			name2data[saveName] = nil
+			if ModuleCache[saveName] then
+				ModuleCache[saveName] = nil
+				DB_COMMON.Call_ModSave(saveName, salData)
+			else
+				DB_COMMON.Call_ModSaveReplace(saveName, salData)
+			end
 		end
-		DB_COMMON.Call_ModSave(saveName, salData)
+		clsName2Data[name2data] = nil
 	end
-	for saveName, salData in pairs(clsName2Data) do
-		DB_COMMON.Call_ModSaveReplace(saveName, salData)
+
+	-- 将全部数据发送数据库进行保存
+	for saveName, saveData in pairs(ModuleCache) do
+		DB_COMMON.Call_ModSave(saveName, DB_COMMON.ModDataSerialise(saveData))
 	end
 end
 

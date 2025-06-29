@@ -3,6 +3,7 @@
 local skynet = require "skynet"
 local table = table
 local tclear = table.clear
+local tinsert = table.insert
 local string = string
 local pairs = pairs
 local type = type
@@ -113,7 +114,7 @@ function DivideSave:New(saveName)
 	if isSplit then
 		o:DoSplit()
 	end
-	table.insert(AllClsSave, o)
+	tinsert(AllClsSave, o)
 	return o
 end
 
@@ -281,9 +282,7 @@ function ShutDown_SaveCls()
 				clsObj:DoSplit(true)
 				name2data = _packData(clsObj)
 				if name2data then
-					for k, v in pairs(name2data) do
-						clsName2Data[k] = v
-					end
+					clsName2Data[name2data] = true
 					break
 				end
 			end
