@@ -1,9 +1,11 @@
 local skynet = require "skynet"
 local mysql = require "skynet.db.mysql"
 local skynet_queue = require "skynet_queue"
+local sformat = string.format
 local database_info = load("return " .. skynet.getenv("database_info"))()
 
-local MODDATA_DEFAULT = mysql.quote_sql_str("{}")
+local mquote_sql_str = mysql.quote_sql_str
+local MODDATA_DEFAULT = mquote_sql_str("{}")
 
 CS_LIST = {}
 local function _GetCs(name)
@@ -65,9 +67,8 @@ function ACCEPT.modcreatenexist(saveName)
 	end
 	local cs = _GetCs(saveName)
 	-- INSERT IGNORE : 在唯一索引或主键冲突时什么都不做
-	saveName = mysql.quote_sql_str(saveName)
-	local sql = string.format('insert ignore into module(mod_name, data) values (%s, %s);',
-			saveName, MODDATA_DEFAULT)
+	local sql = sformat('insert ignore into module(mod_name, data) values (%s, %s);',
+							mquote_sql_str(saveName), MODDATA_DEFAULT)
 	local result = cs(db.query, db, sql)
 	if not result or result.badresult then
 		_ERROR_F("saveName:%s result:%s", saveName, tool.dumptree(result))
@@ -83,7 +84,8 @@ function ACCEPT.modsave(saveName, saveData)
 		return
 	end
 	local cs = _GetCs(saveName)
-	local sql = string.format("update module set data = %s where mod_name = %s;", saveData, saveName)
+	local sql = sformat("update module set data = %s where mod_name = %s;",
+							saveData, mquote_sql_str(saveName))
 	local result = cs(db.query, db, sql)
 	if not result or result.badresult then
 		_ERROR_F("saveName:%s result:%s", saveName, tool.dumptree(result))
@@ -104,7 +106,8 @@ function RESPONSE.modgetdata(saveName)
 		return
 	end
 	local cs = _GetCs(saveName)
-	local sql = string.format("select data from module where mod_name = %s;", mysql.quote_sql_str(saveName))
+	local sql = sformat("select data from module where mod_name = %s;",
+							mquote_sql_str(saveName))
 	local result = cs(db.query, db, sql)
 	if not result or table.empty(result) or result.badresult then
 		_ERROR_F("saveName:%s result:%s", saveName, tool.dumptree(result))
@@ -120,7 +123,26 @@ function RESPONSE.modsave(saveName, saveData)
 		return
 	end
 	local cs = _GetCs(saveName)
-	local sql = string.format("update module set data = %s where mod_name = %s;", saveData, saveName)
+	local sql = sformat("update module set data = %s where mod_name = %s;",
+							saveData, mquote_sql_str(saveName))
+	local result = cs(db.query, db, sql)
+	if not result or result.badresult then
+		_ERROR_F("saveName:%s result:%s", saveName, tool.dumptree(result))
+	end
+end
+
+function RESPONSE.modsave_replace(saveName, saveData)
+	local db = ConnDb()
+	if not db or not saveName or not saveData then
+		_ERROR_F("modsave saveName:%s saveData:%s fail", saveName, saveData)
+		return
+	end
+	local cs = _GetCs(saveName)
+
+	-- 谨慎使用！
+	-- replace into语句会先删除违反唯一性约束的旧记录，然后插入新记录。这种方法适用于你想要替换旧记录的情况。
+	local sql = sformat("replace into module(mod_name, data) values (%s, %s);",
+							mquote_sql_str(saveName), saveData)
 	local result = cs(db.query, db, sql)
 	if not result or result.badresult then
 		_ERROR_F("saveName:%s result:%s", saveName, tool.dumptree(result))

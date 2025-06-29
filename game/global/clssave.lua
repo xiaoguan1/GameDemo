@@ -10,19 +10,37 @@ local assert = assert
 local _ERROR = _ERROR
 local _INFO_F = _INFO_F
 local ostime = os.time
+local sformat = string.format
+local is_testserver = skynet.getenv("is_testserver") == "true"
 local UTIL = Import("game/global/util.lua")
+local DB_COMMON = Import("game/global/db_common.lua")
+local node = skynet.getenv("node")
+local posix = require "posix"
 
 assert(MODULE_DB, "not Import MODULE_DB")
-local THRESHOLD_DATALEN = 4 * 1024 * 1024 -- 内存4m
-local THRESHOLD_WARN_DATALEN = 3 * 1024 * 1024 + 1024 * 0.5 -- 内存3.5m，报警
+local THRESHOLD_WARN_DATALEN = 3 * 1024 * 1024 + 820 -- 内存3.8m，报警
 
 local SAVE_SPLIT_MAXCNT = 2048	-- 最大分行数量
 local SAVE_SPLIT_INITCNT = 8	-- 默认分行数量
 
-SaveName2Sz = {}
 AllClsSave = {}
 
 local CHECK_SPLIT_SECORDS = 60 * 10	-- 10分钟检测一次
+
+local DUMP_PATH = "./log/" .. node .. "/module_data/"
+local DUMP_FILE = DUMP_PATH .. "%s.data"
+posix.mkdir_p(DUMP_PATH)
+function _DumpFile(saveName, data)
+	assert(saveName and data)
+	local f = io.open(sformat(DUMP_FILE, saveName), "w")
+	if not f then
+		_ERROR_F("clssave saveData:%s dump file fail!", saveName)
+		return
+	end
+	f:write(data)
+	f:flush()
+	return true
+end
 
 local function _SizeGreaterThanX(tbl, x)
 	local size = 0
@@ -95,14 +113,11 @@ function DivideSave:New(saveName)
 	if isSplit then
 		o:DoSplit()
 	end
-	AllClsSave[saveName] = o
-	for _, v in pairs(o.__TOTAL_DATA) do
-		AllClsSave[v.__SAVE_NAME] = o
-	end
+	table.insert(AllClsSave, o)
 	return o
 end
 
-function DivideSave:DoSplit()
+function DivideSave:DoSplit(isShutDown)
 	local headData = assert(self.__HEAD_DATA)
 	local saveName = headData.__SAVE_NAME
 	local nowSplitCnt = headData.__SAVE_CNT
@@ -119,10 +134,12 @@ function DivideSave:DoSplit()
 		tclear(v.__DATA)
 	end
 	for i = nowSplitCnt + 1, newSplitCnt do
-		self.__TOTAL_DATA[i] = {
-			__SAVE_NAME = saveName .. "_" .. i,
-			__DATA = MODULE_DB.Register(self.__TOTAL_DATA[i].__SAVE_NAME)
-		}
+		self.__TOTAL_DATA[i] = { __SAVE_NAME = saveName .. "_" .. i, }
+		if isShutDown then
+			self.__TOTAL_DATA[i].__DATA = {}
+		else
+			self.__TOTAL_DATA[i].__DATA = MODULE_DB.Register(self.__TOTAL_DATA[i].__SAVE_NAME)
+		end
 	end
 
 	for uniqueKey, sData in pairs(tmpData) do
@@ -181,55 +198,96 @@ function DivideSave:SetOneData(uniqueKey, key, value)
 	sData[key] = value
 end
 
-function SetSaveNameSz(saveName, sz)
-	if not AllClsSave[saveName] then
+function CheckClsSplit()
+	if MODULE_DB.IsShutDown() then
 		return
 	end
-	SaveName2Sz[saveName] = sz
-end
-
-function TryDoSplit(IsForce)
-	local result = {}
-	local name2sz = SaveName2Sz
-	SaveName2Sz = {}
-
-	local function _IsSplit(l)
-		for k, v in pairs(l) do
-			local sz = name2sz[v.__SAVE_NAME]
-			if (sz or 0) >= THRESHOLD_DATALEN then
-				return true
+	local SaveData2Sz = MODULE_DB.GetSaveData2Sz()
+	local splitList = {}
+	for _, clsObj in pairs(AllClsSave) do
+		local headSz = SaveData2Sz[clsObj.__SAVE_NAME]
+		SaveData2Sz[clsObj.__SAVE_NAME] = nil
+		if headSz and headSz >= THRESHOLD_WARN_DATALEN then
+			splitList[clsObj] = true
+		else
+			for _, data in pairs(clsObj.__TOTAL_DATA) do
+				local dataSz = SaveData2Sz[data.__SAVE_NAME]
+				SaveData2Sz[data.__SAVE_NAME] = nil
+				if dataSz and dataSz >= THRESHOLD_WARN_DATALEN and not splitList[clsObj] then
+					splitList[clsObj] = true
+				end
 			end
 		end
 	end
-
-	for _, obj in pairs(AllClsSave) do
-		if _IsSplit(obj.__TOTAL_DATA) then
-			result[obj.__SAVE_NAME] = true
-		end
-	end
-
-	for saveName in pairs(result) do
-		if not IsForce and MODULE_DB.IsShutDown() then
-			return
-		end
-		local obj = AllClsSave[saveName]
-		if obj then
-			obj:DoSplit()
-		end
-	end
-end
-
-function CheckSaveData()
-	while true do
-		skynet.sleep(100 * 600)
-		local ntime = ostime()
-		if ntime % CHECK_SPLIT_SECORDS == 0 then
-			TryDoSplit()
-		end
+	for clsObj in pairs(splitList) do
+		clsObj:DoSplit()
 	end
 end
 
 function __init__()
-	local modEnv = getfenv(1)
-	skynet.fork(modEnv.CheckSaveData)
+	CALLOUT.CallFre("CheckClsSplit", CHECK_SPLIT_SECORDS)
+end
+
+function GetAllClsSave()
+	return AllClsSave
+end
+
+function ShutDown_SaveCls()
+	-- return table | nil(需要进行分盘处理)
+	local function _packData(clsObj)
+		local name2data = {}
+		local headData = clsObj.__HEAD_DATA
+		-- 头文件仅仅只是记录一些简要的信息，绝大多数情况不会超过4M
+		local salData = DB_COMMON.ModDataSerialise(headData)
+		name2data[headData.__SAVE_NAME] = salData
+
+		for _, data in pairs(clsObj.__TOTAL_DATA) do
+			local salData = DB_COMMON.ModDataSerialise(data.__DATA)
+			if #salData >= THRESHOLD_WARN_DATALEN then
+				if _SizeGreaterThanX(data.__DATA, 1) then
+					return
+				else
+					-- 序列化的数据长度大于4M限制！
+					if false and is_testserver then
+						error(sformat("shut down clssave saveName:%s data size:%s > %s",
+							data.__SAVE_NAME, #salData, THRESHOLD_WARN_DATALEN))
+					else
+						-- 将超过阈值的数据写入文件中，数据库不做任何保存！
+						_DumpFile(data.__SAVE_NAME, salData)
+						name2data[data.__SAVE_NAME] = DB_COMMON.ModDataSerialise({})
+					end
+				end
+			else
+				name2data[data.__SAVE_NAME] = salData
+			end
+		end
+		return name2data
+	end
+
+	local clsName2Data = {}
+	for _, clsObj in pairs(AllClsSave) do
+		local name2data = _packData(clsObj)
+		if name2data then
+			for k, v in pairs(name2data) do
+				clsName2Data[k] = v
+			end
+		elseif name2data == nil then
+			local loop = 0
+			while true do
+				loop = loop + 1
+				if loop > 50 then
+					error(string.format("%s do split fail", tool.dump(clsObj.__HEAD_DATA)))
+				end
+				clsObj:DoSplit(true)
+				name2data = _packData(clsObj)
+				if name2data then
+					for k, v in pairs(name2data) do
+						clsName2Data[k] = v
+					end
+					break
+				end
+			end
+		end
+	end
+	return clsName2Data
 end

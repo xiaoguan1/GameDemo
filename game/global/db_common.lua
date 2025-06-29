@@ -10,8 +10,10 @@ skynet.register_protocol({
 	unpack = skynet.unpack,
 })
 
-function Call_ShowTables()
-	return DBSERVER.call.showtables(skynet.self())
+-- 对module的data数据进行序列化
+function ModDataSerialise(saveData)
+	local salData = mysql.quote_sql_str(tool.serialise(saveData))
+	return salData, #salData
 end
 
 function Send_ModCreateNexist(saveName)
@@ -22,23 +24,18 @@ function Call_ModGetData(saveName)
 	return DBSERVER.call.modgetdata(saveName)
 end
 
-function Send_ModSave(saveName, saveData)
-	assert(saveName and saveData)
-	saveName = tool.serialise(saveName)
-	saveData = mysql.quote_sql_str(tool.serialise(saveData))
-	DBSERVER.send.modsave(saveName, saveData)
-	return saveData:len()
+function Send_ModSave(saveName, salData)
+	assert(saveName and salData)
+	DBSERVER.send.modsave(saveName, salData)
 end
 
-function Call_ModSave(saveName, saveData)
-	assert(saveName and saveData)
-	saveName = tool.serialise(saveName)
-	saveData = mysql.quote_sql_str(tool.serialise(saveData))
-	DBSERVER.call.modsave(saveName, saveData)
+function Call_ModSave(saveName, salData)
+	assert(saveName and salData)
+	DBSERVER.call.modsave(saveName, salData)
 end
 
-
-
-
-
+function Call_ModSaveReplace(saveName, salData)
+	assert(saveName and salData)
+	DBSERVER.call.modsave_replace(saveName, salData)
+end
 

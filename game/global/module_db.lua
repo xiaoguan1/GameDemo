@@ -31,6 +31,10 @@ ModuleCache = {}
 SaveDataTarget = {}
 SaveDataQueue = { h = 1, t = 0, total = 0 }
 
+SaveData2Sz = {
+	-- [saveName] = sz,
+}
+
 local function _DumpWarn(fmt, ...)
 	if _WARN_F then
 		_WARN_F(fmt, ...)
@@ -76,6 +80,7 @@ local function _ModuleRestore(saveName)
 	})
 	ModuleCache[saveName] = saveData
 	SaveDataQueue.total = SaveDataQueue.total + 1
+	SaveData2Sz[saveName] = sz
 	return saveData, sz
 end
 
@@ -94,7 +99,7 @@ function SaveModule()
 		return
 	end
 
-	local saveCount = math.ceil(SaveDataQueue.total / SAVE_TIME)
+	local saveCount = math.ceil(SaveDataQueue.total * 0.3) -- 分批执行
 	local h
 	for i = 1, saveCount, 1 do
 		if h then
@@ -109,8 +114,9 @@ function SaveModule()
 		if not saveData then
 			break
 		end
-		local sz = DB_COMMON.Send_ModSave(saveName, saveData)
-		TryCall(CLSSAVE.SetSaveNameSz, saveName, sz)
+		local salData = DB_COMMON.ModDataSerialise(saveData)
+		DB_COMMON.Send_ModSave(saveName, salData)
+		SaveData2Sz[saveName] = #salData
 		_LOG_EVENT("module2dbsave.log", saveName, IS_SHUTDOWN)
 	end
 	if SaveDataQueue.h > SaveDataQueue.t then
@@ -121,7 +127,8 @@ end
 
 
 function __init__()
-	CALLOUT.CallFre("SaveModule", SAVE_TIME)
+	-- CALLOUT.CallFre("SaveModule", SAVE_TIME)
+	CALLOUT.CallFre("SaveModule", 1)
 end
 
 -- 关服处理
@@ -131,13 +138,29 @@ function Shutdown_SaveModule()
 	end
 	IS_SHUTDOWN = true
 
-	TryCall(CLSSAVE.TryDoSplit, true)
+	-- 刷新ClsSave
+	local clsName2Data = CLSSAVE.ShutDown_SaveCls()
+
 	-- 将全部数据发送数据库服务进行保存
 	for saveName, saveData in pairs(ModuleCache) do
-		DB_COMMON.Call_ModSave(saveName, saveData)
+		local salData = clsName2Data[saveName]
+		if salData then
+			clsName2Data[saveName] = nil
+			ModuleCache[saveData] = nil
+		else
+			salData = DB_COMMON.ModDataSerialise(saveData)
+		end
+		DB_COMMON.Call_ModSave(saveName, salData)
+	end
+	for saveName, salData in pairs(clsName2Data) do
+		DB_COMMON.Call_ModSaveReplace(saveName, salData)
 	end
 end
 
 function IsShutDown()
 	return IS_SHUTDOWN
+end
+
+function GetSaveData2Sz()
+	return SaveData2Sz
 end

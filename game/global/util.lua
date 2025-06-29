@@ -65,7 +65,8 @@ end
 
 function HashNo(uniqueKey, hashNum)
 	if type(uniqueKey) == "number" then
-		return uniqueKey % hashNum
+		local no = uniqueKey % hashNum
+		return no > 0 and no or hashNum
 	elseif type(uniqueKey) == "string" then
 		return util.strhash(uniqueKey, hashNum)
 	else
