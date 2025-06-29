@@ -249,7 +249,7 @@ function ShutDown_SaveCls()
 					return
 				else
 					-- 序列化的数据长度大于4M限制！
-					if false and is_testserver then
+					if is_testserver then
 						error(sformat("shut down clssave saveName:%s data size:%s > %s",
 							data.__SAVE_NAME, #salData, THRESHOLD_WARN_DATALEN))
 					else
