@@ -27,11 +27,11 @@ select w in 启动游戏 启动跨服 编译并启动游戏 关闭游戏
 do
 	case $w in
 		启动游戏)
-			./skynet/skynet ./config/main_node
+			./skynet/skynet ./config/main_node &
 			break
 			;;
 		启动跨服)
-			./skynet/skynet ./config/cross_node
+			./skynet/skynet ./config/cross_node &
 			break
 			;;
 		编译并启动游戏)

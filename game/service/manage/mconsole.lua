@@ -46,7 +46,10 @@ function DealMcs(id, addr)
 		if mod then
 			local isOk1, responseMsg = TryCall(mod.Handle_Request, args)
 			if isOk1 then
-				_Response(id, code, responseMsg)
+				_Response(id, 200, "操作成功")
+			else
+				_Response(id, 500, "操作失败")
+				_ERROR_F("addr:%s uPath:%s args:%s fail:%s", addr, uPath, tool.dump(args), responseMsg)
 			end
 		else
 			_ERROR_F("path:%s, not find", path)
