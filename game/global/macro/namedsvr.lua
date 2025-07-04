@@ -64,6 +64,11 @@ CROSS_NAMED_SERVER_NODE = {
 	-- ...
 }
 
+-- 普通跨服启动服务顺序配置
+CROSS_SERVICE_STARTSEQ = {
+	"display",
+}
+
 -- 普通跨服的服务配置
 CROSS_SERVICE_CFG = {
 	["display"] = {svr = "display", named = ".DISPLAY", cuse = CUSE1, servercross = true,}

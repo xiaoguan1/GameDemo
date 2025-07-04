@@ -9,8 +9,15 @@ harbor = 0 --不使用主从节点模式
 
 --lua配置
 lualoader = "./skynet/lualib/loader.lua" 
-luaservice = "./skynet/service/?.lua;" .. "./skynet/test/?.lua;" .. "./tool/startup/?.lua;" .. "./game/service/?.lua"
-lua_path = "./lualib/?.lua;" .. "./skynet/lualib/?.lua;" .. "./skynet/lualib/?/init.lua;" .. "./game/global/?.lua;" .."./game/global/findpath/?.lua"
+luaservice = "./skynet/service/?.lua;" ..
+				"./skynet/test/?.lua;" ..
+				"./tool/startup/?.lua;" ..
+				"./game/service/?/?.lua;"
+lua_path = "./lualib/?.lua;" ..
+			"./skynet/lualib/?.lua;" ..
+			"./skynet/lualib/?/init.lua;" ..
+			"./game/global/?.lua;" ..
+			"./game/global/findpath/?.lua;"
 lua_cpath = "./luaclib/?.so;" .. "./skynet/luaclib/?.so;" .. "./tool/cplugins-so/?.so"
 
 --后台模式（必要时开启）
@@ -51,5 +58,10 @@ centerdatadb_info = [[{
 	dbpasswd = "root",
 }]]
 
+dbcell_num = 8
+
 ------------------ 日志 ------------------
 log_stdin = true		-- true:控制台打印日志
+
+------------------ 后台管理端口 ------------------
+mcs_port = 50001
