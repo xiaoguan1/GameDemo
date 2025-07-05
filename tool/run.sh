@@ -24,17 +24,21 @@ cd $CURDIR/..
 
 START_SH=$CURDIR/script/start.sh
 STOP_SH=$CURDIR/script/stop.sh
+HOTUPDATE_SH=$CURDIR/script/hot_update.sh
+
+GAME_CONFIG=./config/main_node	# 游戏服启动配置
+
 
 echo "选择题:"
-select w in 重启游戏服 启动游戏服 关闭游戏服 启动跨服 编译并启动游戏
+select w in 重启游戏服 启动游戏服 关闭游戏服 热更游戏服 启动跨服 编译并启动游戏
 do
 	case $w in
 		启动游戏服)
-			sh $START_SH ./config/main_node
+			sh $START_SH $GAME_CONFIG
 			break
 			;;
 		关闭游戏服)
-			sh $STOP_SH ./config/main_node
+			sh $STOP_SH $GAME_CONFIG
 			break
 			;;
 		启动跨服)
@@ -42,8 +46,12 @@ do
 			break
 			;;
 		重启游戏服)
-			sh $STOP_SH ./config/main_node
-			sh $START_SH ./config/main_node
+			sh $STOP_SH $GAME_CONFIG
+			sh $START_SH $GAME_CONFIG
+			break
+			;;
+		热更游戏服)
+			sh $HOTUPDATE_SH $GAME_CONFIG
 			break
 			;;
 		编译并启动游戏)

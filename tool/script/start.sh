@@ -2,7 +2,7 @@
 
 config=$1		# 进程pid的配置文件
 if [ "X$config" = "X" ]; then
-	echo "stop skynet fail, please inpur config"
+	echo "stop skynet fail, please input config"
 	exit
 fi
 
