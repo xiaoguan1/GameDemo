@@ -22,16 +22,28 @@ cd $CURDIR/..
 # lua ./charvar/gameserver/var_name.lua
 # lua ./charvar/activity/var_name.lua
 
+START_SH=$CURDIR/script/start.sh
+STOP_SH=$CURDIR/script/stop.sh
+
 echo "选择题:"
-select w in 启动游戏 启动跨服 编译并启动游戏 关闭游戏
+select w in 重启游戏服 启动游戏服 关闭游戏服 启动跨服 编译并启动游戏
 do
 	case $w in
-		启动游戏)
-			./skynet/skynet ./config/main_node &
+		启动游戏服)
+			sh $START_SH ./config/main_node
+			break
+			;;
+		关闭游戏服)
+			sh $STOP_SH ./config/main_node
 			break
 			;;
 		启动跨服)
 			./skynet/skynet ./config/cross_node &
+			break
+			;;
+		重启游戏服)
+			sh $STOP_SH ./config/main_node
+			sh $START_SH ./config/main_node
 			break
 			;;
 		编译并启动游戏)
