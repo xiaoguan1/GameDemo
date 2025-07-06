@@ -175,7 +175,7 @@ function command.UPDATE_FILES(address, updatefiles)
 		end
 	end
 	for k in pairs(services) do
-		skynet.send(k, "debug", "UPDATE_FILES", updatefiles)
+		skynet.call(k, "debug", "UPDATE_FILES", updatefiles)
 	end
 	return true
 end

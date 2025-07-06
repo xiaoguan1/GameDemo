@@ -54,6 +54,8 @@ function DealMcs(id, addr)
 				return
 			else
 				_Response(id, 500, "操作失败")
+				socket.close(id)
+				return
 			end
 		else
 			if mod then

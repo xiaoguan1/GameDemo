@@ -383,13 +383,27 @@ local function init(skynet, export)
 			local TOOL_FILES = TOOL_FILES or {}
 			local MACRO_FILES = MACRO_FILES or {}
 			local _ImportModule = _ImportModule or {}
+
+			local updateToolFiles = updatefiles[UPDATE_TYPE.TOOL] or {}
+			local updateMacosFiles = updatefiles[UPDATE_TYPE.MACROS] or {}
+			local updateImportFiles = updatefiles[UPDATE_TYPE.IMPORT] or {}
+
+			local _MetaImport = getmetatable(_ImportModule)
+			if not _MetaImport then
+				setmetatable(_ImportModule, {
+					__newindex = function (modules, file, modEnv)
+						skynet.error(string.format("[%s] auto add file:%s", SERVICE_NAME, file))
+						return rawset(modules, file, modEnv)
+					end
+				})
+			end
 			local UPDATE_TYPE = UPDATE_TYPE or {TOOL = 1, MACROS = 2, IMPORT = 3}
 
 			-- 热更新（注意：热更新代码里面也有可能加载新的代码文件）
 			local ok, ret, reterr = nil, nil, nil
 
 			-- 1.更新tool工具类的拓展
-			for _, file in ipairs(updatefiles[UPDATE_TYPE.TOOL]) do
+			for _, file in ipairs(updateToolFiles) do
 				if TOOL_FILES[file] then
 					skynet.error(string.format("[%s] auto update dofile tool file:%s", SERVICE_NAME, file))
 					ok, ret = xpcall(dofile, debug.traceback, file)
@@ -404,7 +418,7 @@ local function init(skynet, export)
 			end
 
 			-- 2.更新宏定义
-			for _, file in ipairs(updatefiles[UPDATE_TYPE.MACROS]) do
+			for _, file in ipairs(updateMacosFiles) do
 				if MACRO_FILES[file] then
 					skynet.error(string.format("[%s] auto update dofile macros file:%s", SERVICE_NAME, file))
 					ok, ret = xpcall(dofile, debug.traceback, file)
@@ -419,7 +433,7 @@ local function init(skynet, export)
 			end
 
 			-- 3.更新Import文件
-			for _, file in ipairs(updatefiles[UPDATE_TYPE.IMPORT]) do
+			for _, file in ipairs(updateImportFiles) do
 				if _ImportModule[file] then
 					skynet.error(string.format("[%s] auto update import file:%s", SERVICE_NAME, file))
 					ok, ret = xpcall(Update, debug.traceback, file)
