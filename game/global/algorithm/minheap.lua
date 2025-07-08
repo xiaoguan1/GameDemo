@@ -19,7 +19,6 @@ MinHeap = { __ClassType = "<<minheap class>>" }
 function MinHeap:New(uniqueKey, sortKeys, extData)
 	assert(type(uniqueKey) == "string" and uniqueKey:len() > 0)
 	assert(type(sortKeys) == "table" and #sortKeys > 0 and #sortKeys == tsize(sortKeys))
-	local cpSortKeys = {}
 	for _, key in pairs(sortKeys) do
 		if type(key) ~= "string" then
 			error("sortKey type not string key " .. key)
