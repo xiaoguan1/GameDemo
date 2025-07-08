@@ -20,6 +20,16 @@ end
 
 SkipList = { __ClassType = "<<skiplist class>>" }
 
+local function _CreateNode(data)
+	assert(data)
+	return {
+		forward = {},			-- 前驱指针
+		backward = {},			-- 后继指针数组
+		data = tdeepcopy(data),
+		level = _RandomLevel(),
+	}
+end
+
 function SkipList:New(uniqueKey, sortKeys, orders, maxLength)
 	assert(type(uniqueKey) == "string" and uniqueKey:len() > 0)
 	assert(type(sortKeys) == "table" and #sortKeys > 0 and #sortKeys == tsize(sortKeys))
@@ -41,15 +51,16 @@ function SkipList:New(uniqueKey, sortKeys, orders, maxLength)
 			isHead = true,
 			backward = {},				-- 后继指针数组
 		},
+
+		key2Rank = {},				-- 排名（数组）
+		rankList = {},
 		key2Node = {},					-- uniqueKey 映射 节点
+
 		uniqueKey = uniqueKey,
 		length = 0,						-- 当前容量
 		maxLength = maxLength,			-- 最大容量限制
 		sortKeys = tdeepcopy(sortKeys),	-- 排序的键
 		orders = norders,				-- 每个建的升序或降序特性
-
-		exlastNode = nil,				-- 次最后面元素，目的是为了快速删除最后的元素
-		lastUnique = nil,				-- 最后元素的唯一索引
 	}
 
 	setmetatable(o, {__index = self})
@@ -103,6 +114,23 @@ function SkipList:IsFull()
 	return self.length >= self.maxLength
 end
 
+function SkipList:UpdateRank()
+	local rankList, key2Rank = {}, {}
+	local curr = self.linkData.backward[1]
+	local uniqueKey = self.uniqueKey
+	for i = 1, self.length do
+		local data = curr and curr.data
+		if not data then
+			break
+		end
+		rankList[i] = data[uniqueKey]
+		key2Rank[data[uniqueKey]] = i
+		curr = curr.backward[1]
+	end
+	self.rankList = rankList
+	self.key2Rank = key2Rank
+end
+
 function SkipList:Find(uniqueKey)
 end
 
@@ -124,30 +152,14 @@ function SkipList:Push(data)
 	end
 
 	if self:IsFull() then
-		print("111111111111111111111111111111", self.lastUnique)
-		-- 满了，与最后一个元素判断！
-		assert(self.lastUnique and self.exlastNode)
-		local node = self:GetNodeByKey(self.lastUnique)
-		print(self:CompareFunc(data, node.data))
-		print("qqqqqqqqq", tool.dump(data), tool.dump(node.data))
-		if not self:CompareFunc(data, node.data) then
-			return
-		end
-		print("2222222222222222222")
-		-- 删除最后一个元素
-		for k, v in pairs(self.exlastNode) do
-			v.backward = {}
-		end
-		print("3333333333333333333333333")
-		self:SetKey2Node(self.lastUnique)
-		self.exlastNode, self.lastUnique = nil, nil
+		local lastUnique = self.rankList[#self.rankList]
+		assert(lastUnique)
+		-- 删除操作
+
+		return
 	end
 
-	local newNode = {
-		backward = {},			-- 后继指针数组
-		data = tdeepcopy(data),
-		level = _RandomLevel(),
-	}
+	local newNode = _CreateNode(data)
 	local headNode = self.linkData
 	local update = {}
 	local curr = headNode
@@ -171,20 +183,39 @@ function SkipList:Push(data)
 		end
 	end
 
-	--  -> 1 -> 3  插入2元素
 	for i = 1, newNode.level do
-		newNode.backward[i] = update[i].backward[i]
+		local backNode = update[i].backward[i]
+		newNode.backward[i] = backNode
+		if backNode then
+			backNode.forward[i] = newNode
+		end
+		newNode.forward[i] = update[i]
 		update[i].backward[i] = newNode
+
+		-- newNode.backward[i] = update[i].backward[i]
+		-- update[i].backward[i] = newNode
 	end
 	self:SetKey2Node(unique, newNode)
+	self:UpdateRank()
+end
 
-	if self:IsFull() then
-		for i = newNode.level, #update do
-			update[i] = nil
-		end
-		self.exlastNode = update
-		self.lastUnique = unique
+function SkipList:Delete(unique)
+	if not unique then return end
+	local node = self:GetNodeByKey(unique)
+	if not node then
+		error(sformat("delete fail, not exist unique:%s!", unique))
 	end
+
+	local rank = self.key2Rank[unique]
+	local forward, backward = node.forward, node.backward
+	for i = 1, node.level do
+		local fnode = forward[i]
+		fnode.backward[i] = backward[i]
+	end
+	self:SetKey2Node(unique)
+	table.remove(self.rankList, rank)
+	self.key2Rank[unique] = nil
+	self:UpdateRank()
 end
 
 
@@ -207,9 +238,5 @@ function SkipList:Dump()
 		print(context)
 	end
 
-
-
-
-	-- print(tool.dumptree(self.linkData))
 end
 
