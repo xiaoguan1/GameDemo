@@ -154,9 +154,13 @@ function SkipList:Push(data)
 	if self:IsFull() then
 		local lastUnique = self.rankList[#self.rankList]
 		assert(lastUnique)
+		local lastNode = self:GetNodeByKey(lastUnique)
+		if not self:CompareFunc(data, lastNode.data) then
+			return
+		end
 		-- 删除操作
-
-		return
+		self:Delete(lastUnique)
+		assert(not self:IsFull())
 	end
 
 	local newNode = _CreateNode(data)
@@ -203,7 +207,7 @@ function SkipList:Delete(unique)
 	if not unique then return end
 	local node = self:GetNodeByKey(unique)
 	if not node then
-		error(sformat("delete fail, not exist unique:%s!", unique))
+		return
 	end
 
 	local rank = self.key2Rank[unique]
@@ -215,7 +219,6 @@ function SkipList:Delete(unique)
 	self:SetKey2Node(unique)
 	table.remove(self.rankList, rank)
 	self.key2Rank[unique] = nil
-	self:UpdateRank()
 end
 
 
