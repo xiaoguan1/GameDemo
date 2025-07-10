@@ -1,4 +1,4 @@
--- 跳表
+-- 跳表 guanguowei
 local ostime = os.time
 local mrandom = math.random
 local tsize = table.size
@@ -260,6 +260,7 @@ function SkipList:Dump()
 	for k, v in ipairs(self.sortKeys) do
 		print(sformat("sortKey:%s  isDesc:%s", v, self.orders[k]))
 	end
+	print("\n")
 
 	local headNode = self.linkData
 	local level = headNode.backward and #headNode.backward or 0
@@ -272,6 +273,7 @@ function SkipList:Dump()
 		end
 		print(context)
 	end
-
+	print("rankList: ", tool.dump(self.rankList))
+	print("key2Rank: ", tool.dump(self.key2Rank))
 end
 
