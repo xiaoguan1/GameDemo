@@ -18,17 +18,77 @@ local function _RandomLevel()
 	return level
 end
 
-SkipList = { __ClassType = "<<skiplist class>>" }
-
-local function _CreateNode(data)
+local function _CreateNode(data, level)
 	assert(data)
 	return {
 		forward = {},			-- 前驱指针
 		backward = {},			-- 后继指针数组
 		data = tdeepcopy(data),
-		level = _RandomLevel(),
+		level = level or _RandomLevel(),
 	}
 end
+
+local function _Insert(obj, newNode)
+	assert(obj and obj.__IsObject)
+	local headNode = obj.linkData
+	local uniqueKey = obj.uniqueKey
+	local unique = newNode.data[uniqueKey]
+	local update = {}
+	local curr = headNode
+	assert(#headNode.backward <= SKIPLIST_MAXLEVEL)
+	local maxLoop = obj.maxLength + 1
+	for i = #headNode.backward, 1, -1 do
+		local loop = 0
+		while curr.backward[i] and not obj:CompareFunc(newNode.data, curr.backward[i].data) do
+			loop = loop + 1
+			if loop > maxLoop then
+				error(sformat("unique:%s loop:%s error!", unique, loop))
+			end
+			curr = curr.backward[i]
+		end
+		update[i] = curr
+	end
+
+	if newNode.level > #headNode.backward then
+		for i = #headNode.backward + 1, newNode.level, 1 do
+			update[i] = headNode
+		end
+	end
+
+	for i = 1, newNode.level do
+		local backNode = update[i].backward[i]
+		newNode.backward[i] = backNode
+		if backNode then
+			backNode.forward[i] = newNode
+		end
+		newNode.forward[i] = update[i]
+		update[i].backward[i] = newNode
+
+		-- newNode.backward[i] = update[i].backward[i]
+		-- update[i].backward[i] = newNode
+	end
+	obj:SetKey2Node(unique, newNode)
+
+	local fNode = newNode.forward[1]
+	if fNode.isHead then
+		table.insert(obj.rankList, 1, unique)
+		obj.key2Rank[unique] = 1
+		for rank = 2, #obj.rankList do
+			obj.key2Rank[obj.rankList[rank]] = rank
+		end
+	else
+		local funique = fNode.data[uniqueKey]
+		local frank = obj.key2Rank[funique]
+		table.insert(obj.rankList, frank + 1, unique)
+		obj.key2Rank[unique] = frank + 1
+		for rank = (frank + 2), #obj.rankList do
+			obj.key2Rank[obj.rankList[rank]] = rank
+		end
+	end
+end
+
+
+SkipList = { __ClassType = "<<skiplist class>>" }
 
 function SkipList:New(uniqueKey, sortKeys, orders, maxLength)
 	assert(type(uniqueKey) == "string" and uniqueKey:len() > 0)
@@ -114,26 +174,6 @@ function SkipList:IsFull()
 	return self.length >= self.maxLength
 end
 
-function SkipList:UpdateRank()
-	local rankList, key2Rank = {}, {}
-	local curr = self.linkData.backward[1]
-	local uniqueKey = self.uniqueKey
-	for i = 1, self.length do
-		local data = curr and curr.data
-		if not data then
-			break
-		end
-		rankList[i] = data[uniqueKey]
-		key2Rank[data[uniqueKey]] = i
-		curr = curr.backward[1]
-	end
-	self.rankList = rankList
-	self.key2Rank = key2Rank
-end
-
-function SkipList:Find(uniqueKey)
-end
-
 function SkipList:Push(data)
 	if not data then return end
 	local uniqueKey = self:GetuUniqueKey()
@@ -163,65 +203,57 @@ function SkipList:Push(data)
 		assert(not self:IsFull())
 	end
 
-	local newNode = _CreateNode(data)
-	local headNode = self.linkData
-	local update = {}
-	local curr = headNode
-	assert(#headNode.backward <= SKIPLIST_MAXLEVEL)
-	local maxLoop = self.maxLength + 1
-	for i = #headNode.backward, 1, -1 do
-		local loop = 0
-		while curr.backward[i] and not self:CompareFunc(newNode.data, curr.backward[i].data) do
-			loop = loop + 1
-			if loop > maxLoop then
-				error(sformat("unique:%s loop:%s error!", unique, loop))
-			end
-			curr = curr.backward[i]
-		end
-		update[i] = curr
-	end
-
-	if newNode.level > #headNode.backward then
-		for i = #headNode.backward + 1, newNode.level, 1 do
-			update[i] = headNode
-		end
-	end
-
-	for i = 1, newNode.level do
-		local backNode = update[i].backward[i]
-		newNode.backward[i] = backNode
-		if backNode then
-			backNode.forward[i] = newNode
-		end
-		newNode.forward[i] = update[i]
-		update[i].backward[i] = newNode
-
-		-- newNode.backward[i] = update[i].backward[i]
-		-- update[i].backward[i] = newNode
-	end
-	self:SetKey2Node(unique, newNode)
-	self:UpdateRank()
+	_Insert(self, _CreateNode(data))
 end
 
 function SkipList:Delete(unique)
 	if not unique then return end
-	local node = self:GetNodeByKey(unique)
-	if not node then
+	local delNode = self:GetNodeByKey(unique)
+	if not delNode then
 		return
 	end
 
 	local rank = self.key2Rank[unique]
-	local forward, backward = node.forward, node.backward
-	for i = 1, node.level do
+	local forward, backward = delNode.forward, delNode.backward
+	for i = 1, delNode.level do
 		local fnode = forward[i]
 		fnode.backward[i] = backward[i]
 	end
 	self:SetKey2Node(unique)
+	for i = rank + 1, #self.rankList do
+		self.key2Rank[self.rankList[i]] = i - 1
+	end
 	table.remove(self.rankList, rank)
 	self.key2Rank[unique] = nil
+	return delNode
 end
 
+function SkipList:Modify(data)
+	if not data then return end
+	local uniqueKey = self:GetuUniqueKey()
+	local unique = data[uniqueKey]
+	if not unique then
+		error("not uniqueKey field " .. uniqueKey)
+	end
 
+	if not self:GetNodeByKey(unique) then
+		error(sformat("please push unique:%s", unique))
+	end
+	for _, key in ipairs(self.sortKeys) do
+		if not data[key] then
+			error("not sortKey field " .. key)
+		end
+	end
+
+	-- 需要保持level不变！！！！
+	local delNode = self:Delete(unique)
+	if not delNode then
+		_ERROR_F("unique:%s modify fail! data:%s", unique, tool.dump(data))
+		return
+	end
+	data = _CreateNode(data, delNode.level)
+	_Insert(self, data)
+end
 
 function SkipList:Dump()
 	print("uniqueKey: ", self.uniqueKey)
