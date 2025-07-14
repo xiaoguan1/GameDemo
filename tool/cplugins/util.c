@@ -275,8 +275,8 @@ _new_uid(lua_State *L) {				// server_id:20,inc_no:30
 	struct bit_encode_t be;
 	bit_encode_init_e(&be, 80);
 	int mc_cnt = 80 / ENCODE_CHAR_BIT_E;
-	char encode_char[mc_cnt + 1];
-	memset(encode_char, 0, mc_cnt + 1);
+	char encode_char[mc_cnt];
+	memset(encode_char, 0, mc_cnt);
 
 	int c_i = 0;
 	// sec:32,serverId:25,uid_serial:23
