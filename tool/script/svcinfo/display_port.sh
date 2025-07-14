@@ -8,7 +8,7 @@ fi
 
 skynetPid=`ps -ef | grep $config | grep 'skynet' | awk '{print $2}'`
 if [ "X$skynetPid" = "X" ]; then
-	echo "skynet config=\"$config\" already start started! pid:$skynetPid"
+	echo "skynet config=\"$config\" not find pid"
 	exit
 fi
 
