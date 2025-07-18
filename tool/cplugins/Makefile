@@ -14,6 +14,9 @@ $(CPLUGINS_SO)/posix.so : posix.c | $(CPLUGINS_SO)
 $(CPLUGINS_SO)/util.so : util.c | $(CPLUGINS_SO)
 	$(CC) $(CFLAGS) $(SHARED) -I/ $^ -o $@
 
-CPLUGINS_ALL = dpcluster posix util
+$(CPLUGINS_SO)/crc.so : crc.c | $(CPLUGINS_SO)
+	$(CC) $(CFLAGS) $(SHARED) -I/ $^ -o $@
+
+CPLUGINS_ALL = dpcluster posix util crc
 all : \
 	$(foreach v, $(CPLUGINS_ALL), $(CPLUGINS_SO)/$(v).so) 
