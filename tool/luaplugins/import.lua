@@ -205,6 +205,7 @@ local function SafeImport(PathFile, Reload)
 	if not Old then
 		-- 第一次载入，不存在更新的问题
 		IMPORT_FILE[PathFile] = true
+		-- 一定要先将模块的ENV设置进_ImportModule，因为__init__这类方法极有可能使用使用Call这类操作！
 		_ImportModule[PathFile] = FileEnv
 		local New = FileEnv
 		-- 设置原始环境

@@ -107,6 +107,12 @@ pack_addrn(lua_State *L, uint32_t session, void *msg, uint32_t sz, bool is_free)
 #else
 		uint8_t buf[NODE_MAX_LEN + sz + 50];
 #endif
+		/**
+		 * 格式：整包长度(2个字节) | 数据包类型(0:单包) | session会话(4个字节) | 节点信息长度(1个字节) | 节点信息内容(node_sz个字节) | addr服务地址类型(1个字节，0：为数值型) | addr服务地址(4个字节) | 消息类型(4个字节，高8位rpc行为、低8位lua服务协议) | 消息内容msg(sz个字节)
+		 * 
+		 * 长度：2字节 | 1字节 | 4字节 | 1字节 | node_sz字节 | 1字节 | 4字节 | 4字节 | msg的sz字节
+		*/
+
 		fill_header(buf, 15 + node_sz + sz);	//1 + 4 + 1(node_len) + node_sz + 1(addr type) + 4 + 4 + sz
 		fill_uint8(buf + 2, 0);					//单个发送
 		fill_uint32(buf + 3, session);			//session

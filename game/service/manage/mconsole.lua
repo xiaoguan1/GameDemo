@@ -67,6 +67,7 @@ function DealMcs(id, addr)
 					_ERROR_F("addr:%s uPath:%s args:%s fail:%s", addr, uPath, tool.dump(args), responseMsg)
 				end
 			else
+				_Response(id, 500, "操作失败")
 				_ERROR_F("path:%s, not find", path)
 			end
 		end
@@ -75,6 +76,5 @@ function DealMcs(id, addr)
 		-- 目前不支持,待完善
 		_ERROR_F("not supported port! addr:%s", addr)
 	end
-
 	socket.close(id)
 end
