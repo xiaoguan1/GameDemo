@@ -6,7 +6,8 @@ if [ "X$config" = "X" ]; then
 	exit
 fi
 
-McsPort=`cat $config | grep "mcs_port" | awk '{print $3}'`
+# 记得去除所有控制字符！
+McsPort=`cat $config | grep "mcs_port" | awk '{print $3}' | tr -d '\r\n'`
 if [ "X$McsPort" = "X" ]; then
 	echo "$config not find mcs_port!"
 	exit
@@ -18,8 +19,10 @@ if [ "X$skynetPid" = "X" ]; then
 	exit
 fi
 
-# echo $config $McsPort $skynetPid
-wget -q -O - "http://127.0.0.1:$McsPort/closesvc"
+# echo "config =" $config
+# echo "McsPort =" $McsPort
+# echo "skynetPid =" $skynetPid
+wget -q -O - "http://127.0.0.1:${McsPort}/closesvc"
 
 while true; do
 	# isLive 和 skynetPid 是一样的
