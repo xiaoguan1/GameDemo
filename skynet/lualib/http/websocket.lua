@@ -7,7 +7,7 @@ local sockethelper = require "http.sockethelper"
 local socket_error = sockethelper.socket_error
 
 local GLOBAL_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-local MAX_FRAME_SIZE = 256 * 1024 -- max frame is 256K
+local MAX_FRAME_SIZE = 1024 * 1024 -- max frame is 1M（change guanguowei）
 
 local assert = assert
 local pairs = pairs
@@ -274,7 +274,7 @@ local function read_frame(self)
 
     -- print(string.format("fin:%s, op:%s, mask:%s, payload_len:%s", fin, op_code[op], mask, payload_len))
     local masking_key = mask and self.read(4) or false
-    local payload_data = payload_len>0 and self.read(payload_len) or ""
+    local payload_data = payload_len > 0 and self.read(payload_len) or ""
     payload_data = masking_key and crypt.xor_str(payload_data, masking_key) or payload_data
     return fin, assert(op_code[op]), payload_data
 end
@@ -313,6 +313,9 @@ local function resolve_accept(self, options)
             try_handle(self, "ping")
         elseif op == "pong" then
             try_handle(self, "pong")
+        elseif op == "text" then
+            -- add guanguowei
+            try_handle(self, "text", payload_data)
         else
             if fin and #recv_buf == 0 then
                 try_handle(self, "message", payload_data, op)
