@@ -313,9 +313,6 @@ local function resolve_accept(self, options)
             try_handle(self, "ping")
         elseif op == "pong" then
             try_handle(self, "pong")
-        elseif op == "text" then
-            -- add guanguowei
-            try_handle(self, "text", payload_data)
         else
             if fin and #recv_buf == 0 then
                 try_handle(self, "message", payload_data, op)
