@@ -237,6 +237,35 @@ local function write_frame(self, op, payload_data, masking_key)
     end
 end
 
+-- add guanguowei，whole frame!
+local function write_wframe(self, op, payload_data, masking_key)
+    payload_data = payload_data or ""
+    local payload_len = #payload_data
+    local op_v = assert(op_code[op])
+    local v1 = 0x80 | op_v -- fin is 1 with opcode
+    local s = {}
+    local mask = masking_key and 0x80 or 0x00
+    -- mask set to 0
+    if payload_len < 126 then
+        s[1] = string.pack("I1I1", v1, mask | payload_len)
+    elseif payload_len <= 0xffff then
+        s[1] = string.pack("I1I1>I2", v1, mask | 126, payload_len)
+    else
+        s[1] = string.pack("I1I1>I8", v1, mask | 127, payload_len)
+    end
+
+    -- write masking_key
+    if masking_key then
+        table.insert(s, string.pack(">I4", masking_key))
+        payload_data = crypt.xor_str(payload_data, s)
+    end
+
+    if payload_len > 0 then
+        table.insert(s, payload_data)
+        self.write(table.concat(s))
+    end
+end
+
 
 local function read_close(payload_data)
     local code, reason
@@ -491,7 +520,7 @@ function M.connect(url, header, timeout)
     local socket_id = sockethelper.connect(host_addr, host_port, timeout)
     local ws_obj = _new_client_ws(socket_id, protocol, hostname)
     ws_obj.addr = host
-    
+
     local is_ok,err = pcall(write_handshake, ws_obj, host_addr, uri, header)
     if not is_ok then
         _close_websocket(ws_obj)
@@ -534,6 +563,13 @@ function M.write(id, data, fmt, masking_key)
     write_frame(ws_obj, fmt, data, masking_key)
 end
 
+-- add guanguowei, whole write!
+function M.wwrite(id, data, fmt, masking_key)
+    local ws_obj = assert(ws_pool[id])
+    fmt = fmt or "text"
+    assert(fmt == "text" or fmt == "binary")
+    write_wframe(ws_obj, fmt, data, masking_key)
+end
 
 function M.ping(id)
     local ws_obj = assert(ws_pool[id])
