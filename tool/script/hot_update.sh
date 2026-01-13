@@ -6,7 +6,7 @@ if [ "X$config" = "X" ]; then
 	exit
 fi
 
-McsPort=`cat $config | grep "mcs_port" | awk '{print $3}'`
+McsPort=`cat $config | grep "mcs_port" | awk '{print $3}' | tr -d '\r\n'`
 if [ "X$McsPort" = "X" ]; then
 	echo "$config not find mcs_port!"
 	exit
