@@ -12,7 +12,8 @@ lualoader = "./skynet/lualib/loader.lua"
 luaservice = "./skynet/service/?.lua;" ..
 				"./skynet/test/?.lua;" ..
 				"./tool/startup/?.lua;" ..
-				"./game/service/?/?.lua;"
+				"./game/service/?/?.lua;" ..
+				"./skynet/examples/?.lua;"
 lua_path = "./lualib/?.lua;" ..
 			"./skynet/lualib/?.lua;" ..
 			"./skynet/lualib/?/init.lua;" ..
@@ -67,3 +68,18 @@ log_stdin = true		-- true:控制台打印日志
 
 ------------------ 后台管理端口 ------------------
 mcs_port = 40001
+
+------------------ openssl ------------------
+enablessl = true
+
+-- 生成私钥
+-- openssl genrsa -out server-key.pem 2048
+
+-- 生成自签名证书
+-- openssl req -new -x509 -key server-key.pem -out server-cert.pem -days 365
+certfile = "./tool/openssl_pem/server-cert.pem"
+keyfile = "./tool/openssl_pem/server-key.pem"
+
+------------------ sharedata info ------------------
+sharedata_mem_wanning = true
+

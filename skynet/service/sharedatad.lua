@@ -4,6 +4,9 @@ local table = table
 local cache = require "skynet.codecache"
 cache.mode "OFF"	-- turn off codecache, because CMD.new may load data file
 
+local sformat = string.format
+local memWanning = skynet.getenv("sharedata_mem_wanning") == "true" and true or false
+
 local NORET = {}
 local pool = {}
 local pool_count = {}
@@ -158,10 +161,20 @@ end
 skynet.start(function()
 	skynet.fork(collectobj)
 	skynet.dispatch("lua", function (session, source ,cmd, ...)
+		local oldMem
+		if memWanning then
+			oldMem = collectgarbage("count")
+		end
 		local f = assert(CMD[cmd])
 		local r = f(...)
 		if r ~= NORET then
 			skynet.ret(skynet.pack(r))
+		end
+		if memWanning then
+			local addMem = collectgarbage("count") - oldMem
+			if addMem >= 512 then	-- 大于等于0.5M
+				skynet.error(sformat("session:%s source:%s cmd:%s cost mem >= 0.5M", session, source, cmd))
+			end
 		end
 	end)
 end)
