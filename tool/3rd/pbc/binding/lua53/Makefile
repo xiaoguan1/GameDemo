@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -O2 -fPIC -Wall
-LUADIR = /usr/local/include
+LUADIR = ../../../../../skynet/3rd/lua/
 TARGET = protobuf.so
 SHARED = -shared
 
