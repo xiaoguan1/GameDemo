@@ -20,6 +20,8 @@ end
 
 -- 玩家类 ------
 RoleClass = { __ClassType = "<<role class>>" }
+
+-- 玩家类的构造方法
 function RoleClass:New(o)
 	o = o or { __Data = {}, }
 	if type(o.uid) ~= "string" or ROLE_OBJS[o.uid] then

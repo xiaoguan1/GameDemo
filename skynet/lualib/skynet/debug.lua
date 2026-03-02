@@ -404,7 +404,7 @@ local function init(skynet, export)
 
 			-- 1.更新tool工具类的拓展
 			for _, file in ipairs(updateToolFiles) do
-				if TOOL_FILES[file] then
+				if table.has_value(TOOL_FILES, file) then
 					skynet.error(string.format("[%s] auto update dofile tool file:%s", SERVICE_NAME, file))
 					ok, ret = xpcall(dofile, debug.traceback, file)
 					if not ok and ret then
@@ -419,7 +419,7 @@ local function init(skynet, export)
 
 			-- 2.更新宏定义
 			for _, file in ipairs(updateMacosFiles) do
-				if MACRO_FILES[file] then
+				if table.has_value(MACRO_FILES, file) then
 					skynet.error(string.format("[%s] auto update dofile macros file:%s", SERVICE_NAME, file))
 					ok, ret = xpcall(dofile, debug.traceback, file)
 					if not ok and ret then

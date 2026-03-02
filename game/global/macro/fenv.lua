@@ -34,4 +34,8 @@ if not setfenv then
 	end
 end
 
-
+getfsrc = function (f)
+	if type(f) == "number" then
+		return debug.getinfo(f + 1, "S").short_src
+	end
+end

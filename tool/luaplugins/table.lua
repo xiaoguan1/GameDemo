@@ -36,18 +36,29 @@ function table.copy(t)
 	return tt
 end
 
-function table.deepcopy(t)
-	local tt = {}
-	for k, v in pairs(t) do
-		if type(v) == "table" then
-			tt[k] = table.deepcopy(v)
-		elseif type(v) == "userdata" then
-			error("not support copy usedata")
-		else
-			tt[k] = v
-		end
+function table.deepcopy(src)
+	if type(src) ~= "table" then
+		return src
 	end
-	return tt
+	local function clone_table(t, deep)
+		deep = deep or 0
+		if deep >= 100 then
+			error("deepcopy deep >= 100, fail!")
+		end
+		local r = {}
+		for k, v in pairs(t) do
+			local vt = type(v)
+			if vt == "userdata" then
+				error("not support copy usedata")
+			elseif vt == "table" then
+				r[k] = clone_table(v, deep + 1)
+			else
+				r[k] = v
+			end
+		end
+		return r
+	end
+	return clone_table(src)
 end
 
 function table.clear(tbl)
