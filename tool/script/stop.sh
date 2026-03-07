@@ -15,7 +15,7 @@ fi
 
 skynetPid=`ps -ef | grep $config | grep 'skynet' | awk '{print $2}'`
 if [ "X$skynetPid" = "X" ]; then
-	echo "stop fail, because not find pid!"
+	# echo "stop fail, because not find pid!"
 	exit
 fi
 
