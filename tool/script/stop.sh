@@ -30,7 +30,8 @@ while true; do
 	if [ "X$isLive" = "X" ]; then
 		echo "skynet config=\"$config\" stop finish!"
 		exit
+	else
+		echo "$isLive pid stoping"
 	fi
-	echo "$isLive stoping"
 	sleep 1	# 等到1秒
 done
