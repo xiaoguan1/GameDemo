@@ -23,6 +23,11 @@ function posix.mkdir_p(path)
 	end
 end
 
+-- 获取文件的最近一次修改时间
+function posix.fmtime(path)
+	return posix.stat(path, "mtime")
+end
+
 function _G.Pid()
 	local pinfo = posix.getpid()
 	return pinfo and pinfo.pid

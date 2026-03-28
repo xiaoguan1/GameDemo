@@ -682,7 +682,7 @@ static int Pchown(lua_State *L)			/** chown(path,uid,gid) */
 #endif
 }
 
-
+// 修改文件的最近一次修改时间和访问时间（注意该时间是虚拟机的时间！）
 static int Putime(lua_State *L)			/** utime(path,[mtime,atime]) */
 {
 	struct utimbuf times;
