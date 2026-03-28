@@ -66,3 +66,29 @@ function table.clear(tbl)
 		tbl[k] = nil
 	end
 end
+
+-- 返回一个只读表（若tbl里面还有tbl，想要限制只读，目前只能手打添加。。。。）
+function table.onlyread(tbl)
+	if type(tbl) ~= "table" then
+		_ERROR("table.onlyread arg must table!")
+		return
+	end
+
+	local rtbl = setmetatable({}, {
+		__index = tbl,
+		__newindex = function (t, k, v)
+			error(string.format("%s only read. key:%s value:%s insert fail!", tbl,k, v))
+		end,
+		__pairs = function (_rtbl)
+			-- 参数 _rtbl 和 rtbl 是一样的，故忽略即可。
+
+			local function filter(t, k)
+				local v
+				k, v = next(t, k)
+				return k, v
+			end
+			return filter, tbl, nil
+		end
+	})
+	return rtbl
+end
