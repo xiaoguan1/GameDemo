@@ -22,3 +22,23 @@ function posix.mkdir_p(path)
 		posix.mkdir(p)
 	end
 end
+
+function _G.Pid()
+	local pinfo = posix.getpid()
+	return pinfo and pinfo.pid
+end
+
+function _G.Pwd()
+	local sinfo = posix.getenv()
+	return sinfo and sinfo.PWD
+end
+
+function _G.HostName()
+	local sinfo = posix.getenv()
+	return sinfo and sinfo.HOSTNAME
+end
+
+function _G.SysUser()
+	local sinfo = posix.getenv()
+	return sinfo and sinfo.USER
+end

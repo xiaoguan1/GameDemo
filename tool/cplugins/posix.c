@@ -987,8 +987,19 @@ static int Ppathconf(lua_State *L)		/** pathconf([path,options]) */
 
 static const int Ksysconf[] =
 {
-	_SC_ARG_MAX, _SC_CHILD_MAX, _SC_CLK_TCK, _SC_NGROUPS_MAX, _SC_STREAM_MAX,
-	_SC_TZNAME_MAX, _SC_OPEN_MAX, _SC_JOB_CONTROL, _SC_SAVED_IDS, _SC_VERSION,
+	_SC_ARG_MAX,	// 最大的命令行参数长度
+	_SC_CHILD_MAX,	// 每个user可同时运行的最大进程数
+	_SC_CLK_TCK,	// 每秒的时钟滴答数
+	_SC_NGROUPS_MAX,	// 一个用户可以拥有的最大补充组数
+	_SC_STREAM_MAX,		// 系统允许的每个进程可同时打开的最大流数
+	_SC_TZNAME_MAX,		// 指定时区名称支持的最大字节数 (不是TZ值)
+	_SC_OPEN_MAX,	// 一个进程可同时打开的文件最大数
+	_SC_JOB_CONTROL,	// 系统是否支持作业控制
+	_SC_SAVED_IDS,	// 系统是否支持设置用户和组ID
+	_SC_VERSION,	// posix的版本号
+	_SC_NPROCESSORS_CONF,	// 配置的处理器个数
+	_SC_NPROCESSORS_ONLN,	// 当前可获得的处理器个数
+	_SC_HOST_NAME_MAX,		// 主机名的最大长度
 	-1
 };
 
@@ -1001,6 +1012,7 @@ static const char *const Ssysconf[] =
 {
 	"arg_max", "child_max", "clk_tck", "ngroups_max", "stream_max",
 	"tzname_max", "open_max", "job_control", "saved_ids", "version",
+	"nprocessors_conf", "nprocessors_onln", "hostname_max",
 	NULL
 };
 
