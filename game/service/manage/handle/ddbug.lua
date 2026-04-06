@@ -1,6 +1,6 @@
 local skynet = require "skynet"
 
--- wget -q -O - "http://127.0.0.1:40001/ddbug"
+-- wget -q -O - "http://127.0.0.1:40001/ddbug" 或者 curl "http://127.0.0.1:40001/ddbug"
 -- 携带参数：wget -q -O - "http://127.0.0.1:40001/ddbug?key1=value1&key2=value2。。。"
 
 -- local ROLECLASS = Import("game/global/oop/roleclass.lua")
