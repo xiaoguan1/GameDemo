@@ -7,6 +7,9 @@ if dpcluster then
 	DPCLUSTER_NODE = load("return " .. dpcluster)()
 end
 
+-- 重置随机种子
+math.randomseed()
+
 -- lua原生接口函数的拓展（优先加载）
 _G.TOOL_FILES = {
 	"tool/luaplugins/table.lua",
