@@ -486,12 +486,13 @@ function M.accept(socket_id, handle, protocol, addr, options)
     if not ok then
         if err == socket_error then
             if closed then
-                try_handle(ws_obj, "close")
+                try_handle(ws_obj, "close", err)
             else
                 try_handle(ws_obj, "error", err)
             end
         else
             -- error(err)
+            try_handle(ws_obj, "othererror", err)
             return false, err
         end
     end
