@@ -180,6 +180,14 @@ function command.UPDATE_FILES(address, updatefiles)
 	return true
 end
 
+function command.UPDATE_PROTO(address)
+	for k in pairs(services) do
+		if k ~= address then
+			skynet.call(k, "debug", "PROTO_UPDATE")
+		end
+	end
+	return true
+end
 
 -- for historical reasons, launcher support text command (for C service)
 

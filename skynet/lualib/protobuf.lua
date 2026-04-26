@@ -1,4 +1,7 @@
+local skynet = require "skynet"
+require "skynet.manager"
 local c = require "protobuf.c"
+local utilc = require "util.core"
 
 local setmetatable = setmetatable
 local type = type
@@ -12,25 +15,39 @@ local io = io
 local tinsert = table.insert
 local rawget = rawget
 local rawset = rawset
+local SERVICE_NAME = SERVICE_NAME
+local sformat = string.format
 
 local M = {}
 
 local _pattern_cache = {}
 
-local P,GC
+-- add guanguowei
+local function try_init_pgc()
+	M.GC = M.GC or c._gc()
+	if M.P then
+		return
+	end
 
-P = debug.getregistry().PROTOBUF_ENV
+	M.P = debug.getregistry().PROTOBUF_ENV
+	if M.P then
+		return
+	end
 
-if P then
-	GC = c._gc()
-else
-	P= c._env_new()
-	-- GC = c._gc(P)
-	-- 因为P已经改成节点唯一了，不能因服务的状态而被GC掉
-	GC = c._gc()
+	if not utilc.get_pbenv() then
+		-- 本节点初次创建P，若出现两次或以上则违背了设计原则！
+		utilc.add_pbenv(c._env_new())
+		skynet.error(sformat("-------- %s add pb env --------", SERVICE_NAME))
+	end
+	utilc.load_pbenv()
+	M.P = assert(debug.getregistry().PROTOBUF_ENV)
 end
+try_init_pgc()
+local P, GC = M.P, M.GC
 
-M.GC = GC
+function M.update_pgc()
+	P, GC = M.P, M.GC
+end
 
 function M.lasterror()
 	return c._last_error(P)

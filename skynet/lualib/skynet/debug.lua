@@ -85,9 +85,19 @@ local function init(skynet, export)
 			end
 		end
 
+		-- 非 protosvr服务 更新协议逻辑
 		function dbgcmd.PROTO_UPDATE(...)
-			if pbc_update then
-				pbc_update(...)
+			if SERVICE_NAME == "protosvr" then
+				return
+			end
+			local _loaded = debug.getregistry()._LOADED or {}
+			if _loaded["protobuf"] then
+				local utilc = require "util.core"
+				local protobuf = require "protobuf"
+				utilc.load_pbenv()
+				protobuf.P = debug.getregistry().PROTOBUF_ENV
+				protobuf.update_pgc()
+				skynet.error(string.format("[%s] update protobuf succeed", SERVICE_NAME))
 			end
 			skynet.ret(skynet.pack(nil))
 		end

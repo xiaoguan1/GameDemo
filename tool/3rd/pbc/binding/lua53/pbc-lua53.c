@@ -25,6 +25,8 @@ extern "C" {
 #include <stdint.h>
 
 #include "pbc.h"
+#include "skynet.h"
+#include "skynet_server.h"
 
 static inline void *
 checkuserdata(lua_State *L, int index) {
@@ -805,6 +807,7 @@ static int
 _clear_gcobj(lua_State *L) {
 	struct gcobj * obj = (struct gcobj *)lua_touserdata(L,1);
 	int i;
+	int del_env = 0;
 	for (i=0;i<obj->size_pat;i++) {
 		pbc_pattern_delete(obj->pat[i]);
 	}
@@ -818,8 +821,9 @@ _clear_gcobj(lua_State *L) {
 	if (obj->env) {
 		pbc_delete(obj->env);
 		obj->env = NULL;
+		del_env = 1;
 	}
-
+	skynet_error(NULL, "clear protobuf gcobj, del_env:%d", del_env);
 	return 0;
 }
 
@@ -842,6 +846,57 @@ _gc(lua_State *L) {
 	lua_setmetatable(L,-2);
 
 	return 1;
+}
+
+static int
+_gc_load_env(lua_State *L) {
+	struct gcobj * obj = (struct gcobj *)lua_touserdata(L, 1);
+	if (!obj) {
+		luaL_error(L, "gcobj invalid");
+	}
+	if (obj->env) {
+		luaL_error(L, "gcobj already set env");
+	}
+	struct pbc_env * env = (struct pbc_env *)lua_touserdata(L, 2);
+	if (!env) {
+		luaL_error(L, "env invalid");
+	}
+	obj->env = env;
+	return 0;
+}
+
+static int
+_gc_unload_env(lua_State *L) {
+	struct gcobj * obj = (struct gcobj *)lua_touserdata(L, 1);
+	if (!obj) {
+		luaL_error(L, "gcobj invalid");
+	}
+	if (!obj->env) {
+		luaL_error(L, "gcobj env invalid");
+	}
+	obj->env = NULL;
+	return 0;
+}
+
+static int
+_gc_is_env(lua_State *L) {
+	struct gcobj * obj = (struct gcobj *)lua_touserdata(L, 1);
+	if (!obj) {
+		luaL_error(L, "gcobj invalid");
+	}
+	if (obj->env) {
+		lua_pushlightuserdata(L, obj->env);
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+static int
+_pbc_delete(lua_State *L) {
+	struct pbc_env * env = (struct pbc_env *)checkuserdata(L,1);
+	pbc_delete(env);
+	return 0;
 }
 
 static int
@@ -900,6 +955,13 @@ luaopen_protobuf_c(lua_State *L) {
 		{"_add_pattern", _add_pattern },
 		{"_add_rmessage", _add_rmessage },
 		{"_env_enum_id", _env_enum_id},
+
+		// add guanguowei
+		{"_gc_load_env", _gc_load_env},
+		{"_gc_unload_env", _gc_unload_env},
+		{"_gc_is_env", _gc_is_env},
+		{"pbc_delete", _pbc_delete},
+
 		{NULL,NULL},
 	};
 

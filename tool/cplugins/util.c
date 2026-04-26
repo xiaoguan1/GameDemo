@@ -551,6 +551,16 @@ _strhash(lua_State *L) {
 static void *pb_env = NULL;
 
 int
+_get_pbenv(lua_State *L) {
+	if (pb_env) {
+		lua_pushlightuserdata(L, pb_env);
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
+int
 _add_pbenv(lua_State *L) {
 	// if (pb_env) {
 	// 	return 0;		// 已经有了pb
@@ -829,6 +839,7 @@ luaopen_util_core(lua_State *L) {
 		{ "strhash", _strhash },
 		{ "add_pbenv", _add_pbenv },
 		{ "load_pbenv", _load_pbenv },
+		{"get_pbenv", _get_pbenv},
 		{ "pbc_splite", _pbc_splite },
 		{ "pack", _pack },
 		{ "new_arraytbl", _new_arraytbl },

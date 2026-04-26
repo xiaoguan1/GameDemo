@@ -9,6 +9,7 @@ local is_crossserver = skynet.getenv("is_cross") == "true" and true or false
 
 -- 每个节点的基础服务
 START_UNIQ_SERVICE = {
+	{svr = "protosvr", named = ".PROTOSVR"},	-- 协议服务，加载协议和更新协议
 	{svr = "gamelog", named = ".GAMELOG"},
 	{svr = "stimer", named = ".STIMER"},
 	{svr = "dbserver", named = ".DBSERVER"},
