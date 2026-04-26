@@ -8,4 +8,5 @@ message S2c_role{
     required string uid = 1;
     optional int32 sex = 2;     // 1:女、0:男
     optional string account = 3;
+    required string aaa = 4;
 }

@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <lstate.h>
+#include <lobject.h>
 
 #include <signal.h>
 #include <assert.h>
@@ -549,15 +551,10 @@ _strhash(lua_State *L) {
 static void *pb_env = NULL;
 
 int
-_init_pbenv(lua_State *L) {
-	return 0;
-}
-
-int
 _add_pbenv(lua_State *L) {
-	if (pb_env) {
-		return 0;		// 已经有了pb
-	}
+	// if (pb_env) {
+	// 	return 0;		// 已经有了pb
+	// }
 	pb_env = lua_touserdata(L, -1);
 	return 0;
 }
@@ -808,6 +805,7 @@ battle_tonumber(lua_State *L) {
 	}
 }
 
+
 int
 luaopen_util_core(lua_State *L) {
     // get_ip();
@@ -829,7 +827,6 @@ luaopen_util_core(lua_State *L) {
 		{ "new_item_index", _new_item_index },		//这个无需修改，只能在skynet进程内使用
 		{ "new_sfigntid", _new_sfigntid },			//全平台唯一，可以跨平台（也可以合服）
 		{ "strhash", _strhash },
-		{ "init_pbenv", _init_pbenv },
 		{ "add_pbenv", _add_pbenv },
 		{ "load_pbenv", _load_pbenv },
 		{ "pbc_splite", _pbc_splite },

@@ -2,7 +2,6 @@
 
 getDir(){
 	dir=`echo $0 | grep "^/"`
-    echo $dir
 	if test "${dir}"; then	# test 变量。 dir 为空字符串("") 则为false，否则为true
 		dirname $0
 	else
@@ -17,3 +16,6 @@ GENPROTO=$RUNDIR/../../protocol/gen_proto.lua # 编译协议文件的逻辑代�
 
 $LUA $GENPROTO
 
+# echo $RUNDIR
+# echo $LUA
+# echo $GENPROTO

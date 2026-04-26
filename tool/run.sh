@@ -17,7 +17,9 @@ LUADIR=$CURDIR/../skynet/3rd/lua
 # 默认编译skynet引擎的路径
 SKYNETDIR=$CURDIR/../skynet/
 
+# 一般来说是 /home/game/ShareDemo/GameDemo/tool/.
 cd $CURDIR/..
+
 # lua ./charvar/agent/var_name.lua
 # lua ./charvar/gameserver/var_name.lua
 # lua ./charvar/activity/var_name.lua
@@ -30,7 +32,7 @@ GAME_CONFIG=./config/main_node	# 游戏服启动配置
 
 
 echo "选择题:"
-select w in 重启游戏服 启动游戏服 关闭游戏服 热更游戏服 启动跨服 编译并启动游戏
+select w in 重启游戏服 启动游戏服 关闭游戏服 热更游戏服 启动跨服 编译并启动游戏 编译协议
 do
 	case $w in
 		启动游戏服)
@@ -55,14 +57,18 @@ do
 			break
 			;;
 		编译并启动游戏)
-			cd $LUADIR
-			make linux		# 编译lua
+			# cd $LUADIR
+			# make linux		# 编译lua
 
-			cd $SKYNETDIR
-			make linux		# 编译skynet
+			# cd $SKYNETDIR
+			# make linux		# 编译skynet
 
-			cd $RUNDIR/..
-			./skynet/skynet ./etc/main_node
+			# cd $RUNDIR/..
+			# ./skynet/skynet ./etc/main_node
+			break
+			;;
+		编译协议)
+			sh $CURDIR/script/gen_proto.sh
 			break
 			;;
 	esac

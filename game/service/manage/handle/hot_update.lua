@@ -25,27 +25,14 @@ TOOL_FILEMTIME = {}	-- 工具库文件的最近一次修改时间
 MACRO_FILETIME = {}	-- 常量文件的最近一次修改时间
 GAME_FILEMTIME = {}	-- game目录下的文件最近一次修改时间
 
-local function _ReadFile(path, result, deep)
-	deep = (deep or 0) + 1
-	if deep > 50 then
-		skynet.error(path .. " directory too much deep")
-	end
-
-	result = result or {}
-	path = path or "game"
-	for file in posix.files(path) do
-		if file ~= "." and file ~= ".." and file ~= ".git" and file ~= ".svn" then
-			file = path .. "/" .. file
-			local t = posix.stat(file) or {}
-			if t.type == "directory" then				-- 目录
-				_ReadFile(file, result, deep)
-			elseif t.type == "regular" then				-- 文件
-				if string.endswith(file, ".lua") then
-					result[file] = t.mtime
-				end
-			else
-				skynet.error("error file type " .. file)
-			end
+local function _ReadFile(path)
+	local result = {}
+	for file in pairs(posix.scandir(path or "game", {ftype = ".lua"})) do
+		local fstat = posix.stat(file)
+		if fstat then
+			result[file] = fstat.mtime
+		else
+			skynet.error("error file " .. file)
 		end
 	end
 	return result
