@@ -45,7 +45,7 @@ end
 try_init_pgc()
 local P, GC = M.P, M.GC
 
-function M.update_pgc()
+function M.update_local_pgc()
 	P, GC = M.P, M.GC
 end
 

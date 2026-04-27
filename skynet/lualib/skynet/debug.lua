@@ -94,9 +94,13 @@ local function init(skynet, export)
 			if _loaded["protobuf"] then
 				local utilc = require "util.core"
 				local protobuf = require "protobuf"
+				if protobuf.P == utilc.get_pbenv() then
+					skynet.error(string.format("[%s] update protobuf fail", SERVICE_NAME))
+					return
+				end
 				utilc.load_pbenv()
 				protobuf.P = debug.getregistry().PROTOBUF_ENV
-				protobuf.update_pgc()
+				protobuf.update_local_pgc()
 				skynet.error(string.format("[%s] update protobuf succeed", SERVICE_NAME))
 			end
 			skynet.ret(skynet.pack(nil))
