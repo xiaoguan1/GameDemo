@@ -33,6 +33,9 @@ local selfnode_name = DPCLUSTER_NODE.node_ipport
 	流程1：优先更新协议（因为目前还没有配置数据文件，故忽略）
 	流程2：更新lua的逻辑文件
 
+--优化点：
+	hot_update.lua 若存在修改需要热更，则需要先对该文件进行热更处理再进行游戏内部的逻辑热更
+
 -- ]]
 
 TOOL_FILEMTIME = {}	-- 工具库文件的最近一次修改时间
@@ -113,7 +116,9 @@ function Handle_Request(data)
 	end
 	-- 错误码判断、协议编号是否有新增等等。。。。
 	if isUpdateProto then
-		psvr.call.update(isUpdateProto)
+		if psvr.call.update(isUpdateProto) then
+			PROTO_FILEMTIME = protoFiles
+		end
 	end
 
 	-- 收集有改动的代码文件
@@ -141,9 +146,10 @@ function Handle_Request(data)
 
 	if tempty(updateFiles[UPDATE_TYPE.TOOL]) and
 		tempty(updateFiles[UPDATE_TYPE.MACROS]) and
-		tempty(updateFiles[UPDATE_TYPE.IMPORT])
+		tempty(updateFiles[UPDATE_TYPE.IMPORT]) and
+		not isUpdateProto
 	then
-		_WARN("not code hot update!")
+		_WARN("not anything hot update!")
 		return true
 	end
 
