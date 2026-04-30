@@ -119,6 +119,8 @@ local function _ReadSaveProtId(filePath)
 			_Error("%s io open fail", filePathi)
 		end
 		f:write(TipMsg)
+		f:flush()
+		f:close()
 		maxProtId, SPI_normal = 1, true
 		return
 	end
@@ -154,6 +156,7 @@ local function _ReadSaveProtId(filePath)
 
 	-- 若空，则默认值为1
 	maxProtId = maxProtId or 1
+	f:close()
 end
 _ReadSaveProtId("protocol/save-prot-id")
 
