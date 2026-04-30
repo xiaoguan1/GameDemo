@@ -1,3 +1,15 @@
+--[[
+编译协议的主要流程
+	流程1 使用protoc对proto文件进行编译生成pb文件
+	
+	流程2 生成协议信息
+		1.game/global/rprotomap.lua 是业务开发定义的协议信息
+		2.protocol/auto-generate-rprotomap.lua 和 protocol/record-protocol-id 是自动化生成的协议文件，不允许手动修改！！！
+		3.节点内，其实加载的是auto-generate-rprotomap.lua文件
+
+	注意：目前protobuf仅支持版本2，未支持版本3
+]]
+
 local string = string
 local sformat = string.format
 local io = io
@@ -91,5 +103,54 @@ local function _Make()
 		print(sformat("protoc make succeed %s", tail))
 	end
 end
-
 _Make()
+
+local TipMsg = "----- auto generate file, please do not modify -----"
+local SPI_normal = false	-- save-prot-id文件默认状态异常（即覆盖的方式写入）
+local maxProtId
+local protName2Id = {}
+local function _ReadSaveProtId(filePath)
+	local f = io.open(filePath, "r")
+	if not f then
+		-- 文件不存在，则创建并初始化
+		print("create " .. filePath)
+		f = io.open(filePath, "a+")
+		if not f then
+			_Error("%s io open fail", filePathi)
+		end
+		f:write(TipMsg)
+		maxProtId, SPI_normal = 1, true
+		return
+	end
+
+	local lineNo = 1
+	for c in f:lines() do
+		if lineNo == 1 then
+			if c == TipMsg then
+				-- save-prot-id文件正常，尾部追加方式写入
+				SPI_normal = true
+			end
+		else
+			local protName, protId = string.match(c, "%s*(.*)%s*,%s*(%d*)%s*")
+			protId = protId and tonumber(protId)
+			if protName and protId then
+				if protId > 65536 then
+					-- 因为协议编号仅占用2个字节，故范围在1到65536的协议编号
+					-- 若超出该范围则需要考虑业务那边是否需要拓展
+					_Error("protocol id > 65536!!!")
+				end
+				protName2Id[protName] = protId
+				if not maxProtId or protId > maxProtId then
+					maxProtId = protId
+				end
+			end
+		end
+		lineNo = lineNo + 1
+	end
+
+	-- 若空，则默认值为1
+	maxProtId = maxProtId or 1
+end
+_ReadSaveProtId("protocol/save-prot-id")
+
+
