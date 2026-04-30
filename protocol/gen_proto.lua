@@ -143,6 +143,10 @@ local function _ReadSaveProtId(filePath)
 				if not maxProtId or protId > maxProtId then
 					maxProtId = protId
 				end
+			else
+				-- 存在某一行的内容格式不正确
+				SPI_normal = false
+				print(c)
 			end
 		end
 		lineNo = lineNo + 1
