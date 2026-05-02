@@ -48,6 +48,7 @@ function string.split(str, sep)
 	return result
 end
 
+-- 获取table的长度
 function table.size(t)
 	assert(t)
 	local count = 0
