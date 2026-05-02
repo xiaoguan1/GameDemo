@@ -199,9 +199,9 @@ local function _LoadRprotomap()
 	dofile(rprotomap_path)
 	assert(RPROTOMAP and type(RPROTOMAP) == "table", "rprotomap.lua RPROTOMAP error")
 	for protName, protBody in pairs(RPROTOMAP) do
-		if not protBody.desc or #protBody.desc <= 0 then
-			-- 没有定义desc
-			_Error("rprotomap.lua %s not definition desc", protName)
+		if not protBody.desc or #protBody.desc <= 0 or #protBody.desc >= 1024 then
+			-- 没有定义desc 或者 desc太长
+			_Error("rprotomap.lua %s desc error!", protName)
 		end
 
 		if protBody.type then
@@ -293,25 +293,19 @@ local function _WriteProtomap()
 	f:write("PROTOMAP = {\n")
 
 	local bodyFmt1 = [[
-	["%s"] = {desc = "%s",
+	["%s"] = { desc = "%s", type = "%s", id = "%s",
 		response = "%s",
-		type = "%s",
-		id = "%s",
 	},
 ]]
 	local bodyFmt2 = [[
-	["%s"] = {desc = "%s",
+	["%s"] = { desc = "%s", type = "%s", id = "%s",
 		request = "%s",
-		type = "%s",
-		id = "%s",
 	},
 ]]
 	local bodyFmt3 = [[
-	["%s"] = {desc = "%s",
+	["%s"] = { desc = "%s", type = "%s", id = "%s",
 		request = "%s",
 		response = "%s",
-		type = "%s",
-		id = "%s",
 	},
 ]]
 
@@ -322,11 +316,11 @@ local function _WriteProtomap()
 		if protBody then
 			local bodyContext
 			if protBody.type == PROT_TYPE_PUSH then
-				bodyContext = sformat(bodyFmt1, protName, protBody.desc, protBody.response, PROT_TYPE_PUSH, id)
+				bodyContext = sformat(bodyFmt1, protName, protBody.desc, PROT_TYPE_PUSH, id, protBody.response)
 			elseif protBody.type == PROT_TYPE_NOTIFY then
-				bodyContext = sformat(bodyFmt2, protName, protBody.desc, protBody.request, PROT_TYPE_NOTIFY, id)
+				bodyContext = sformat(bodyFmt2, protName, protBody.desc, PROT_TYPE_NOTIFY, id, protBody.request)
 			else
-				bodyContext = sformat(bodyFmt3, protName, protBody.desc, protBody.request, protBody.response, PROT_TYPE_RESPONSE, id)
+				bodyContext = sformat(bodyFmt3, protName, protBody.desc, PROT_TYPE_RESPONSE, id, protBody.request, protBody.response)
 			end
 			f:write(bodyContext)
 			writeCount = writeCount + 1
