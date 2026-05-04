@@ -27,45 +27,6 @@ local _MEM_LOG_PATH = "./log/" .. node .. "/mem/"
 local _ERROR_A_ALARM_PATH = "./log/" .. node .. "/runtime/login_alarm/"
 local _LOG_EVENT_PATH = "./log/" .. node .. "/log_event/%s/%s"
 
--- 字体颜色
-local FONTCOLOUR = {
-	Black	=	"[30",		-- 黑色
-	Red		= 	"[31",		-- 红色
-	Green	=	"[32",		-- 绿色
-	Yellow	=	"[33",		-- 黄色
-	Blue	=	"[34",		-- 蓝色
-	Purple	=	"[35",		-- 紫色
-	Cyan	=	"[36",		-- 青色
-	White	=	"[37",		-- 白色
-}
-
--- 背景颜色
-local BACKGROUNDCOLOUR = {
-	Black	=	";40m",		-- 黑色
-	Red		=	";41m",		-- 红色
-	Green	=	";42m",		-- 绿色
-	Yellow	=	";43m",		-- 黄色
-	Blue	=	";44m",		-- 蓝色
-	Purple	=	";45m",		-- 紫色
-	Cyan	=	";46m",		-- 青色
-	White	=	";47m",		-- 白色
-}
-
--- 白字绿底
-local INFO_M = HEADER .. FONTCOLOUR.White .. BACKGROUNDCOLOUR.Green
-
--- 黑子黄底
-local WARN_M = HEADER ..  FONTCOLOUR.Black .. BACKGROUNDCOLOUR.Yellow
-
--- 黑子红底
-local ERROR_M = HEADER ..  FONTCOLOUR.Black .. BACKGROUNDCOLOUR.Red
-
--- 黑子紫底
-local MEM_M = HEADER .. FONTCOLOUR.Black .. BACKGROUNDCOLOUR.Purple
-
--- 绿字黄底
-local EVENT_M = HEADER .. FONTCOLOUR.Green .. BACKGROUNDCOLOUR.Yellow
-
 local SERVICE_INFO = sformat("%s %0x ", SERVICE_NAME, skynet.self())
 
 -- 被调用的函数信息
@@ -87,12 +48,15 @@ end
 
 -- 输出格式以及颜色
 local _LEVEL_COLOR = {
-	[1] = INFO_M,
-	[2] = WARN_M,
-	[3] = ERROR_M,
-	[4] = MEM_M,
-	[5] = EVENT_M,
+	[1] = LOG_NORMAL,
+	[2] = LOG_WARNING,
+	[3] = LOG_ERROR,
+	[4] = LOG_MEM,
+	[5] = LOG_EVENT,
 }
+for k, color in pairs(_LEVEL_COLOR) do
+	_LEVEL_COLOR[k] = HEADER .. color
+end
 
 local function _info_context(fileInfo, msg)
 	return tconcat({

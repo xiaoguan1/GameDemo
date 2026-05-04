@@ -1,4 +1,5 @@
 local skynet = require "skynet"
+require "skynet.manager"
 local posix = require "posix"
 local traceback = debug.traceback
 
@@ -9,35 +10,6 @@ end
 
 -- 重置随机种子
 math.randomseed()
-
--- lua原生接口函数的拓展（优先加载）
-_G.TOOL_FILES = {
-	"tool/luaplugins/table.lua",
-	"tool/luaplugins/string.lua",
-	"tool/luaplugins/tool.lua",
-	"tool/luaplugins/posix.lua",
-}
-for _, pathFile in pairs(TOOL_FILES) do
-	dofile(pathFile)
-end
-
--- 宏定义
-_G.MACRO_FILES = {
-	"game/global/macro/common.lua",
-	"game/global/macro/namedsvr.lua",
-	"game/global/macro/fenv.lua",
-}
-for _, pathFile in pairs(MACRO_FILES) do
-	dofile(pathFile)
-end
-
-if not _G.Import then
-	local func, err = loadfile("tool/luaplugins/import.lua", "bt", _G)
-	if not func then
-		error(err)
-	end
-	func()
-end
 
 -- 注册的公共协议
 skynet.register_protocol({
@@ -59,3 +31,39 @@ function TryCall(func, ...)
 	return _RetFunc(xpcall(func, traceback, ...))
 end
 
+-- lua原生接口函数的拓展（优先加载）
+_G.TOOL_FILES = {
+	"tool/luaplugins/table.lua",
+	"tool/luaplugins/string.lua",
+	"tool/luaplugins/tool.lua",
+	"tool/luaplugins/posix.lua",
+}
+for _, pathFile in pairs(TOOL_FILES) do
+	if not TryCall(dofile, pathFile) then
+		skynet.abort()
+	end
+end
+
+-- 宏定义
+_G.MACRO_FILES = {
+	"game/global/macro/common.lua",
+	"game/global/macro/namedsvr.lua",
+	"game/global/macro/fenv.lua",
+	"game/global/macro/color.lua",
+}
+for _, pathFile in pairs(MACRO_FILES) do
+	if not TryCall(dofile, pathFile) then
+		skynet.abort()
+	end
+end
+
+if not _G.Import then
+	local func, err = loadfile("tool/luaplugins/import.lua", "bt", _G)
+	if not func then
+		skynet.error(err)
+		skynet.abort()
+	end
+	if not TryCall(func) then
+		skynet.abort()
+	end
+end
