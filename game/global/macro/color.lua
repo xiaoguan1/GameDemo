@@ -9,8 +9,11 @@ ANSI_COLORS = {
 	blue	= "#2438CB",
 	pink	= "#e603e6",
 	red		= "#e50000",
-	green 	= "#1b5523",
+	green 	= "#008011",
 	yellow	= "#ff8a00",
+	yellow2 = "#fff44f",
+
+	purple	= "#8a2be2",
 }
 
 
@@ -41,12 +44,18 @@ for name, rgb in pairs(ANSI_COLORS) do
 	LOG_COLORS[name] = sformat("%s;%s;%s", tonumber(rr, 0x10), tonumber(gg, 0x10), tonumber(bb, 0x10))
 end
 
-LOG_NORMAL = sformat(LOG_COLOR_FMT, LOG_COLORS.white, LOG_COLORS.green)		-- 一般日志
-LOG_WARNING = sformat(LOG_COLOR_FMT, LOG_COLORS.white, LOG_COLORS.yellow)	-- 警告日志
-LOG_ERROR = sformat(LOG_COLOR_FMT, LOG_COLORS.white, LOG_COLORS.red)		-- 错误日志
-LOG_EVENT = sformat(LOG_COLOR_FMT, LOG_COLORS.white, LOG_COLORS.blue)		-- 事件日志
-LOG_MEM = sformat(LOG_COLOR_FMT, LOG_COLORS.red, LOG_COLORS.white)			-- 内存报警日志
+-- 日志颜色组装（fcolor:字色  bcolor:底色）
+local function _Log_Assembly(fcolor, bcolor)
+	assert(fcolor and bcolor)
+	return sformat(LOG_COLOR_FMT, fcolor, bcolor)
+end
 
+LOG_NORMAL = _Log_Assembly(LOG_COLORS.white, LOG_COLORS.green)		-- 一般日志
+LOG_WARNING = _Log_Assembly(LOG_COLORS.white, LOG_COLORS.yellow)	-- 警告日志
+LOG_ERROR = _Log_Assembly(LOG_COLORS.white, LOG_COLORS.red)			-- 错误日志
+LOG_EVENT = _Log_Assembly(LOG_COLORS.white, LOG_COLORS.blue)		-- 事件日志
+LOG_MEM = _Log_Assembly(LOG_COLORS.red, LOG_COLORS.white)			-- 内存报警日志
+LOG_DEBUG = _Log_Assembly(LOG_COLORS.yellow2, LOG_COLORS.purple)		-- 调试日志
 
 
 -- -- 若远程连接终端太老不支持，则可以降级到256色号

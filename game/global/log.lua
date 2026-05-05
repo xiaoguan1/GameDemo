@@ -15,28 +15,28 @@ local PROXYSVR = Import("game/global/proxysvr.lua")
 local GAMELOG_SVR = PROXYSVR.GetProxyByServiceName("gamelog")
 local tpack = table.pack
 
+-- 是否为测试服
+local is_testserver = skynet.getenv("is_testserver") == "true"
+
 local LOG_LEVEL = {
 	WRITE_DELAY = 1,
 	WRITE_NOW = 2,
 }
 
 local _INFO_LOG_PATH = "./log/" .. node .. "/info/"
+local _DEBUG_LOG_PATH = "./log/" .. node .. "/debug/"
 local _WARN_LOG_PATH = "./log/" .. node .. "/warn/"
 local _ERROR_LOG_PATH =	"./log/" .. node .. "/error/"
 local _MEM_LOG_PATH = "./log/" .. node .. "/mem/"
 local _ERROR_A_ALARM_PATH = "./log/" .. node .. "/runtime/login_alarm/"
 local _LOG_EVENT_PATH = "./log/" .. node .. "/log_event/%s/%s"
 
-local SERVICE_INFO = sformat("%s %0x ", SERVICE_NAME, skynet.self())
+local SERVICE_INFO = sformat("[:%08x %s] ", skynet.self(), SERVICE_NAME)
 
 -- 被调用的函数信息
 local _FILE_INFO_T = {
-	"<",
 	SERVICE_INFO,
-	"nil",
-	":",
-	"nil",
-	">",
+	"<", "nil", ":", "nil", ">",
 }
 local function FileInfo(deep)
 	local dInfo = debug.getinfo(deep or 3, "Sl")
@@ -53,6 +53,7 @@ local _LEVEL_COLOR = {
 	[3] = LOG_ERROR,
 	[4] = LOG_MEM,
 	[5] = LOG_EVENT,
+	[6] = LOG_DEBUG,
 }
 for k, color in pairs(_LEVEL_COLOR) do
 	_LEVEL_COLOR[k] = HEADER .. color
@@ -62,6 +63,14 @@ local function _info_context(fileInfo, msg)
 	return tconcat({
 		os_date("%Y-%m-%d %H:%M:%S"),
 		"[INFO]",
+		fileInfo,
+		msg,
+	}, " ")
+end
+local function _debug_context(fileInfo, msg)
+	return tconcat({
+		os_date("%Y-%m-%d %H:%M:%S"),
+		"[DEBUG]",
 		fileInfo,
 		msg,
 	}, " ")
@@ -136,6 +145,26 @@ function _INFO_F(fmt, ...)
 		_log_print(1, context)
 	end
 	local cfile = sformat("%s%s.log", _INFO_LOG_PATH, os_date("%Y%m%d"))
+	LogToFile(cfile, LOG_LEVEL.WRITE_DELAY, FileInfo(), msg)
+end
+
+function _DEBUG(...)
+	if not is_testserver then
+		return
+	end
+	local context = _debug_context(FileInfo(), ...)
+	_log_print(6, context)
+	local cfile = sformat("%s%s.log", _DEBUG_LOG_PATH, os_date("%Y%m%d"))
+	LogToFile(cfile, LOG_LEVEL.WRITE_DELAY, FileInfo(), ...)
+end
+function _DEBUG_F(fmt, ...)
+	if not is_testserver then
+		return
+	end
+	local msg = sformat(fmt, ...)
+	local context = _debug_context(FileInfo(), msg)
+	_log_print(6, context)
+	local cfile = sformat("%s%s.log", _DEBUG_LOG_PATH, os_date("%Y%m%d"))
 	LogToFile(cfile, LOG_LEVEL.WRITE_DELAY, FileInfo(), msg)
 end
 
