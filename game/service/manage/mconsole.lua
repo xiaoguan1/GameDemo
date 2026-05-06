@@ -48,12 +48,12 @@ function DealMcs(id, addr)
 		local mod = cmd and ROUTER[cmd]
 		if cmd == "CLOSESVC" then
 			if mod then
-				_Response(id, 200, "操作成功")
-				socket.close(id)
 				TryCall(mod.Handle_Request, args)
+				_Response(id, 200, "操作成功\n")
+				socket.close(id)
 				return
 			else
-				_Response(id, 500, "操作失败")
+				_Response(id, 500, "操作失败\n")
 				socket.close(id)
 				return
 			end

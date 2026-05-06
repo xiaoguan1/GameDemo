@@ -1,20 +1,12 @@
+local skynet = require "skynet"
+local log_color_mode = skynet.getenv("log_color_mode") == "false"
+
 -- 颜色相关的宏定义
 
 local string = string
 local sformat = string.format
 
--- ANSI真彩色序列的颜色码
-ANSI_COLORS = {
-	white	= "#ffffff",
-	blue	= "#2438CB",
-	pink	= "#e603e6",
-	red		= "#e50000",
-	green 	= "#008011",
-	yellow	= "#ff8a00",
-	yellow2 = "#fff44f",
-
-	purple	= "#8a2be2",
-}
+if not log_color_mode then		-- 24-bit真彩模式
 
 
 --[[
@@ -32,16 +24,31 @@ ANSI_COLORS = {
 	#fe6cb7 转换成 前景色 [38;2;254;108;183m
 	#fe6cb7 转换成 背景色 [48;2;254;108;183m
 ]]
+
+-- ANSI真彩色序列的颜色码
+local ANSI_COLORS = {
+	white	= "#ffffff",
+	blue	= "#2438CB",
+	pink	= "#e603e6",
+	red		= "#e50000",
+	green 	= "#008011",
+	yellow	= "#ff8a00",
+	yellow2 = "#fff44f",
+
+	purple	= "#8a2be2",
+}
+
 -- 日志相关颜色
 LOG_COLORS = {}
-LOG_COLOR_FMT = "[38;2;%s;48;2;%sm"		-- 字色、背景色格式
 local RGB_REG = "^#(%w%w)(%w%w)(%w%w)"
+LOG_COLOR_FMT = "[38;2;%s;48;2;%sm"		-- 字色、背景色格式
+
 for name, rgb in pairs(ANSI_COLORS) do
 	local rr, gg, bb = rgb:match(RGB_REG)
 	if not rr or not gg or not bb then
 		error(string.format("ANSI_COLORS name:[%s] value[%s] error!", name, rgb))
 	end
-	LOG_COLORS[name] = sformat("%s;%s;%s", tonumber(rr, 0x10), tonumber(gg, 0x10), tonumber(bb, 0x10))
+	LOG_COLORS[name] = sformat("%s;%s;%s", tonumber(rr, 16), tonumber(gg, 16), tonumber(bb, 16))
 end
 
 -- 日志颜色组装（fcolor:字色  bcolor:底色）
@@ -55,23 +62,44 @@ LOG_WARNING = _Log_Assembly(LOG_COLORS.white, LOG_COLORS.yellow)	-- 警告日志
 LOG_ERROR = _Log_Assembly(LOG_COLORS.white, LOG_COLORS.red)			-- 错误日志
 LOG_EVENT = _Log_Assembly(LOG_COLORS.white, LOG_COLORS.blue)		-- 事件日志
 LOG_MEM = _Log_Assembly(LOG_COLORS.red, LOG_COLORS.white)			-- 内存报警日志
-LOG_DEBUG = _Log_Assembly(LOG_COLORS.yellow2, LOG_COLORS.purple)		-- 调试日志
+LOG_DEBUG = _Log_Assembly(LOG_COLORS.yellow2, LOG_COLORS.purple)	-- 调试日志
 
 
--- -- 若远程连接终端太老不支持，则可以降级到256色号
--- -- 粗糙但快速的 256 色近似（0-15 标准色，16-231 是 6x6x6 色块）
--- local function RgbTo256(r, g, b)
---     if r == g and g == b then
---         -- 灰度色阶 232-255
---         if r == 0 then return 16 end
---         if r == 255 then return 231 end
---         return 232 + math.floor(r / 10.63)
---     end
---     -- 6x6x6 色块
---     local ir = math.floor(r / 51.2 + 0.5)
---     local ig = math.floor(g / 51.2 + 0.5)
---     local ib = math.floor(b / 51.2 + 0.5)
---     return 16 + 36 * ir + 6 * ig + ib
--- end
+
+else		-- 4bit色彩模式
+
+-- 字体颜色
+local FONT_COLOR = {
+	Black	=	"[30",		-- 黑色
+	Red		= 	"[31",		-- 红色
+	Green	=	"[32",		-- 绿色
+	Yellow	=	"[33",		-- 黄色
+	Blue	=	"[34",		-- 蓝色
+	Purple	=	"[35",		-- 紫色
+	Cyan	=	"[36",		-- 青色
+	White	=	"[37",		-- 白色
+}
+
+-- 背景颜色
+local BACKGROUND_COLOR = {
+	Black	=	";40m",		-- 黑色
+	Red		=	";41m",		-- 红色
+	Green	=	";42m",		-- 绿色
+	Yellow	=	";43m",		-- 黄色
+	Blue	=	";44m",		-- 蓝色
+	Purple	=	";45m",		-- 紫色
+	Cyan	=	";46m",		-- 青色
+	White	=	";47m",		-- 白色
+}
+
+LOG_NORMAL = FONT_COLOR.White .. BACKGROUND_COLOR.Green		-- 一般日志(白字绿底)
+LOG_WARNING = FONT_COLOR.Black .. BACKGROUND_COLOR.Yellow	-- 警告日志(黑字黄底)
+LOG_ERROR = FONT_COLOR.Black .. BACKGROUND_COLOR.Red		-- 错误日志(黑字红底)
+LOG_MEM = FONT_COLOR.Black .. BACKGROUND_COLOR.Purple		-- 内存报警日志(黑字紫底)
+LOG_EVENT = FONT_COLOR.Green .. BACKGROUND_COLOR.Yellow		-- 事件日志(绿字黄底)
+LOG_DEBUG = FONT_COLOR.Green .. BACKGROUND_COLOR.Purple		-- 事件日志(绿字紫底)
+
+end
+
 
 

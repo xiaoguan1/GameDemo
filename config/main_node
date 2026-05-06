@@ -83,3 +83,6 @@ keyfile = "./tool/openssl_pem/server-key.pem"
 ------------------ sharedata info ------------------
 sharedata_mem_wanning = true
 
+
+------------------ log color ------------------
+-- log_color_mode = false 	-- true为真色彩模式(默认)、false为标准色模式
