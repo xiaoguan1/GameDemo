@@ -42,10 +42,7 @@
 
 	打包处理流程：a服务需要跨节点通信，则a服务需要先进行消息打包，并发送到dpcluster服务，dpcluster服务再将节点信息进行二次打包，最终发送到对应节点。
 
-
-	gcluster_send 主要是发送处理逻辑代码（支持热更）
-	gcluster_receive 主要是接收处理逻辑代码（支持热更）
-	gclusterd 则处理服务的启动和网络监听链接、关闭（不支持热更）
+	注释：review一下cluster.lua代码，参考一下云风的代码
 
 
 
