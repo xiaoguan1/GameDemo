@@ -11,7 +11,7 @@ connecting = {}   -- 正在进行节点连接的事件
 node_channel = {}
 
 -- 开启当前节点监听
-local function node_listen(addr, port)
+local function nodeListen(addr, port)
     local gate = skynet.newservice("gate")
     if port == nil then
         addr, port = string.match(addr, "([^:]+):(.*)$")
@@ -22,13 +22,13 @@ local function node_listen(addr, port)
 end
 
 -- 同步信息的超时检测
-local function deal_overtime()
+local function dealOvertime()
 	while true do
 		skynet.sleep(100) -- 每秒执行
 		local n = skynet.now()
 		for _session, _data in pairs(node_session2co) do
 			if n >= _data[1] then
-				pcall(Ghelper.dealResponse, _session, false, skynet.pack("time out"))
+				pcall(Ghelper.DealResponse, _session, false, skynet.pack("time out"))
 			end
 		end
 	end
@@ -46,8 +46,8 @@ skynet.start(function ()
 	end)
 
 	Ghelper = Import("game/gclusterd/gclusterd_helper.lua")
-	setmetatable(node_channel, { __index = Ghelper.openChannel })
+	setmetatable(node_channel, { __index = Ghelper.OpenChannel })
 
-	node_listen(DPCLUSTER_NODE.node_ipport)		-- 开启当前节点 gate
-	skynet.timeout(0, deal_overtime)
+	nodeListen(DPCLUSTER_NODE.node_ipport)		-- 开启当前节点 gate
+	skynet.timeout(0, dealOvertime)
 end)
