@@ -1,3 +1,7 @@
+------------------------------------
+--- 挖坑1：先简化节点与节点之间的验证。注释authCheck函数
+------------------------------------
+
 local skynet = require "skynet"
 
 local string = string
@@ -8,11 +12,16 @@ local pcall = pcall
 node_session2co = {}
 command = {}
 connecting = {}   -- 正在进行节点连接的事件
-node_channel = {}
+
+node_channel = {}	-- 本节点主动连接其他节点的数据缓存
+accept_fd = {}		-- 外部节点主动连接本节点的数据缓存
+
+gate = false
 
 -- 开启当前节点监听
 local function nodeListen(addr, port)
-    local gate = skynet.newservice("gate")
+    gate = skynet.newservice("gate")
+	assert(gate, "gate service start fail!")
     if port == nil then
         addr, port = string.match(addr, "([^:]+):(.*)$")
         assert(addr and port)

@@ -38,20 +38,20 @@ local function socketCloseEvent(sockFd)
 	end
 end
 
--- 节点与节点连接的密钥
-local function authCheck(key)
-	return function (sock)
-		local authcode = string.pack(">I2", string.len(dpcluster_auths)) .. dpcluster_auths
-		local retData = sock:request(authcode, function(_sock)
-			local retData = _sock:read(1)
-			if retData ~= "1" then
-				local msg = string.format("error cross auth:%s, ip_port:%s", retData, key)
-				error(msg)
-			end
-			return true, retData
-		end)
-	end
-end
+-- -- 节点与节点连接的密钥
+-- local function authCheck(key)
+-- 	return function (sock)
+-- 		local authcode = string.pack(">I2", string.len(dpcluster_auths)) .. dpcluster_auths
+-- 		local retData = sock:request(authcode, function(_sock)
+-- 			local retData = _sock:read(1)
+-- 			if retData ~= "1" then
+-- 				local msg = string.format("error cross auth:%s, ip_port:%s", retData, key)
+-- 				error(msg)
+-- 			end
+-- 			return true, retData
+-- 		end)
+-- 	end
+-- end
 
 local function send(node, request, padding)
 	local c = node_channel[node]
@@ -89,7 +89,7 @@ function OpenChannel(t, key)           -- key可以为node名字也可以直接�
 		-- response = read_response
         nodelay = true,
 		close_event = socketCloseEvent,
-		auth = authCheck(key),
+		-- auth = authCheck(key),
 	}
     local succ, err = pcall(c.connect, c, true)
     if succ then
@@ -141,6 +141,18 @@ end
 
 -- gate服务发来的消息处理
 function command.socket(source, subcmd, fd, msg)
+	if subcmd == "open" then
+		-- 外部节点主动连接本节点
+		skynet.call(source, "lua", "accept", fd)
+		-- node_channel[]
+		skynet.error(string.format("gclusterd socket accept from %s", msg))
+	elseif subcmd == "close" then
+		skynet.error(string.format("gclusterd socket close from %s", msg))
+	end
+
+
+
+
     if subcmd == "data" then
 	elseif subcmd == "open" then
 	elseif subcmd == "close" then
@@ -149,4 +161,12 @@ function command.socket(source, subcmd, fd, msg)
 	else
 		skynet.error()
 	end
+end
+
+function command.close()
+	-- 主动关闭本节点的监听
+end
+
+function command.kick()
+	-- 主动关闭与本节点监听连接的socket
 end
