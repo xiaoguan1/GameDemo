@@ -64,7 +64,7 @@ function DealMcs(id, addr)
 					_Response(id, 200, "操作成功")
 				else
 					_Response(id, 500, "操作失败")
-					_ERROR_F("addr:%s uPath:%s args:%s fail:%s", addr, uPath, tool.dump(args), responseMsg)
+					_ERROR_F("addr:%s path:%s args:%s fail:%s", addr, path, tool.dump(args), responseMsg)
 				end
 			else
 				_Response(id, 500, "操作失败")
