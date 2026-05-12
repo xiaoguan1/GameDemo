@@ -114,6 +114,7 @@ find_uncomplete(struct queue *q, int fd) {
 	return NULL;
 }
 
+// 创建并初始化queue
 static struct queue *
 get_queue(lua_State *L) {
 	struct queue *q = lua_touserdata(L,1);
@@ -134,6 +135,7 @@ get_queue(lua_State *L) {
 static void
 expand_queue(lua_State *L, struct queue *q) {
 	struct queue *nq = lua_newuserdatauv(L, sizeof(struct queue) + q->cap * sizeof(struct netpack), 0);
+	// queue容量的增长方式为：以步长 QUEUESIZE 增长！
 	nq->cap = q->cap + QUEUESIZE;
 	nq->head = 0;
 	nq->tail = q->cap;
@@ -173,6 +175,18 @@ save_uncomplete(lua_State *L, int fd) {
 	int h = hash_fd(fd);
 	struct uncomplete * uc = skynet_malloc(sizeof(struct uncomplete));
 	memset(uc, 0, sizeof(*uc));
+
+	/**
+	 * 因为h是一个根据fd计算出来的哈希值。
+	 * 根据哈希值确定坐标的哈希数组，无可避免的要考虑冲突的问题。
+	 * 因此，q->hash数组的每一个元素，即是一个“桶”（链表结构）。
+	 * 
+	 * uc->next = q->hash[h];
+	 * uc->pack.id = fd;
+	 * q->hash[h] = uc;
+	 * 
+	 * 将新元素插入到桶链表的头部。
+	*/
 	uc->next = q->hash[h];
 	uc->pack.id = fd;
 	q->hash[h] = uc;
@@ -182,6 +196,7 @@ save_uncomplete(lua_State *L, int fd) {
 
 static inline int
 read_size(uint8_t * buffer) {
+	// buff 的头两个字节记录了消息的总长度。
 	int r = (int)buffer[0] << 8 | (int)buffer[1];
 	return r;
 }
@@ -276,10 +291,13 @@ filter_data_(lua_State *L, int fd, uint8_t * buffer, int size) {
 			return 1;
 		}
 		int pack_size = read_size(buffer);
+
+		// 因为buffer的头两个字节记录的是总长度，故地址需要移动2个字节 而 长度需要减2处理
 		buffer+=2;
 		size-=2;
 
 		if (size < pack_size) {
+			// 不完整的包
 			struct uncomplete * uc = save_uncomplete(L, fd);
 			uc->read = size;
 			uc->pack.size = pack_size;
@@ -289,6 +307,7 @@ filter_data_(lua_State *L, int fd, uint8_t * buffer, int size) {
 		}
 		if (size == pack_size) {
 			// just one package
+			// 恰好是一个完整的包
 			lua_pushvalue(L, lua_upvalueindex(TYPE_DATA));
 			lua_pushinteger(L, fd);
 			void * result = skynet_malloc(pack_size);
@@ -298,6 +317,15 @@ filter_data_(lua_State *L, int fd, uint8_t * buffer, int size) {
 			return 5;
 		}
 		// more data
+		/**
+		 * size > pack_size 粘包！！！
+		 * 处理粘包方式：
+		 * 		因为一个包的前两个字节是记录包长，因此根据这个包长来逐个截取完整的包并拷贝进q->queue数组，
+		 * 		若最后一个包是不完整的，则会先放进 q->uncomplete
+		 * 
+		 * 此外，即使将fd开启nodelay，关闭延迟发送。也无法避免粘包问题！
+		 * 因为无法确保发送端的一次send 正好 对应接收端的一次 read。
+		*/
 		push_data(L, fd, buffer, pack_size, 1);
 		buffer += pack_size;
 		size -= pack_size;
