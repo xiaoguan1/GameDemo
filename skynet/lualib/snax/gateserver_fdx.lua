@@ -102,13 +102,17 @@ function gateserver.start(handler)
 			create_time = os.time(),
 		}
 		socket_pool[listen_fd] = s
+
 		skynet.wait(co) -- 挂起当前协程，等待socket线程响应
 
 		assert(s.status == FD_STATUS_PREPARED)
-		s.status = FD_STATUS_RUN -- 正常状态(该监听已得到socket线程响应)
 		conf.address = s.address
 		conf.port = s.port
+
 		socketdriver.start(listen_fd)
+		s.co = coroutine.running()
+		skynet.wait(co) -- 挂起当前协程，等待socket线程响应
+		s.status = FD_STATUS_RUN -- 正常状态(该监听已得到socket线程响应)
 
 		return handler.listen(source, conf)
 	end
@@ -311,7 +315,8 @@ function gateserver.start(handler)
 			s.port = port
 			wakeup(s)
 		else
-			skynet.error(string.format("%s MSG.init not find record!, id[%s] addr[%s] port[%s] s[%s]", SERVICE_NAME, id, addr, port, s))
+			skynet.error(string.format("%s MSG.init not find record!, id[%s] addr[%s] port[%s] s[%s]",
+				SERVICE_NAME, id, addr, port, s))
 		end
 	end
 

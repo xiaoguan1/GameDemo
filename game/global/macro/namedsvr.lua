@@ -12,7 +12,8 @@ START_UNIQ_SERVICE = {
 	{svr = "protosvr", named = ".PROTOSVR"},	-- 协议服务，加载协议和更新协议
 	{svr = "gamelog", named = ".GAMELOG"},
 	{svr = "stimer", named = ".STIMER"},
-	{svr = "dbserver", named = ".DBSERVER"},
+	-- {svr = "dbserver", named = ".DBSERVER"},
+	{svr = "gclusterd", named = ".GCLUSTERD"},
 	{svr = "manage", named = ".MANAGE"},
 }
 

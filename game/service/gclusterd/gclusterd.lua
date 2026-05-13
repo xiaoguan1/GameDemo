@@ -3,6 +3,7 @@
 ------------------------------------
 
 local skynet = require "skynet"
+local node = skynet.getenv("node")
 
 local string = string
 local pairs = pairs
@@ -20,14 +21,14 @@ gate = false
 
 -- 开启当前节点监听
 local function nodeListen(addr, port)
-    gate = skynet.newservice("gate")
+    gate = skynet.newservice("gate_fdx")
 	assert(gate, "gate service start fail!")
     if port == nil then
         addr, port = string.match(addr, "([^:]+):(.*)$")
         assert(addr and port)
     end
-    skynet.error("dpclusterd listen on:", port)
-    skynet.call(gate, "lua", "open", { address = addr, port = port, nodelay = true, })	-- 肯定是当前节点的，所以不用代理了
+    skynet.error("gclusterd listen on:", port)
+    skynet.call(gate, "lua", "listen", { address = addr, port = port, nodelay = true, })	-- 肯定是当前节点的，所以不用代理了
 end
 
 -- 同步信息的超时检测
@@ -54,9 +55,11 @@ skynet.start(function ()
 		f(source, ...)
 	end)
 
-	Ghelper = Import("game/gclusterd/gclusterd_helper.lua")
+	Ghelper = Import("game/service/gclusterd/gclusterd_helper.lua")
 	setmetatable(node_channel, { __index = Ghelper.OpenChannel })
 
-	nodeListen(DPCLUSTER_NODE.node_ipport)		-- 开启当前节点 gate
+	if node ~= "main" then
+		nodeListen(DPCLUSTER_NODE.node_ipport)		-- 开启当前节点 gate
+	end
 	skynet.timeout(0, dealOvertime)
 end)

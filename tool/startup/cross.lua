@@ -44,10 +44,10 @@ skynet.start(function ()
 	DPCLUSTER_NODE = dpcluster
 
 	dofile "./game/global/log.lua"
-	-- for _, v in pairs(START_UNIQ_SERVICE) do
-	-- 	local id = skynet.uniqueservice(v.svr)
-	-- 	skynet.name(v.named, id)
-	-- end
+	for _, v in pairs(START_UNIQ_SERVICE) do
+		local id = skynet.uniqueservice(v.svr)
+		skynet.name(v.named, id)
+	end
 	-- Import("game/global/dpcluster.lua")
 
 	-- local self_ipport = DPCLUSTER_NODE.node_ipport
