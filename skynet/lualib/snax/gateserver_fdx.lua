@@ -6,6 +6,7 @@
 local skynet = require "skynet"
 local netpack = require "skynet.netpack"
 local socketdriver = require "skynet.socketdriver"
+local string = string
 
 local gateserver = {}
 
@@ -75,7 +76,8 @@ function gateserver.start(handler)
 	assert(handler.message and
 			handler.open and
 			handler.listen and
-			handler.connect
+			handler.connect and
+			handler.disconnect
 		)
 
 	-- 开启监听
@@ -255,16 +257,17 @@ function gateserver.start(handler)
 
 	-- 关闭网络链接或者监听
 	function MSG.close(fd)
+		-- 注意：当收到该关闭类型的信息的时候，其socket线程内部已经关闭了fd并清空对应缓存，即事后通知！
+		local s = socket_pool[fd]
 		if fd == listen_fd then
 			-- 关闭监听
-			local s = socket_pool[listen_fd]
+			assert(s, "listen_fd not have socket_pool data!")
 			wakeup(s)
 		else
 			-- 关闭socket
 			client_number = client_number - 1
-			local s = socket_pool[fd]
 			if not s then
-				socketdriver.close(fd)
+				socketdriver.close(fd) -- 二次关闭，确保清理
 				skynet.error(string.format("unknown fd[%s] close", fd))
 				return
 			end
@@ -274,13 +277,12 @@ function gateserver.start(handler)
 				wakeup(s)
 			else
 				-- 对方节点关闭，即当前节点被动关闭。
-				socketdriver.close(fd)
+				-- socketdriver.close(fd)
 				socket_pool[fd] = nil
 				address2fd_pool[s.address .. ":" .. s.port] = nil
-				if handler.disconnect then
-					-- 通知watchdog服务，做它做相应的清除工作。
-					handler.disconnect(fd)
-				end
+
+				-- 通知watchdog服务，让它做相应的清除工作。
+				handler.disconnect(fd)
 			end
 		end
 	end
