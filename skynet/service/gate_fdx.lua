@@ -87,42 +87,18 @@ function CMD.accept(source, fd)
 	gateserver_fdx.openclient(fd)
 end
 
-function CMD.kick(source, fd)
-	gateserver_fdx.closeclient(fd)
-end
-
 function handler.command(cmd, source, ...)
 	local f = assert(CMD[cmd])
 	return f(source, ...)
 end
 
-
-
-
-
-
-
-local MSG = {}
-
-function handler.msg(cmd, ...)
-	local f = assert(MSG[cmd])
-	return f(...)
+function handler.connect(fd, addr)
+	local c = {
+		fd = fd,
+		ip = addr,
+	}
+	connection[fd] = c
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 gateserver_fdx.start(handler)
