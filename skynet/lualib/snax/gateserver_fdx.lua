@@ -7,6 +7,7 @@ local skynet = require "skynet"
 local netpack = require "skynet.netpack"
 local socketdriver = require "skynet.socketdriver"
 local string = string
+local sformat = string.format
 
 local gateserver = {}
 
@@ -25,10 +26,6 @@ local FD_STATUS_PREPARED = 1	-- fd为就绪状态（仅仅发起未被得到响�
 local FD_STATUS_RUN = 2			-- fd为正常状态（已两边得到确认）
 local FD_STATUS_CLOSE = 3		-- fd为关闭状态
 
-local connection = {}
--- true : connected
--- nil : closed
--- false : close read
 
 -- 网络fd的缓存
 local socket_pool = {
@@ -67,7 +64,7 @@ function gateserver.openclient(fd)
 		socketdriver.start(fd)
 		s.status = FD_STATUS_RUN
 	else
-		skynet.error(string.format("fd[%s] try open client error! co[%s] type[%s] status[%s]",
+		skynet.error(sformat("fd[%s] try open client error! co[%s] type[%s] status[%s]",
 			fd, s and s.co, s and s.type, s and s.status))
 	end
 end
@@ -88,32 +85,41 @@ function gateserver.start(handler)
 
 		maxclient = conf.maxclient or maxclient
 		nodelay = (conf.nodelay ~= nil) and conf.nodelay or nodelay
-		skynet.error(string.format("Listen on %s:%d", address, port))
 
-		listen_fd = socketdriver.listen(address, port, conf.backlog)
+		local isOk
+		isOk, listen_fd = pcall(socketdriver.listen, address, port, conf.backlog)
+		if not isOk then
+			skynet.error(sformat("open listen fail, %s:%s [%s]", address, port, listen_fd))
+			return
+		end
+
 		assert(socket_pool[listen_fd] == nil)
 		local co = coroutine.running()
 		local s = {
 			co = co,
-			status = FD_STATUS_PREPARED,	-- 就绪状态(该监听未得到socket线程响应)
+			status = nil,
 			address = address,
 			port = port,
 			type = FD_LISTEN,
 			create_time = os.time(),
 		}
 		socket_pool[listen_fd] = s
+		skynet.wait(co)
+		assert(s.status == nil)
 
-		skynet.wait(co) -- 挂起当前协程，等待socket线程响应
-
-		assert(s.status == FD_STATUS_PREPARED)
+		-- socket线程响应，成功开启监听，设置就绪状态
+		s.status = FD_STATUS_PREPARED
 		conf.address = s.address
 		conf.port = s.port
 
+		-- 确认当前服务接收监听的链接信息（等待socket线程响应）
 		socketdriver.start(listen_fd)
 		s.co = coroutine.running()
-		skynet.wait(co) -- 挂起当前协程，等待socket线程响应
-		s.status = FD_STATUS_RUN -- 正常状态(该监听已得到socket线程响应)
+		skynet.wait(co)
+		assert(s.status == FD_STATUS_PREPARED)
 
+		-- socket线程响应，设置正常运行状态
+		s.status = FD_STATUS_RUN
 		return handler.listen(source, conf)
 	end
 
@@ -141,17 +147,17 @@ function gateserver.start(handler)
 	function CMD.connect(source, host, port)
 		local address
 		if port then
-			address = string.format("%s:%s", host, port)
+			address = sformat("%s:%s", host, port)
 		else
 			address = host
 			host, port = string.match(host, "([^:]+):(.+)$")
 			port = tonumber(port)
 		end
 		if not port then
-			skynet.error(string.format("connect fail, because invalid host[%s] port[%s]", host, port))
+			skynet.error(sformat("connect fail, because invalid host[%s] port[%s]", host, port))
 			return
 		elseif address2fd_pool[address] then
-			skynet.error(string.format("forbidden repeat connect, because already  host[%s] port[%s]", host, port))
+			skynet.error(sformat("forbidden repeat connect, because already  host[%s] port[%s]", host, port))
 			return
 		end
 
@@ -171,6 +177,7 @@ function gateserver.start(handler)
 
 		assert(s.status == FD_STATUS_PREPARED)
 		s.status = FD_STATUS_RUN -- 正常状态(已得到socket线程响应)
+		address2fd_pool[s.address .. ":" .. s.port] = address2fd_pool[s.address .. ":" .. s.port] or fd
 
 		handler.connect(source, {fd = fd, address = host, port = port})
 		return fd, host, port
@@ -206,7 +213,7 @@ function gateserver.start(handler)
 		if s and s.type == FD_SCOKET and s.status == FD_STATUS_RUN then
 			handler.message(fd, msg, sz)
 		else
-			skynet.error(string.format("Drop message from fd (%d) : %s", fd, netpack.tostring(msg,sz)))
+			skynet.error(sformat("Drop message from fd (%d) : %s", fd, netpack.tostring(msg,sz)))
 		end
 	end
 
@@ -231,7 +238,7 @@ function gateserver.start(handler)
 	-- 外部节点 主动连接 本节点监听
 	function MSG.open(fd, msg)
 		if socket_pool[fd] then
-			skynet.error(string.format("fd[%s] already exit, unknown error!", fd))
+			skynet.error(sformat("fd[%s] already exit, unknown error!", fd))
 			return
 		end
 		client_number = client_number + 1
@@ -244,7 +251,7 @@ function gateserver.start(handler)
 		end
 		if address2fd_pool[msg] then
 			-- 警告，两端之间重复建立链接了。要想watchdog服务发起额外的消息，让它自行裁决。
-			skynet.error(string.format("repeat connect! address[%s]", msg))
+			skynet.error(sformat("repeat connect! address[%s]", msg))
 		end
 
 		local address, port = string.match(msg, "([^:]+):(.+)$")
@@ -272,7 +279,7 @@ function gateserver.start(handler)
 			client_number = client_number - 1
 			if not s then
 				socketdriver.close(fd) -- 二次关闭，确保清理
-				skynet.error(string.format("unknown fd[%s] close", fd))
+				skynet.error(sformat("unknown fd[%s] close", fd))
 				return
 			end
 
@@ -311,11 +318,15 @@ function gateserver.start(handler)
 	function MSG.init(id, addr, port)
 		local s = socket_pool[id]
 		if s and s.co then
-			s.address = addr
-			s.port = port
+			if (s.type == FD_LISTEN and not s.status) or
+				s.type == FD_SCOKET
+			then
+				s.address = addr
+				s.port = port
+			end
 			wakeup(s)
 		else
-			skynet.error(string.format("%s MSG.init not find record!, id[%s] addr[%s] port[%s] s[%s]",
+			skynet.error(sformat("%s MSG.init not find record!, id[%s] addr[%s] port[%s] s[%s]",
 				SERVICE_NAME, id, addr, port, s))
 		end
 	end
