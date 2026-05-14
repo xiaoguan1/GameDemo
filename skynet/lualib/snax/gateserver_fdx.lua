@@ -56,12 +56,12 @@ end
 
 function gateserver.openclient(fd)
 	local s = socket_pool[fd]
-	if s and
-		not s.co and
+	if s and not s.co and
 		s.type == FD_SCOKET and s.status == FD_STATUS_PREPARED
-		then
-
+	then
+		s.co = coroutine.running()
 		socketdriver.start(fd)
+		skynet.wait(s.co)
 		s.status = FD_STATUS_RUN
 	else
 		skynet.error(sformat("fd[%s] try open client error! co[%s] type[%s] status[%s]",
@@ -166,7 +166,7 @@ function gateserver.start(handler)
 		if listen_s and
 			listen_s.address == host and listen_s.port == port
 		then
-			skynet.error("connection refused")
+			skynet.error(sformat("forbidden connection same node listen! %s:%s", host, port))
 			return
 		end
 
@@ -183,6 +183,13 @@ function gateserver.start(handler)
 		}
 		socket_pool[fd] = s
 		skynet.wait(co)
+
+		-- 重新获取缓存s，因为有可能连接失败而清空缓存。
+		s = socket_pool[fd]
+		if not s then
+			skynet.error(sformat("%s:%s connection fail", host, port))
+			return
+		end
 
 		assert(s.status == FD_STATUS_PREPARED)
 		s.status = FD_STATUS_RUN -- 正常状态(已得到socket线程响应)
@@ -307,13 +314,32 @@ function gateserver.start(handler)
 		end
 	end
 
+	-- socket线程返回的错误通知
 	function MSG.error(fd, msg)
-		if fd == listen_fd then
-			skynet.error("gateserver accept error:",msg)
-		else
+		local s = socket_pool[fd]
+		if not s then
 			socketdriver.shutdown(fd)
-			if handler.error then
+			skynet.error("unknown fd, force socket shutdown!")
+			return
+		end
+
+		if fd == listen_fd then
+			-- 一般是accept的错误
+			skynet.error("gateserver_fdx listen accept error: ", msg)
+		else
+			if s.status == FD_STATUS_PREPARED then
+				-- 一般是本节点发起网络连接的错误，强行关闭
+				socket_pool[fd] = nil
+				address2fd_pool[s.address .. ":" .. s.port] = nil
+				socketdriver.shutdown(fd)
+
+				skynet.error(sformat("gateserver_fdx shutdown fd[%s] msg[%s]", fd, msg))
+
+				wakeup(s)
 				handler.error(fd, msg)
+			else
+				-- 一般是已完成连接的socket，暂时不清楚是什么错误。先做打印留下记录。
+				skynet.error(sformat("gateserver_fdx fd:[%s] error, status:[%s] msg:[%s]", fd, s.status, msg))
 			end
 		end
 	end

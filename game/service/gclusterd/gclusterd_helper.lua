@@ -93,7 +93,7 @@ function OpenChannel(t, key)           -- key可以为node名字也可以直接�
 	for _, co in ipairs(ct) do
 		skynet.wakeup(co)
 	end
-	assert(fd, key .. "connect fail")
+	assert(fd, key .. " connect fail")
 	return t[key]
 
 	-- local c = sc.channel {
