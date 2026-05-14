@@ -19,19 +19,30 @@ connecting = {}   -- 正在进行节点连接的事件
 node_channel = {}	-- 本节点主动连接其他节点的数据缓存
 accept_fd = {}		-- 外部节点主动连接本节点的数据缓存
 
-gate_fdx = false
+gate_fdx = false	-- gate_fdx服务的地址
+
+function SendGateFdx()
+	assert(gate_fdx)
+end
+
+function CallGateFdx(command, data)
+	assert(gate_fdx and command)
+	return skynet.call(gate_fdx, "lua", command, data)
+end
 
 -- 开启当前节点监听
 local function nodeListen(addr, port)
-    gate_fdx = skynet.newservice("gate_fdx")
-	assert(gate_fdx, "gate_fdx service start fail!")
     if port == nil then
         addr, port = string.match(addr, "([^:]+):(.*)$")
         assert(addr and port)
+		port = tonumber(port)
     end
-    local naddr, nport = skynet.call(gate_fdx, "lua", "listen", { address = addr, port = port, nodelay = true, })	-- 肯定是当前节点的，所以不用代理了
-	if naddr then
-		skynet.error(sformat("gclusterd listen on %s:%s", naddr, nport))
+	-- 肯定是当前节点的，所以不用代理了
+	local nAddr, nPort = CallGateFdx("listen", { address = addr, port = port, nodelay = true, } )
+	if nAddr then
+		skynet.error(sformat("gclusterd listen open %s:%s", nAddr, nPort))
+	else
+		skynet.error("gclusterd listen open fail!")
 	end
 end
 
@@ -63,7 +74,13 @@ skynet.start(function ()
 	setmetatable(node_channel, { __index = Ghelper.OpenChannel })
 
 	if node ~= "main" then
+		gate_fdx = skynet.newservice("gate_fdx")
 		nodeListen(DPCLUSTER_NODE.node_ipport)		-- 开启当前节点 gate_fdx
 	end
 	skynet.timeout(0, dealOvertime)
+
+
+
+	local t = node_channel["127.0.0.1:32527"]
+	print("qqqqqqqq ", tool.dump(t))
 end)

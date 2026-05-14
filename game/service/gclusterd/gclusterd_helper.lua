@@ -82,26 +82,39 @@ function OpenChannel(t, key)           -- key可以为node名字也可以直接�
 	end
 	ct = {}
 	connecting[key] = ct
-	local host, port = string.match(key, "([^:]+):(.*)$")
-	local c = sc.channel {
-		host = host,
-		port = tonumber(port),
-		-- response = read_response
-        nodelay = true,
-		close_event = socketCloseEvent,
-		-- auth = authCheck(key),
-	}
-    local succ, err = pcall(c.connect, c, true)
-    if succ then
-		t[key] = c
-		ct.channel = c
+
+	-- local host, port = string.match(key, "([^:]+):(.*)$")
+	local fd = CallGateFdx("connect", key)
+	if fd then
+		t[key] = { fd = fd, }
+		ct.channel = t[key]
 	end
 	connecting[key] = nil
-    for _, co in ipairs(ct) do
+	for _, co in ipairs(ct) do
 		skynet.wakeup(co)
 	end
-	assert(succ, err)
-	return c
+	assert(fd, key .. "connect fail")
+	return t[key]
+
+	-- local c = sc.channel {
+	-- 	host = host,
+	-- 	port = tonumber(port),
+	-- 	-- response = read_response
+    --     nodelay = true,
+	-- 	close_event = socketCloseEvent,
+	-- 	-- auth = authCheck(key),
+	-- }
+    -- local succ, err = pcall(c.connect, c, true)
+    -- if succ then
+	-- 	t[key] = c
+	-- 	ct.channel = c
+	-- end
+	-- connecting[key] = nil
+    -- for _, co in ipairs(ct) do
+	-- 	skynet.wakeup(co)
+	-- end
+	-- assert(succ, err)
+	-- return c
 end
 
 -- 异步发消息

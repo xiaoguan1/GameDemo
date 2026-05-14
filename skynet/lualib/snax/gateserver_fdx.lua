@@ -161,7 +161,16 @@ function gateserver.start(handler)
 			return
 		end
 
-		local fd = socketdriver.connect(addr, port)
+		-- 不允许链接相同节点内的监听
+		local listen_s = listen_fd and socket_pool[listen_fd]
+		if listen_s and
+			listen_s.address == host and listen_s.port == port
+		then
+			skynet.error("connection refused")
+			return
+		end
+
+		local fd = socketdriver.connect(host, port)
 		address2fd_pool[address] = fd
 		local co = coroutine.running()
 		local s = {
@@ -339,6 +348,7 @@ function gateserver.start(handler)
 		end,
 		dispatch = function (_, _, q, type, ...)
 			queue = q
+			print("type ", type)
 			if type then
 				MSG[type](...)
 			end
