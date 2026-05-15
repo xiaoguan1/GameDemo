@@ -72,8 +72,10 @@ log_stdin = true		-- true:控制台打印日志
 ------------------ 后台管理端口 ------------------
 mcs_port = 40001
 
+wsocket_port = 30001
+max_wscoket_count = 1
 ------------------ openssl ------------------
-enablessl = true
+-- enablessl = true
 
 -- 生成私钥
 -- openssl genrsa -out server-key.pem 2048
