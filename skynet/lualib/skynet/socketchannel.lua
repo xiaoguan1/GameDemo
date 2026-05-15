@@ -621,31 +621,4 @@ end
 channel_socket.read = wrapper_socket_function(socket.read)
 channel_socket.readline = wrapper_socket_function(socket.readline)
 
-
--- add guanguowei
--- 将已连接的fd继承socketchannel
-function socket_channel.inherit(fd, desc)
-	assert(fd and desc)
-	local self = socket_channel.channel(desc, true)
-	if self.__nodelay then
-			socketdriver.nodelay(fd)
-	end
-
-	self.__sock = setmetatable( {fd} , self.__socket_meta )
-	self.__dispatch_thread = skynet.fork(function()
-		if self.__sock then
-			-- self.__sock can be false (socket closed) if error during connecting, See #1513
-			pcall(dispatch_function(self), self)
-		end
-		-- clear dispatch_thread
-		self.__dispatch_thread = nil
-	end)
-
-	-- 暂时不做auth
-
-	setmetatable(self, channel_meta)
-	return self
-end
-
-
 return socket_channel

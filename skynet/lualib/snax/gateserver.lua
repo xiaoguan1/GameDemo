@@ -1,3 +1,10 @@
+--[[
+	云风wiki：https://github.com/cloudwu/skynet/wiki/GateServer
+
+	特别注意：这个模板不可以和 Socket 库一起使用。因为这个模板接管了 socket 类的消息。
+
+]]
+
 local skynet = require "skynet"
 local netpack = require "skynet.netpack"
 local socketdriver = require "skynet.socketdriver"

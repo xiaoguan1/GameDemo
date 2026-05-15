@@ -82,8 +82,6 @@ function OpenChannel(t, key)           -- key可以为node名字也可以直接�
 	end
 	ct = {}
 	connecting[key] = ct
-
-	-- local host, port = string.match(key, "([^:]+):(.*)$")
 	local fd = CallGateFdx("connect", key)
 	if fd then
 		t[key] = { fd = fd, }
@@ -94,6 +92,7 @@ function OpenChannel(t, key)           -- key可以为node名字也可以直接�
 		skynet.wakeup(co)
 	end
 	assert(fd, key .. " connect fail")
+	skynet.error("gclusterd succeed connect", key)
 	return t[key]
 
 	-- local c = sc.channel {

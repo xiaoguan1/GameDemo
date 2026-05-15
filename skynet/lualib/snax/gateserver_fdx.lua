@@ -27,7 +27,7 @@ local FD_STATUS_RUN = 2			-- fd为正常状态（已两边得到确认）
 local FD_STATUS_CLOSE = 3		-- fd为关闭状态
 
 
--- 网络fd的缓存
+-- 网络fd的缓存（缺了__gc 回收，记得补上！！！！）
 local socket_pool = {
 	-- [fd] = {
 		-- address,		ip 地址
