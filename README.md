@@ -75,9 +75,9 @@
 
 
 
-备忘录：
+备忘录1：
 	现在lua已经升级到了5.5，完成阶段性的集群工作后记得回过头了把引擎中使用到的lua升级一下..
-
+	https://blog.codingnow.com/2025/12/skynet_lua_550.html#more
 
 
 
