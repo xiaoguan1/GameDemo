@@ -13,7 +13,7 @@ START_UNIQ_SERVICE = {
 	{svr = "gamelog", named = ".GAMELOG"},
 	{svr = "stimer", named = ".STIMER"},
 	-- {svr = "dbserver", named = ".DBSERVER"},
-	{svr = "gclusterd", named = ".GCLUSTERD"},
+	{svr = "gcluster", named = ".GCLUSTER"},
 	{svr = "manage", named = ".MANAGE"},
 }
 
