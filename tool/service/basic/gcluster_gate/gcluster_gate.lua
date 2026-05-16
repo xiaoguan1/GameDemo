@@ -204,7 +204,7 @@ function MSG.close(fd)
 			-- 对方节点关闭，即当前节点被动关闭。
 			-- socketdriver.close(fd)
 			socket_pool[fd] = nil
-			addr_socket[s.ip .. ":" .. s.port] = nil
+			setAddrSocket(nil, s.fake_addr, s.real_addr)
 			syncWatchDog(false, "close", fd)
 		end
 	end
@@ -227,7 +227,7 @@ function MSG.error(fd, msg)
 		if s.status == FD_STATUS_PREPARED then
 			-- 一般是本节点发起网络连接的错误，强行关闭
 			socket_pool[fd] = nil
-			addr_socket[s.ip .. ":" .. s.port] = nil
+			setAddrSocket(nil, s.fake_addr, s.real_addr)
 			socketdriver.shutdown(fd)
 			skynet.error(sformat("gcluster_gate shutdown fd[%s] msg[%s]", fd, msg))
 			wakeup(s)
@@ -318,8 +318,9 @@ function CMD.connect(source, addrOrIp, port)
 	end
 
 	-- 不允许链接相同节点内的监听
+	print("listenData ", tool.dumptree(listenData))
 	if listenData and
-		listenData.ip == ip and listenData.port == port
+		(listenData.fake_addr == address or listenData.real_addr == address)
 	then
 		skynet.error("forbidden connection same node listen!", address)
 		return
@@ -391,7 +392,7 @@ function CMD.close_connect(fd)
 	skynet.wait(s.co)
 
 	socket_pool[fd] = nil
-	addr_socket[s.ip .. ":" .. s.port] = nil
+	setAddrSocket(nil, s.fake_addr, s.real_addr)
 	skynet.error("success close connect fd:" .. fd)
 	return true
 end
