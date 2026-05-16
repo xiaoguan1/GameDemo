@@ -21,26 +21,21 @@ accept_fd = {}		-- 外部节点主动连接本节点的数据缓存
 
 gate_fdx = false	-- gate_fdx服务的地址
 
-function SendGateFdx()
+function SyncGate(isCall, ...)
 	assert(gate_fdx)
-end
-
-function CallGateFdx(command, ...)
-	assert(gate_fdx and command)
-	return skynet.call(gate_fdx, "lua", command, ...)
+	if isCall then
+		return skynet.call(gate_fdx, "lua", ...)
+	else
+		skynet.send(gate_fdx, "lua", ...)
+	end
 end
 
 -- 开启当前节点监听
-local function nodeListen(addr, port)
-    if port == nil then
-        addr, port = string.match(addr, "([^:]+):(.*)$")
-        assert(addr and port)
-		port = tonumber(port)
-    end
+local function nodeListen(address)
 	-- 肯定是当前节点的，所以不用代理了
-	local nAddr, nPort = CallGateFdx("listen", addr, port)
-	if nAddr then
-		skynet.error(sformat("gclusterd listen open %s:%s", nAddr, nPort))
+	local isOk = SyncGate(true, "listen", address)
+	if isOk then
+		skynet.error(sformat("gcluster listen open %s", address))
 	else
 		skynet.error("gclusterd listen open fail!")
 	end
@@ -78,6 +73,7 @@ skynet.start(function ()
 		nodeListen(DPCLUSTER_NODE.node_ipport)		-- 开启当前节点 gate_fdx
 	else
 		local t = node_channel["127.0.0.1:32527"]
+		print("t ", tool.dumptree(t))
 	end
 	skynet.timeout(0, dealOvertime)
 

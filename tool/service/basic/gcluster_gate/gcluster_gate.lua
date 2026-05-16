@@ -23,8 +23,8 @@ local MSG = {}
 
 -- socket缓存数据
 -- { [fd] = {
-		-- ip,			ip 地址
-		-- port,		port 端口
+		-- fake_addr,	主动发起连接的网络地址
+		-- real_addr,	真实的网络地址(socket线程返回的)
 		-- co,			若存在则表示本节点主动操作的（若没有则外部节点发起的）
 		-- type,		端口类型 or socket类型
 		-- status,		就绪状态（还不能用）、正常状态（可用）
@@ -41,13 +41,13 @@ local socket_pool = setmetatable({}, {
 	end,
 })
 
--- 网络地址 对应 socket
+-- 网络地址与socket对应关系
+-- 注意：主动连接操作，最多会有两个网络地址映射一个socket。被动连接则一个网络地址
 -- {
 -- 	[ip:port] = fd,
 -- 	...
 -- }
-local addr_socket = {
-}
+local addr_socket = { }
 
 -- 监听
 local listenId
@@ -79,6 +79,12 @@ local function getIpPort(ip, port)
 	return ip, port, address
 end
 
+local function setAddrSocket(fd, ...)
+	for _, addr in pairs({...}) do
+		addr_socket[addr] = fd
+	end
+end
+
 local function wakeup(s)
 	local co = s and s.co
 	if co then
@@ -90,7 +96,7 @@ end
 local function dispatch_msg(fd, msg, sz)
 	local s = socket_pool[fd]
 	if s and s.type == FD_SCOKET and s.status == FD_STATUS_RUN then
-		skynet.send(watchdog, "lua", "socket", "data", fd, skynet.tostring(msg, sz))
+		skynet.send(watchdog, "lua", "socket", "data", fd, s.fake_addr, skynet.tostring(msg, sz))
 		skynet.trash(msg,sz)
 	else
 		skynet.error(sformat("Drop message from fd (%d) : %s", fd, netpack.tostring(msg,sz)))
@@ -125,8 +131,7 @@ function MSG.init(id, addr, port)
 		end
 
 		if not listenData.status then
-			listenData.ip = addr
-			listenData.port = port
+			listenData.real_addr = addr .. ":" .. port
 		end
 		wakeup(listenData)
 		return
@@ -135,7 +140,7 @@ function MSG.init(id, addr, port)
 	local s = socket_pool[id]
 	if s and s.co and s.type == FD_SCOKET then
 		-- socket
-		s.ip, s.port = addr, port
+		s.real_addr = addr .. ":" .. port
 		wakeup(s)
 		return
 	end
@@ -146,7 +151,7 @@ function MSG.init(id, addr, port)
 end
 
 -- 外部节点 主动连接 本节点监听
-function MSG.open(fd, msg)
+function MSG.open(fd, address)
 	if socket_pool[fd] then
 		skynet.error(sformat("fd[%s] already exit, unknown error!", fd))
 		return
@@ -156,24 +161,23 @@ function MSG.open(fd, msg)
 		socketdriver.shutdown(fd)
 		return
 	end
-	if addr_socket[msg] then
+	if addr_socket[address] then
 		-- 警告，两端之间重复建立链接了。要想watchdog服务发起额外的消息，让它自行裁决。
-		skynet.error(sformat("repeat connect! address[%s]", msg))
+		skynet.error(sformat("repeat connect! address[%s]", address))
 	end
 	socketdriver.nodelay(fd)
 
-	local ip, port = string.match(msg, "([^:]+):(.+)$")
 	local s = {
 		type = FD_SCOKET,
 		status = FD_STATUS_PREPARED, -- 就绪状态（未得到watchdog服务确定要不要accept，该外部链接）
-		ip = ip,
-		port = port,
+		real_addr = address,
+		fake_addr = address,
 		create_time = os.time(),
 	}
 	socket_pool[fd] = s
 
 	-- 通知watchdog服务，让watchdog服务决定accept操作。
-	syncWatchDog(false, "open", fd, msg)
+	syncWatchDog(false, "accept", fd, address)
 end
 
 -- 关闭网络链接或者监听
@@ -253,13 +257,13 @@ function CMD.set_watchdog(source)
 end
 
 -- 开启监听
-function CMD.listen(source, ip, port)
+function CMD.listen(source, addrOrIp, port)
 	if listenId then
 		skynet.error("repeated open listen!")
 		return
 	end
 
-	ip, port = getIpPort(ip, port)
+	local ip, port, address = getIpPort(addrOrIp, port)
 	if not (ip and port) then
 		skynet.error("invalid address", ip, port)
 		return
@@ -276,8 +280,8 @@ function CMD.listen(source, ip, port)
 	listenData = {
 		co = co,
 		status = nil,
-		ip = ip,
-		port = port,
+		fake_addr = address,
+		real_addr = nil,
 		type = FD_LISTEN,
 		create_time = os.time(),
 	}
@@ -296,20 +300,20 @@ function CMD.listen(source, ip, port)
 	-- socket线程响应，设置正常运行状态
 	assert(listenData and listenData.status == FD_STATUS_PREPARED)
 	listenData.status = FD_STATUS_RUN
-	return listenData.ip, listenData.port
+	return true, listenId
 end
 
 
 -- 本节点主动连接对方监听
-function CMD.connect(source, address, port)
-	local ip, port, nAddress = getIpPort(address, port)
+function CMD.connect(source, addrOrIp, port)
+	local ip, port, address = getIpPort(addrOrIp, port)
 	if not ip or not port then
 		skynet.error("invalid address", address)
 		return
 	end
 
-	if addr_socket[nAddress] then
-		skynet.error("forbidden repeat connect, because already", nAddress)
+	if addr_socket[address] then
+		skynet.error("forbidden repeat connect, because already", address)
 		return
 	end
 
@@ -317,36 +321,34 @@ function CMD.connect(source, address, port)
 	if listenData and
 		listenData.ip == ip and listenData.port == port
 	then
-		skynet.error("forbidden connection same node listen!", nAddress)
+		skynet.error("forbidden connection same node listen!", address)
 		return
 	end
 
 	local fd = socketdriver.connect(ip, port)
-	addr_socket[nAddress] = fd
 	local co = coroutine.running()
 	local s = {
+		fake_addr = address,
+		real_addr = nil,				-- 以socket线程返回的地址作为真的地址
 		co = co,
 		type = FD_SCOKET,
-		status = FD_STATUS_PREPARED, -- 就绪状态（未得到socket线程的响应）
-		ip = ip,
-		port = port,
+		status = FD_STATUS_PREPARED, 	-- 就绪状态（未得到socket线程的响应）
 		create_time = os.time(),
 	}
-
 	socket_pool[fd] = s
 	skynet.wait(co)
 
 	-- 重新获取缓存s，因为有可能连接失败而清空缓存。
 	s = socket_pool[fd]
 	if not s then
-		skynet.error("connection fail", nAddress)
+		skynet.error("connection fail", address)
 		return
 	end
 	assert(s.status == FD_STATUS_PREPARED)
 
 	s.status = FD_STATUS_RUN -- 正常状态
-
-	return fd, nAddress
+	setAddrSocket(fd, s.fake_addr, s.real_addr)
+	return fd, address
 end
 
 -- 关闭监听listen_fd
@@ -411,6 +413,7 @@ function CMD.accept(source, fd)
 			return
 		end
 		socket_pool[fd].status = FD_STATUS_RUN
+		setAddrSocket(fd, socket_pool[fd].real_addr)
 		return fd
 	end
 	skynet.error(sformat("fd[%s] try open client error! co[%s] type[%s] status[%s]",
