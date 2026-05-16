@@ -6,7 +6,6 @@ local sformat = string.format
 
 local SERVICE_NAME = SERVICE_NAME
 
-local listen_fd
 local queue		-- message queue
 local maxclient = 2048	-- max client
 local client_number = 0
@@ -58,6 +57,16 @@ local listenData
 local watchdog
 
 ----------  局部方法 ----------
+
+local function syncWatchDog(isCall, ...)
+	assert(watchdog)
+	if isCall then
+		return skynet.call(watchdog, "lua", "socket", ...)
+	else
+		skynet.send(watchdog, "lua", "socket", ...)
+	end
+end
+
 local function getIpPort(ip, port)
 	local address
 	if port then
@@ -81,7 +90,8 @@ end
 local function dispatch_msg(fd, msg, sz)
 	local s = socket_pool[fd]
 	if s and s.type == FD_SCOKET and s.status == FD_STATUS_RUN then
-		handler.message(fd, msg, sz)
+		skynet.send(watchdog, "lua", "socket", "data", fd, skynet.tostring(msg, sz))
+		skynet.trash(msg,sz)
 	else
 		skynet.error(sformat("Drop message from fd (%d) : %s", fd, netpack.tostring(msg,sz)))
 	end
@@ -113,9 +123,12 @@ function MSG.init(id, addr, port)
 			skynet.error(sformat("id:%s listen[%s:%s] not find listenData!", id, addr, port))
 			return
 		end
-		listenData.ip = addr
-		listenData.port = port
-		wakeup(s)
+
+		if not listenData.status then
+			listenData.ip = addr
+			listenData.port = port
+		end
+		wakeup(listenData)
 		return
 	end
 
@@ -150,23 +163,25 @@ function MSG.open(fd, msg)
 	socketdriver.nodelay(fd)
 
 	local ip, port = string.match(msg, "([^:]+):(.+)$")
-	socket_pool[fd] = {
+	local s = {
 		type = FD_SCOKET,
 		status = FD_STATUS_PREPARED, -- 就绪状态（未得到watchdog服务确定要不要accept，该外部链接）
 		ip = ip,
 		port = port,
 		create_time = os.time(),
 	}
+	socket_pool[fd] = s
+
 	-- 通知watchdog服务，让watchdog服务决定accept操作。
-	skynet.send(watchdog, "lua", "socket", "open", fd, msg)
+	syncWatchDog(false, "open", fd, msg)
 end
 
 -- 关闭网络链接或者监听
 function MSG.close(fd)
 	-- 注意：当收到该关闭类型的信息的时候，其socket线程内部已经关闭了fd并清空对应缓存，即事后通知！
-	if fd == listen_fd then
+	if fd == listenId then
 		-- 关闭监听
-		assert(listenData, "listen_fd not have socket_pool data!")
+		assert(listenData, "listenId not have socket_pool data!")
 		wakeup(listenData)
 	else
 		-- 关闭socket
@@ -186,7 +201,7 @@ function MSG.close(fd)
 			-- socketdriver.close(fd)
 			socket_pool[fd] = nil
 			addr_socket[s.ip .. ":" .. s.port] = nil
-			skynet.send(watchdog, "lua", "socket", "close", fd)
+			syncWatchDog(false, "close", fd)
 		end
 	end
 end
@@ -212,7 +227,7 @@ function MSG.error(fd, msg)
 			socketdriver.shutdown(fd)
 			skynet.error(sformat("gcluster_gate shutdown fd[%s] msg[%s]", fd, msg))
 			wakeup(s)
-			skynet.send(watchdog, "lua", "socket", "error", fd, msg)
+			syncWatchDog(false, "error", fd, msg)
 		else
 			skynet.error(sformat("gcluster_gate fd:[%s] error, status:[%s] msg:[%s]", fd, s.status, msg))
 		end
@@ -224,7 +239,7 @@ function MSG.warning(fd, size)
 		skynet.error("listen warning ", size)
 	else
 		if socket_pool[fd] then
-			skynet.send(watchdog, "lua", "socket", "warning", fd, size)
+			syncWatchDog(false, "warning", fd, size)
 		else
 			skynet.error(sformat("illegal %s warning size[%s]", fd, size))
 		end
@@ -274,7 +289,7 @@ function CMD.listen(source, ip, port)
 	listenData.status = FD_STATUS_PREPARED
 
 	-- 确认当前服务接收监听的链接信息（等待socket线程响应）
-	socketdriver.start(listen_fd)
+	socketdriver.start(listenId)
 	listenData.co = coroutine.running()
 	skynet.wait(co)
 
@@ -317,6 +332,7 @@ function CMD.connect(source, address, port)
 		port = port,
 		create_time = os.time(),
 	}
+
 	socket_pool[fd] = s
 	skynet.wait(co)
 
@@ -327,9 +343,9 @@ function CMD.connect(source, address, port)
 		return
 	end
 	assert(s.status == FD_STATUS_PREPARED)
-	s.status = FD_STATUS_RUN -- 正常状态(已得到socket线程响应)
 
-	skynet.send(watchdog, "lua", "socket", "open", fd, nAddress)
+	s.status = FD_STATUS_RUN -- 正常状态
+
 	return fd, nAddress
 end
 
@@ -347,13 +363,13 @@ function CMD.close_listen()
 
 	listenData.status = FD_STATUS_CLOSE
 	listenData.co = coroutine.running()
-	socketdriver.close(listen_fd)
+	socketdriver.close(listenId)
 
 	-- 挂起当前协程，等待socket线程响应
 	skynet.wait(listenData.co)
 
 	listenId, listenData = nil, nil
-	skynet.error("success close listen_fd!")
+	skynet.error("success close listenId!")
 	return true
 end
 
@@ -367,7 +383,7 @@ function CMD.close_connect(fd)
 
 	s.status = FD_STATUS_CLOSE
 	s.co = coroutine.running()
-	socketdriver.close(listen_fd)
+	socketdriver.close(listenId)
 
 	-- 挂起当前协程，等待socket线程响应
 	skynet.wait(s.co)
@@ -380,11 +396,6 @@ end
 
 -- watchdog接收外部链接
 function CMD.accept(source, fd)
-	if source ~= watchdog then
-		skynet.error(sformat("refuse source[%s] accept fd[%s]! must watchdog[%s]",
-			source, fd, watchdog))
-		return false
-	end
 	local s = socket_pool[fd]
 	if s and not s.co and
 		s.type == FD_SCOKET and s.status == FD_STATUS_PREPARED
@@ -438,9 +449,10 @@ skynet.start(function ()
 		end
 
 		local f = assert(CMD[cmd])
-		local result = f(source, ...)
-		if session > 0 then
-			skynet.ret(skynet.pack(result))
+		if session == 0 then
+			f(source, ...)
+		else
+			skynet.ret(skynet.pack(f(source, ...)))
 		end
 	end)
 end)
