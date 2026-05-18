@@ -11,6 +11,8 @@ local string = string
 local pairs = pairs
 local assert = assert
 local pcall = pcall
+local table = table
+local tconcat = table.concat
 
 node_session2co = {}
 command = {}
@@ -28,6 +30,19 @@ function SyncGate(isCall, ...)
 	else
 		skynet.send(gate_fdx, "lua", ...)
 	end
+end
+
+-- 根据地址获取节点，isConnect：若找不到则进行网络链接
+function GetNodeChannel(address, isConnect)
+	if isConnect then
+		return node_channel[address]
+	end
+	return rawget(node_channel, address)
+end
+
+-- 消息打包
+function MsgPack(msg)
+	return tconcat({string.pack(">I2", msg:len()), msg})
 end
 
 -- 开启当前节点监听
@@ -72,7 +87,7 @@ skynet.start(function ()
 	if node ~= "main" then
 		nodeListen(DPCLUSTER_NODE.node_ipport)		-- 开启当前节点 gate_fdx
 	else
-		local t = node_channel["127.0.0.1:32527"]
+		local t = GetNodeChannel("127.0.0.1:32527", true)
 		print("t ", tool.dumptree(t))
 	end
 	skynet.timeout(0, dealOvertime)

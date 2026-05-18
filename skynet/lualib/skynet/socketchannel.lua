@@ -23,7 +23,7 @@ local channel_socket_meta = {
 local socket_error = setmetatable({}, {__tostring = function() return "[Error: socket]" end })	-- alias for error object
 socket_channel.error = socket_error
 
-function socket_channel.channel(desc, isNotMet)
+function socket_channel.channel(desc)
 	local c = {
 		__host = assert(desc.host),
 		__port = assert(desc.port),
@@ -54,9 +54,6 @@ function socket_channel.channel(desc, isNotMet)
 		}
 	end
 
-	if isNotMet then
-		return c
-	end
 	return setmetatable(c, channel_meta)
 end
 

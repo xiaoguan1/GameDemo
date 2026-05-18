@@ -8,28 +8,36 @@ local pairs = pairs
 local type = type
 local string = string
 
-local gcluster_auths = assert(skynet.getenv("gcluster_auths"))
-local authYes = "1"
-local authNo = "0"
-
 local MSG_TYPE_SEND = 1 -- 异步发消息类型
 local MSG_TYPE_CALL = 2 -- 同步发消息类型
 local MSG_TYPE_MAX = 0xff
 
--- 加载该文件的判断
-assert(node_session2co and connecting and command and node_channel)
-
-
------ 局部方法 ------------------------------
-
-local function strPack(str)
-	return table.concat({string.pack(">I2", str:len()), str})
-end
+-- 加载该文件模块时的判断，且这些方法和变量原则上不能热更的！！！
+local GetNodeChannel = assert(GetNodeChannel)
+local SyncGate = assert(SyncGate)
+local node_session2co = assert(node_session2co)
+local connecting = assert(connecting)
+local command = assert(command)
+local node_channel = assert(node_channel)
+local MsgPack = assert(MsgPack)
 
 -- 认证码
-local authCode = strPack(gcluster_auths)
-local authYesCode = strPack(authYes)
-local authNoCode = strPack(authNo)
+local authYes = "1"
+local authNo = "0"
+local gcluster_auths = assert(skynet.getenv("gcluster_auths"))
+local authCode = MsgPack(gcluster_auths)
+local authYesCode = MsgPack(authYes)
+local authNoCode = MsgPack(authNo)
+
+-- fd的类
+local FdClass = Import("tool/service/basic/gcluster/gcluster_fd_class.lua")
+FdClass.authYes = authYes
+FdClass.authNo = authNo
+FdClass.gcluster_auths = gcluster_auths
+FdClass.authYesCode = authYesCode
+FdClass.authNoCode = authNoCode
+
+----- 局部方法 ------------------------------
 
 local AUTH_STATIUS_DO 		= 1		-- 主动做认证（把本节点的认证码发送给对端）
 local AUTH_STATIUS_WAIT 	= 2		-- 等待（等待对端把认证码发送过来）
@@ -87,19 +95,12 @@ function OpenChannel(t, key)           -- key可以为node名字也可以直接�
 	connecting[key] = ct
 	local fd = SyncGate(true, "connect", key)
 	if fd then
-		t[key] = {
-			fd = fd,
-			connected = os.time(),	-- 连接成功但需要验证
-			is_auth = AUTH_STATIUS_DO,
-			co = coroutine.running(),
-		}
+		local fdObj = FdClass.FdClass:init(fd)
+		fdObj:do_auth(authCode, {auth = true})
+		assert(fdObj:is_auth_yes())
+		t[key] = fdObj
 
-		-- 发送认证码
-		socket_write(fd, authCode)
-		skynet.wait(t[key].co)
-
-		assert(t[key] and t[key].is_auth == AUTH_STATIUS_YES)
-		ct.channel = t[key]
+		ct.channel = fdObj
 	end
 	connecting[key] = nil
 	for _, co in ipairs(ct) do
@@ -108,26 +109,6 @@ function OpenChannel(t, key)           -- key可以为node名字也可以直接�
 	assert(fd, key .. " connect fail")
 	skynet.error("gclusterd succeed connect", key)
 	return t[key]
-
-	-- local c = sc.channel {
-	-- 	host = host,
-	-- 	port = tonumber(port),
-	-- 	-- response = read_response
-    --     nodelay = true,
-	-- 	close_event = socketCloseEvent,
-	-- 	-- auth = authCheck(key),
-	-- }
-    -- local succ, err = pcall(c.connect, c, true)
-    -- if succ then
-	-- 	t[key] = c
-	-- 	ct.channel = c
-	-- end
-	-- connecting[key] = nil
-    -- for _, co in ipairs(ct) do
-	-- 	skynet.wakeup(co)
-	-- end
-	-- assert(succ, err)
-	-- return c
 end
 
 -- 异步发消息
@@ -170,9 +151,9 @@ function command.socket(source, subcmd, fd, ...)
 	if subcmd == "accept" then
 		-- 外部节点主动连接本节点
 		local address = ...
-		local nodeData = rawget(node_channel, fd)
+		local nodeData = GetNodeChannel(node_channel, address)
 		if nodeData then
-			-- 已存在，拒绝accept
+			-- 一般不会，但若已存在则拒绝accept！
 			SyncGate(false, "close_connect", fd)
 			skynet.error(string.format("gclusterd socket[%s] %s already exist, refuse accept", fd, address))
 			return
@@ -183,53 +164,26 @@ function command.socket(source, subcmd, fd, ...)
 			return
 		end
 
-		rawset(node_channel, address, {
-			fd = fd,
-			connected = os.time(),	-- 连接成功但需要验证
-			is_auth = AUTH_STATIUS_WAIT,
-		})
+		node_channel[address] = FdClass.FdClass:init(fd)
 		skynet.error(string.format("gclusterd socket accept from %s succeed", address))
 	elseif subcmd == "close" then
 		skynet.error(string.format("gclusterd socket close from %s", "msg"))
 	elseif subcmd == "data" then
 		local address, msg = ...
-		local nodeData = rawget(node_channel, address)
+		local nodeData = GetNodeChannel(node_channel, address)
 		if not nodeData then
 			SyncGate(false, "close_connect", fd)
 			skynet.error(string.format("not find nodeData, gclusterd socket:%s recv data:%s", fd, msg))
 			return
 		end
 
-		if nodeData.is_auth == AUTH_STATIUS_YES then
+		if nodeData:is_auth_yes() then
 			-- 消息
 			return
 		end
 
 
-		if nodeData.is_auth == AUTH_STATIUS_WAIT then
-			-- 接收认证码，进行比对
-
-			if msg == gcluster_auths then
-				nodeData.is_auth = AUTH_STATIUS_YES
-				socket_write(fd, authYesCode)
-			else
-				socket_write(fd, authNoCode)
-				rawset(node_channel, address, nil)
-				SyncGate(false, "close_connect", fd)
-				skynet.error(string.format("gclusterd socket[%s] %s authCode error!", fd, msg))
-			end
-		elseif nodeData.is_auth == AUTH_STATIUS_DO then
-			-- 认证码的比对结果
-			if msg == authYes then
-				nodeData.is_auth = AUTH_STATIUS_YES
-			else
-				nodeData.is_auth = AUTH_STATIUS_NO
-				SyncGate(false, "close_connect", fd)
-				skynet.error(string.format("gclusterd socket[%s] %s authCode error!", fd, msg))
-			end
-			skynet.wakeup(nodeData.co)
-			nodeData.co = nil
-		end
+		nodeData:deal_auth(msg)
 	end
 end
 
