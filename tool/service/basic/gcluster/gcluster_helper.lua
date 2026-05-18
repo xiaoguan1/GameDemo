@@ -39,11 +39,6 @@ FdClass.authNoCode = authNoCode
 
 ----- 局部方法 ------------------------------
 
-local AUTH_STATIUS_DO 		= 1		-- 主动做认证（把本节点的认证码发送给对端）
-local AUTH_STATIUS_WAIT 	= 2		-- 等待（等待对端把认证码发送过来）
-local AUTH_STATIUS_YES 		= 3		-- 认证成功
-local AUTH_STATIUS_NO 		= 4		-- 认证失败
-
 local function mergePrototype(msgType, protoType)
 	local prototypeId = nil
 	if type(protoType) == "string" then
@@ -87,26 +82,36 @@ function OpenChannel(t, key)           -- key可以为node名字也可以直接�
 	local ct = connecting[key]
 	if ct then
 		local co = coroutine.running()
-		table.insert(ct, co)
+		table.insert(ct.co, co)
 		skynet.wait(co)
 		return assert(ct.channel)
 	end
-	ct = {}
+	ct = {
+		co = {},
+		channel = nil,-- 已完成认证的fd对象
+
+		-- 未完成认证的fd对象(socket消息处理需要临时使用到该对象数据)
+		pre_channel = nil,
+	}
 	connecting[key] = ct
 	local fd = SyncGate(true, "connect", key)
 	if fd then
-		local fdObj = FdClass.FdClass:init(fd)
-		fdObj:do_auth(authCode, {auth = true})
-		assert(fdObj:is_auth_yes())
-		t[key] = fdObj
-
-		ct.channel = fdObj
+		local fdObj = FdClass.FdClass:init(fd, {auth = true, address = key})
+		ct.pre_channel = fdObj -- 未作认证的fd对象
+		fdObj:do_auth(authCode)
+		ct.pre_channel = nil
+		if fdObj:is_auth_yes() then
+			rawset(t, key, fdObj)
+			ct.channel = fdObj
+		else
+			skynet.error(string.format("%s auth fail!", key))
+		end
 	end
 	connecting[key] = nil
-	for _, co in ipairs(ct) do
+	for _, co in ipairs(ct.co) do
 		skynet.wakeup(co)
 	end
-	assert(fd, key .. " connect fail")
+	assert(rawget(t, key), key .. " connect fail")
 	skynet.error("gclusterd succeed connect", key)
 	return t[key]
 end
@@ -151,7 +156,7 @@ function command.socket(source, subcmd, fd, ...)
 	if subcmd == "accept" then
 		-- 外部节点主动连接本节点
 		local address = ...
-		local nodeData = GetNodeChannel(node_channel, address)
+		local nodeData = GetNodeChannel(address)
 		if nodeData then
 			-- 一般不会，但若已存在则拒绝accept！
 			SyncGate(false, "close_connect", fd)
@@ -164,26 +169,34 @@ function command.socket(source, subcmd, fd, ...)
 			return
 		end
 
-		node_channel[address] = FdClass.FdClass:init(fd)
+		-- 仅仅只是完成了网络上的连接，未进行认证处理。先放在connecting，不设置node_channel(若设置，则有可能未认证而被使用)
+		connecting[address] = {
+			pre_channel = FdClass.FdClass:init(fd, {address = address}),
+		}
 		skynet.error(string.format("gclusterd socket accept from %s succeed", address))
 	elseif subcmd == "close" then
 		skynet.error(string.format("gclusterd socket close from %s", "msg"))
 	elseif subcmd == "data" then
 		local address, msg = ...
-		local nodeData = GetNodeChannel(node_channel, address)
+		local nodeData = GetNodeChannel(address)
 		if not nodeData then
-			SyncGate(false, "close_connect", fd)
-			skynet.error(string.format("not find nodeData, gclusterd socket:%s recv data:%s", fd, msg))
+			nodeData = connecting[address] and connecting[address].pre_channel
+			if not nodeData then
+				SyncGate(false, "close_connect", fd)
+				skynet.error(string.format("not find nodeData, gclusterd socket:%s recv data:%s", fd, msg))
+				return
+			end
+			-- 处理验证
+			nodeData:deal_auth(msg)
 			return
 		end
 
-		if nodeData:is_auth_yes() then
-			-- 消息
+		if not nodeData:is_auth_yes() then
+			-- 未认证就处理消息？
+			skynet.error("not auth!!!!!", tool.dumptree(nodeData))
 			return
 		end
-
-
-		nodeData:deal_auth(msg)
+		-- 处理消息
 	end
 end
 

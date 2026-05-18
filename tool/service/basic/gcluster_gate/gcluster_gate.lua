@@ -318,7 +318,6 @@ function CMD.connect(source, addrOrIp, port)
 	end
 
 	-- 不允许链接相同节点内的监听
-	print("listenData ", tool.dumptree(listenData))
 	if listenData and
 		(listenData.fake_addr == address or listenData.real_addr == address)
 	then

@@ -13,6 +13,9 @@ local tinsert = table.insert
 local assert = assert
 local os = os
 local os_time = os.time
+local string = string
+local sformat = string.format
+
 local MsgPack = assert(MsgPack)
 
 authYes = false
@@ -33,7 +36,9 @@ local _INFO_F = _INFO_F
 FdClass = { __ClassType = "<<gcluster_fd_class>>" }
 
 local function sock_err(obj)
-	
+	-- close_channel_socket(self)
+	-- wakeup_all(self)
+	-- error(socket_error)
 end
 
 function FdClass:init(fd, extData)
@@ -54,7 +59,7 @@ function FdClass:init(fd, extData)
 
 	o.fd = fd
 	o.connected = os_time()
-	o.do_auth = nil	-- 完成认证操作的时间戳
+	o.auth_finish = nil	-- 完成认证操作的时间戳
 
 	return setmetatable(o, {__index = self})
 end
@@ -63,11 +68,11 @@ function FdClass:write(request, padding)
 	local fd = assert(self.fd)
 	if padding then
 		-- 分包发送
-		if not socket_write(fd, request) then
+		if not socket_write(fd , request) then
 			sock_err(self)
 		end
 		for _, v in ipairs(padding) do
-			if not socket_write(fd, v) then
+			if not socket_write(fd , v) then
 				sock_err(self)
 			end
 		end
@@ -101,25 +106,28 @@ function FdClass:do_auth(msg)
 
 	local fd = assert(self.fd)
 	local co = coroutine.running()
-	if self.authcoroutine then
+	if self.auth_coroutine then
 		tinsert(self.auth_waitcoroutine, co)
 		skynet.wait(co)
 	else
 		self.auth_coroutine = co
 		self.auth_waitcoroutine = {}
-		socket_write(fd, msg) -- 发送认证码
+		if not socket_write(fd, msg) then -- 发送认证码
+			sock_err(self)
+		end
 
 		local stime = os_time()
 		skynet.wait(co)
-		self.do_auth = os_time()
-		if (self.do_auth - stime) >= 3 then
-			skynet.error("fd[%s] do auth opt, maybe network congestion!")
+		self.auth_finish = os_time()
+		if (self.auth_finish - stime) >= 3 then
+			skynet.error(sformat("fd[%s] do auth opt, maybe network congestion!", fd))
 		end
 
 		-- 唤醒因认证操作而被挂起的协程
 		for _, _co in ipairs(self.auth_waitcoroutine) do
 			skynet.wakeup(_co)
 		end
+		self.auth_waitcoroutine = nil
 	end
 
 	-- 获取最新的认证状态
@@ -136,22 +144,30 @@ end
 
 function FdClass:deal_auth(msg)
 	local fd = assert(self.fd)
-	if self.do_auth then
+	if self.auth_finish then
 		return self.auth
 	end
 
 	if self:is_auth_wait() then
 		-- 接收认证码，进行比对
-		local responseCode
+		local response
 		if msg == gcluster_auths then
 			self.auth = AUTH_STATIUS_YES
-			responseCode = authYesCode
+			response = authYesCode
 		else
 			self.auth = AUTH_STATIUS_NO
-			responseCode = authNoCode
+			response = authNoCode
 		end
-		socket_write(fd, responseCode)
-	elseif self:is_auth_yes() then
+		self.auth_finish = os_time()
+		if not socket_write(fd, response) then
+			sock_err(self)
+		end
+
+		if self:is_auth_yes() then
+			rawset(node_channel, self.address, self)
+			skynet.error(sformat("gcluster scoket:%s auth succeed, from address:%s", self.fd, self.address))
+		end
+	elseif self:is_auth_do() then
 		-- 认证码的比对结果
 		if msg == authYes then
 			self.auth = AUTH_STATIUS_YES
@@ -163,7 +179,7 @@ function FdClass:deal_auth(msg)
 		self.auth_coroutine = nil
 		skynet.wakeup(co)
 	else
-		skynet.error("fd[%s] auth status[%s] invalid!!!", self.fd, self.auth)
+		skynet.error(sformat("fd[%s] auth status[%s] invalid!!!", self.fd, self.auth))
 	end
 	return self:is_auth_yes()
 end
