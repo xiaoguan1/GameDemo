@@ -4,6 +4,7 @@
 
 local skynet = require "skynet"
 local node = skynet.getenv("node") -- 节点类型名称(main、cross、center、其他)
+local is_testserver = skynet.getenv("is_testserver") == "test"
 
 local driver = require "skynet.socketdriver"
 local socket_write = assert(driver.send)
@@ -23,6 +24,7 @@ authNo = false
 gcluster_auths = false
 authYesCode = false
 authNoCode = false
+socket_err = false
 
 -- 认证状态类型
 local AUTH_STATIUS_DO 		= 1		-- 主动做认证（把本节点的认证码发送给对端）
@@ -35,33 +37,43 @@ local _INFO_F = _INFO_F
 
 FdClass = { __ClassType = "<<gcluster_fd_class>>" }
 
-local function sock_err(obj)
-	-- close_channel_socket(self)
-	-- wakeup_all(self)
-	-- error(socket_error)
-end
-
 function FdClass:init(fd, extData)
 	assert(fd)
 	extData = extData or {}
 
 	local o = {
-		__ObjectType = "gcluster_fd_object"
+		create_time = os_time(),
 	}
 
 	-- 设置验证状态
 	o.auth = extData.auth and AUTH_STATIUS_DO or AUTH_STATIUS_WAIT
 	extData.auth = nil
 
-	for k, v in pairs(extData) do
-		o[k] = v
+	for key, val in pairs(extData) do
+		if is_testserver and FdClass[key] then
+			error(sformat("fd obj not set key[%s] val[%s], because FdClass exist!", key, val))
+		end
+		o[key] = val
 	end
 
+	-- 在这里设置 防止覆盖。
+	o.__ObjectType = "gcluster_fd_object"
 	o.fd = fd
 	o.connected = os_time()
-	o.auth_finish = nil	-- 完成认证操作的时间戳
+	o.auth_finish = nil			-- 完成认证操作的时间戳
+	o.auth_coroutine = nil		-- 主动做认证的协程
+	o.auth_waitcoroutine = nil
 
-	return setmetatable(o, {__index = self})
+	local m = {__index = self, }
+	if is_testserver then
+		m.__newindex = function (t, key, val)
+			if FdClass[key] then
+				error(sformat("fd obj not set key[%s] val[%s], because FdClass exist!", key, val))
+			end
+			rawset(t, key, val)
+		end
+	end
+	return setmetatable(o, m)
 end
 
 function FdClass:write(request, padding)
@@ -69,16 +81,16 @@ function FdClass:write(request, padding)
 	if padding then
 		-- 分包发送
 		if not socket_write(fd , request) then
-			sock_err(self)
+			socket_err(self)
 		end
 		for _, v in ipairs(padding) do
 			if not socket_write(fd , v) then
-				sock_err(self)
+				socket_err(self)
 			end
 		end
 	else
 		if not socket_write(fd , request) then
-			sock_err(self)
+			socket_err(self)
 		end
 	end
 
@@ -113,7 +125,7 @@ function FdClass:do_auth(msg)
 		self.auth_coroutine = co
 		self.auth_waitcoroutine = {}
 		if not socket_write(fd, msg) then -- 发送认证码
-			sock_err(self)
+			socket_err(self)
 		end
 
 		local stime = os_time()
@@ -159,13 +171,19 @@ function FdClass:deal_auth(msg)
 			response = authNoCode
 		end
 		self.auth_finish = os_time()
-		if not socket_write(fd, response) then
-			sock_err(self)
-		end
 
+		local ct = connecting[self.address]
+		connecting[self.address] = nil
 		if self:is_auth_yes() then
+			ct.channel = self
 			rawset(node_channel, self.address, self)
 			skynet.error(sformat("gcluster scoket:%s auth succeed, from address:%s", self.fd, self.address))
+		end
+		for _, co in ipairs(ct.co) do
+			skynet.wakeup(co)
+		end
+		if not socket_write(fd, response) then
+			socket_err(self)
 		end
 	elseif self:is_auth_do() then
 		-- 认证码的比对结果

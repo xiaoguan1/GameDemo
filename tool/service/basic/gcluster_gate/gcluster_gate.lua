@@ -205,7 +205,7 @@ function MSG.close(fd)
 			-- socketdriver.close(fd)
 			socket_pool[fd] = nil
 			setAddrSocket(nil, s.fake_addr, s.real_addr)
-			syncWatchDog(false, "close", fd)
+			syncWatchDog(false, "close", fd, s.fake_addr)
 		end
 	end
 end
