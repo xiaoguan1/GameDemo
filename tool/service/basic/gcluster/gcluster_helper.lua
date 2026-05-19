@@ -250,13 +250,13 @@ function command.socket(source, subcmd, fd, ...)
 end
 
 function command.close_listen()
-	-- 主动关闭本节点的监听
+	-- 关闭监听（关闭监听不影响现有的socket链接！！！）
 end
 
-function command.close_connect()
-	-- 主动关闭本节点的链接
+function command.close()
+	-- 主动关闭socket链接(非粗暴的方式关闭，等待现有被挂起的协程全部响应完。)
 end
 
 function command.kick()
-	-- 主动关闭与本节点监听连接的socket
+	-- 主动关闭socket链接(粗暴的方式关闭)
 end
