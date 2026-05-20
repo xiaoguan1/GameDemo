@@ -251,6 +251,7 @@ end
 
 function command.close_listen()
 	-- 关闭监听（关闭监听不影响现有的socket链接！！！）
+	return SyncGate(true, "close_listen")
 end
 
 function command.close()
