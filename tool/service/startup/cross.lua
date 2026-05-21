@@ -36,7 +36,9 @@ end
 
 skynet.start(function ()
 	local nodeInfo = Import("game/global/nodeInfo.lua")
+	-- local isOk, dpcluster = nodeInfo.GetNodeData()
 	local isOk, dpcluster = nodeInfo.GetNodeData()
+	print("dpcluster ", tool.dumptree(dpcluster))
 	if not isOk then
 		abort(dpcluster)
 	end

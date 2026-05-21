@@ -256,13 +256,12 @@ CREATE TABLE cross_server (
 	server_id int unsigned not null comment '服务器编号',
 	ipport varchar(16) not null comment '集群监听地址',
 
-	mail_start tinyint unsigned not null comment '启动邮件服务',
-	center_start tinyint unsigned not null comment '启动中心服务',
-	net_start tinyint unsigned not null comment '启动仲裁网关服务',
+	mail_service bool not null default false comment '启动邮件服务',
+	center_service bool not null default false comment '启动中心服务',
+	net_service bool not null default false comment '启动仲裁网关服务',
 
-	mail_server int unsigned not null comment '邮件服节点编号',
-	center_server int unsigned not null comment '中心服节点编号',
-	net_server int unsigned not null comment '仲裁网关服节点编号',
+	center_server_id int unsigned not null comment '中心服编号',
+
 	PRIMARY KEY (cluster_no, server_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 EOF

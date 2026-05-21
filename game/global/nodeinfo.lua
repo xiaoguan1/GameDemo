@@ -154,6 +154,7 @@ local function _GetCrossNodeInfoByDatabase(db)
 	local dpData = gres[1]
 	local node_ipport = dpData["node_ip"] .. ":" .. dpData["node_port"]
 	local dpcluster = {node_ipport = node_ipport}
+	print("dpData ", tool.dumptree(dpData))
 	for _key, _value in pairs(dpData) do
 		if string.beginswith(_key, "is_startup_") then
 			if _value == 1 then
@@ -232,44 +233,38 @@ function GetCrossNodeData(db, extData)
 	local dpData = gres[1]
 	local cluster_config = {node_ipport = dpData.ipport}
 
-	local startinfo = {}
-	local serverinfo = {}
+	local serviceInfo = {}			-- 本节点启动服务详情
+	local otherNodeInfo = {}		-- 外部节点详情
 	for _key, _value in pairs(dpData) do
-		if string.endswith(_key, "_start") then
-			local sIdx, eIdx = string.find(_key, "_start")
-			local service = string.sub(_key, 1, sIdx - 1)
-			startinfo[service] = _value == 1 and dpData.ipport or false
-		elseif string.endswith(_key, "_server") then
-			local sIdx, eIdx = string.find(_key, "_server")
-			local node = string.sub(_key, 1, sIdx - 1)
-			serverinfo[node] = _value
+		if string.endswith(_key, "_service") then
+			if _value == 1 then
+				local sIdx, eIdx = string.find(_key, "_service")
+				local service = string.sub(_key, 1, sIdx - 1)
+				serviceInfo[service] = dpData.ipport
+			end
+		elseif string.endswith(_key, "_server_id") then
+			if _value ~= host_id then
+				local sIdx, eIdx = string.find(_key, "_server_id")
+				local node = string.sub(_key, 1, sIdx - 1)
+				otherNodeInfo[node] = _value
+			end
 		else
 			if not IGNORE_CROSS_FIELDS[_key] then
 				return false, string.format("mysql cross_server key[%s] value[%s] need deal!!!", _key, _value)
 			end
 		end
 	end
+	print("sss ", tool.dumptree(serviceInfo))
+	print("sss ", tool.dumptree(otherNodeInfo))
 
-	for node, serverId in pairs(serverinfo) do
+	for node, serverId in pairs(otherNodeInfo) do
 		local csql = string.format(CrossServer_SQL, clusterNo, serverId)
 		local gres = db:query(csql)
 		if gres["badresult"] or #gres ~= 1 then
 			return false, string.format("query:%s database error!, res:%s", csql, tool.dump(gres))
 		end
-		local dpData = gres[1]
-		for _key, _value in pairs(dpData) do
-			if string.endswith(_key, "_start") then
-				local sIdx, eIdx = string.find(_key, "_start")
-				local service = string.sub(_key, 1, sIdx - 1)
-				if startinfo[node] ~= false then
-					return false, "ddddddd"
-				end
-				startinfo[service] = dpData.ipport
-			end
-		end
+		otherNodeInfo[node] = gres[1].ipport
 	end
-
-
 
 end
 

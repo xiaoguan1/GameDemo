@@ -114,7 +114,9 @@ EOF
 
 
 mysql -hlocalhost -uroot -proot $dbname << EOF 2>/dev/null
-insert into cross_server(cluster_no, server_id, ipport, mail_start, center_start, net_start, mail_server, center_server, net_server) values
-(1, 55001, "127.0.0.1:32527", 1, 0, 0, 55002, 55003, 55004);
+insert into cross_server(cluster_no, server_id, ipport, mail_service, center_service, net_service, center_server_id) values
+(1, 55001, "127.0.0.1:32527", true, false, false, 55003),
+(1, 55002, "127.0.0.1:32528", false, false, true, 55003),
+(1, 55003, "127.0.0.1:32529", false, true, false, 55003);
 EOF
 [ $? -eq 0 ] && echo "insert table: cross_server ok" || echo "insert table: cross_server error";
