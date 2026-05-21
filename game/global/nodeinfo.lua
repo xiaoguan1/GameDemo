@@ -4,9 +4,10 @@ local assert = assert
 local table = table
 local pairs = pairs
 local is_crossserver = (skynet.getenv("is_cross") == "true") and true or false
-local DATABASE_CFG = assert(load("return " .. skynet.getenv("centerdatadb_info"))())
+local CENTER_DATABASE = assert(load("return " .. skynet.getenv("centerdatadb_info"))())
 local SNODE = assert(skynet.getenv("node"))
 local host_id = tonumber(skynet.getenv("server_id"))
+local cluster_no = tonumber(skynet.getenv("cluster_no"))
 local merge_hosts = skynet.getenv("merge_hosts")
 if merge_hosts then
 	merge_hosts = assert(load("return " .. merge_hosts))()
@@ -17,18 +18,21 @@ local function _GetDb()
 		db:query("set charset utf8")
 	end
 
+	local host = CENTER_DATABASE.dbhost
+	local port = CENTER_DATABASE.dbport
+	local database = CENTER_DATABASE.dbname
 	local db = mysql.connect({
-		host = DATABASE_CFG.dbhost,
-		port = DATABASE_CFG.dbport,
-		database = DATABASE_CFG.dbname,
-		user = DATABASE_CFG.dbuser,
-		password = DATABASE_CFG.dbpasswd,
-		-- max_pack_size = 1024 * 1024 * 2^9 - 1,	-- longtext
+		host = host,
+		port = port,
+		database = database,
+		user = CENTER_DATABASE.dbuser,
+		password = CENTER_DATABASE.dbpasswd,
+		max_pack_size = 2^30,	-- 1GB，设置一个很大的数值，但实际没作用，因为有max_pack_size 4MB限制
 		on_connect = on_connect,
 	})
 	-- 询问query的时候如果是断开的还是会继续连接，直到连接上
 	if not db then
-		return false, string.format("connect mysql(%s:%s) dbname:%s error!", DATABASE_CFG.dbhost, DATABASE_CFG.dbport, DATABASE_CFG.dbname)
+		return false, string.format("connect mysql(%s:%s) dbname:%s error!", host, port, database)
 	end
 	return true, db
 end
@@ -209,3 +213,94 @@ function GetCrossNodeInfoByDatabase()
 	db:disconnect()
 	return ok, ret
 end
+
+
+
+local CrossServer_SQL = "select * from cross_server where cluster_no = %d and server_id = %d;"
+local IGNORE_CROSS_FIELDS = {ipport = true, cluster_no = true, server_id = true}
+
+function GetCrossNodeData(db, extData)
+	assert(db)
+	extData = extData or {}
+	local clusterNo = extData.cluster_no or cluster_no
+	local serverId = extData.server_id or host_id
+	local csql = string.format(CrossServer_SQL, clusterNo, serverId)
+	local gres = db:query(csql)
+	if gres["badresult"] or #gres ~= 1 then
+		return false, string.format("query:%s database error!, res:%s", csql, tool.dump(gres))
+	end
+	local dpData = gres[1]
+	local cluster_config = {node_ipport = dpData.ipport}
+
+	local startinfo = {}
+	local serverinfo = {}
+	for _key, _value in pairs(dpData) do
+		if string.endswith(_key, "_start") then
+			local sIdx, eIdx = string.find(_key, "_start")
+			local service = string.sub(_key, 1, sIdx - 1)
+			startinfo[service] = _value == 1 and dpData.ipport or false
+		elseif string.endswith(_key, "_server") then
+			local sIdx, eIdx = string.find(_key, "_server")
+			local node = string.sub(_key, 1, sIdx - 1)
+			serverinfo[node] = _value
+		else
+			if not IGNORE_CROSS_FIELDS[_key] then
+				return false, string.format("mysql cross_server key[%s] value[%s] need deal!!!", _key, _value)
+			end
+		end
+	end
+
+	for node, serverId in pairs(serverinfo) do
+		local csql = string.format(CrossServer_SQL, clusterNo, serverId)
+		local gres = db:query(csql)
+		if gres["badresult"] or #gres ~= 1 then
+			return false, string.format("query:%s database error!, res:%s", csql, tool.dump(gres))
+		end
+		local dpData = gres[1]
+		for _key, _value in pairs(dpData) do
+			if string.endswith(_key, "_start") then
+				local sIdx, eIdx = string.find(_key, "_start")
+				local service = string.sub(_key, 1, sIdx - 1)
+				if startinfo[node] ~= false then
+					return false, "ddddddd"
+				end
+				startinfo[service] = dpData.ipport
+			end
+		end
+	end
+
+
+
+end
+
+
+
+
+function GetNodeData()
+	local ok, db = _GetDb()
+	if not ok then
+		return false, db
+	end
+	GetCrossNodeData(db)
+	local ok, ret
+	if is_crossserver then
+
+	else
+
+	end
+	-- local ok, ret = _GetCrossNodeInfoByDatabase(db)
+	-- db:disconnect()
+	return ok, ret
+end
+
+
+
+
+
+
+
+
+
+
+
+

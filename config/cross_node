@@ -38,8 +38,8 @@ preload = "tool/luaplugins/preload.lua"
 
 ------------------ 节点信息 ------------------
 is_cross = true
-server_id = 55001
-nowaiting = true			-- 不挂起【其中利弊还未考量】
+server_id = 55001			-- 服务器编号
+cluster_no = 1				-- 集群编号
 node = "cross"				-- 节点名
 gcluster_auths = "!#df@&%s1idf"
 is_testserver = true		-- 测试服

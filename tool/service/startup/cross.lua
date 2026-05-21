@@ -36,7 +36,7 @@ end
 
 skynet.start(function ()
 	local nodeInfo = Import("game/global/nodeInfo.lua")
-	local isOk, dpcluster = nodeInfo.GetCrossNodeInfoByDatabase()
+	local isOk, dpcluster = nodeInfo.GetNodeData()
 	if not isOk then
 		abort(dpcluster)
 	end
