@@ -11,7 +11,7 @@ local logStdin = skynet.getenv("log_stdin") == "true"
 local node = skynet.getenv("node")
 local HEADER = "\27"
 local END_FORMAT = "\27[0m"
-local PROXYSVR = Import("game/global/proxysvr.lua")
+local PROXYSVR = Import("game/global/rpc/proxysvr.lua")
 local GAMELOG_SVR = PROXYSVR.GetProxyByServiceName("gamelog")
 local tpack = table.pack
 

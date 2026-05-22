@@ -42,7 +42,7 @@ skynet.start(function ()
 	DPCLUSTER_NODE = dpcluster
 
 	dofile "./game/global/log.lua"
-	for _, v in pairs(START_UNIQ_SERVICE) do
+	for _, v in pairs(UNIQ_SERVICE_SEQ) do
 		local id = skynet.uniqueservice(v.svr)
 		skynet.name(v.named, id)
 	end

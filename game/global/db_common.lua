@@ -1,5 +1,5 @@
 local skynet = require "skynet"
-local PROXYSVR = Import("game/global/proxysvr.lua")
+local PROXYSVR = Import("game/global/rpc/proxysvr.lua")
 local DBSERVER = PROXYSVR.GetProxyByServiceName("dbserver", "db")
 local mysql = require "skynet.db.mysql"
 

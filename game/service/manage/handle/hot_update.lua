@@ -88,7 +88,7 @@ local function _GetFileMtimes()
 end
 
 function Handle_Request(data)
-	local PROXYSVR = Import("game/global/proxysvr.lua")
+	local PROXYSVR = Import("game/global/rpc/proxysvr.lua")
 	local lsvr = PROXYSVR.GetProxy(".launcher", selfnode_name)
 	if not lsvr then
 		_ERROR("hot update fail, because .launcher svr not exists!")

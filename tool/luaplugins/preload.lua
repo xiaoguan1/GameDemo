@@ -31,6 +31,17 @@ function TryCall(func, ...)
 	return _RetFunc(xpcall(func, traceback, ...))
 end
 
+-- 节点类型判断
+function IsUser()
+	return skynet.getenv("node") == "user"	-- user节点
+end
+function IsCross()
+	return skynet.getenv("node") == "cross"	-- 一般跨服节点
+end
+function IsAdhoc()
+	return skynet.getenv("node") == "adhoc"	-- 热门玩法节点
+end
+
 -- lua原生接口函数的拓展（优先加载）
 _G.TOOL_FILES = {
 	"tool/luaplugins/table.lua",

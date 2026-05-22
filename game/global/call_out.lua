@@ -24,7 +24,7 @@ MEM_IGNORE_ALARM = {
 	["UpdateAreaRankData"] = true,		-- 竞技场欺负需要刷新排行榜
 }
 if not PROXYSVR then
-	PROXYSVR = Import("game/global/proxysvr.lua")
+	PROXYSVR = Import("game/global/rpc/proxysvr.lua")
 end
 
 local stimerld = UNIQ_SERVICE_CFG and UNIQ_SERVICE_CFG.stimer and UNIQ_SERVICE_CFG.stimer.named

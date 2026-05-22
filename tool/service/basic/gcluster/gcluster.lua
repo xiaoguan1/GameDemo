@@ -70,7 +70,7 @@ local function dealOvertime()
 end
 
 skynet.start(function ()
-	local dpcluster = skynet.getenv("dpcluster")
+	local dpcluster = skynet.getenv("gcluster_node")
 	DPCLUSTER_NODE = load("return " .. dpcluster)()
 
 	dofile "game/global/log.lua"

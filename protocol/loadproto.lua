@@ -16,7 +16,7 @@ local has_value = table.has_value
 local _ERROR_F = _ERROR_F
 local _INFO_F = _INFO_F
 local SERVICE_NAME = SERVICE_NAME
-local selfnode_name = DPCLUSTER_NODE.node_ipport
+local selfnode_name = skynet.getenv("self_ipport")
 
 -- 需要预先加载协议文件，因为有些porto需要import其他协议文件
 local preload_load = {
@@ -121,7 +121,7 @@ function command.update(isUpdateProto)
 		return
 	end
 
-	local PROXYSVR = Import("game/global/proxysvr.lua")
+	local PROXYSVR = Import("game/global/rpc/proxysvr.lua")
 	local lsvr = PROXYSVR.GetProxy(".launcher", selfnode_name)
 	if not lsvr then
 		_ERROR("proto hot update fail, because .launcher svr not exists!")

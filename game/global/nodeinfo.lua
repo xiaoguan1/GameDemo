@@ -218,7 +218,6 @@ end
 
 
 local CrossServer_SQL = "select * from cross_server where cluster_no = %d and server_id = %d;"
-local IGNORE_CROSS_FIELDS = {ipport = true, cluster_no = true, server_id = true}
 
 function GetCrossNodeData(db, extData)
 	assert(db)
@@ -231,41 +230,42 @@ function GetCrossNodeData(db, extData)
 		return false, string.format("query:%s database error!, res:%s", csql, tool.dump(gres))
 	end
 	local dpData = gres[1]
-	local cluster_config = {node_ipport = dpData.ipport}
 
-	local serviceInfo = {}			-- 本节点启动服务详情
-	local otherNodeInfo = {}		-- 外部节点详情
+	local selfCluster = {}		-- 本节点启动服务详情
+	local outCluster = {}		-- 外部节点详情
 	for _key, _value in pairs(dpData) do
-		if string.endswith(_key, "_service") then
+		if string.beginswith(_key, "is_startup_") then
+			local sIdx, eIdx = string.find(_key, "is_startup_")
+			local service = string.sub(_key, eIdx + 1)
 			if _value == 1 then
-				local sIdx, eIdx = string.find(_key, "_service")
-				local service = string.sub(_key, 1, sIdx - 1)
-				serviceInfo[service] = dpData.ipport
-			end
-		elseif string.endswith(_key, "_server_id") then
-			if _value ~= host_id then
-				local sIdx, eIdx = string.find(_key, "_server_id")
-				local node = string.sub(_key, 1, sIdx - 1)
-				otherNodeInfo[node] = _value
-			end
-		else
-			if not IGNORE_CROSS_FIELDS[_key] then
-				return false, string.format("mysql cross_server key[%s] value[%s] need deal!!!", _key, _value)
+				selfCluster[service] = dpData.ipport
+			elseif _value > 1 then
+				if not outCluster[_value] then
+					outCluster[_value] = {}
+				end
+				outCluster[_value][_key] = service
 			end
 		end
 	end
-	print("sss ", tool.dumptree(serviceInfo))
-	print("sss ", tool.dumptree(otherNodeInfo))
 
-	for node, serverId in pairs(otherNodeInfo) do
+	for serverId, _keys in pairs(outCluster) do
 		local csql = string.format(CrossServer_SQL, clusterNo, serverId)
 		local gres = db:query(csql)
 		if gres["badresult"] or #gres ~= 1 then
 			return false, string.format("query:%s database error!, res:%s", csql, tool.dump(gres))
 		end
-		otherNodeInfo[node] = gres[1].ipport
-	end
+		local outDpData = gres[1]
 
+		for _key, service in pairs(_keys) do
+			if outDpData[_key] ~= 1 then
+				return false, string.format("query:%s database error!, res:%s", csql, tool.dump(gres))
+			end
+			selfCluster[service] = outDpData.ipport
+		end
+	end
+	-- print("ipport ", dpData.ipport)
+	-- print("selfCluster ", tool.dumptree(selfCluster))
+	return true, dpData.ipport, selfCluster
 end
 
 
@@ -276,16 +276,12 @@ function GetNodeData()
 	if not ok then
 		return false, db
 	end
-	GetCrossNodeData(db)
-	local ok, ret
-	if is_crossserver then
 
+	if is_crossserver then
+		return GetCrossNodeData(db)
 	else
 
 	end
-	-- local ok, ret = _GetCrossNodeInfoByDatabase(db)
-	-- db:disconnect()
-	return ok, ret
 end
 
 

@@ -40,7 +40,7 @@ preload = "tool/luaplugins/preload.lua"
 is_cross = true
 server_id = 55001			-- 服务器编号
 cluster_no = 1				-- 集群编号
-node = "cross"				-- 节点名
+node = "cross"				-- 节点类型为cross（user、freedom）
 gcluster_auths = "!#df@&%s1idf"
 is_testserver = true		-- 测试服
 

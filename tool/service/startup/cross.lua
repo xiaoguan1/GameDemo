@@ -4,6 +4,7 @@ local util = require "util.core"
 local posix = require "posix"
 local dpcluster = require "dpcluster.core"
 local queue = require "queueplus"
+local node = skynet.getenv("node")
 CS = queue()
 
 function abort(msg)
@@ -36,27 +37,31 @@ end
 
 skynet.start(function ()
 	local nodeInfo = Import("game/global/nodeInfo.lua")
-	-- local isOk, dpcluster = nodeInfo.GetNodeData()
-	local isOk, dpcluster = nodeInfo.GetNodeData()
-	print("dpcluster ", tool.dumptree(dpcluster))
+	local isOk, self_ipport, gcluster_node = nodeInfo.GetNodeData()
 	if not isOk then
 		abort(dpcluster)
 	end
-	skynet.setenv("dpcluster", tool.dumptree(dpcluster))
-	DPCLUSTER_NODE = dpcluster
+	skynet.setenv("gcluster_node", tool.dumptree(gcluster_node))
+	skynet.setenv("self_ipport", self_ipport)
+	DPCLUSTER_NODE = gcluster_node
+	SELF_IPPORT = self_ipport
 
-	dofile "./game/global/log.lua"
-	for _, v in pairs(START_UNIQ_SERVICE) do
+	-- dofile "./game/global/log.lua"
+	for _, v in pairs(UNIQ_SERVICE_SEQ) do
 		local id = skynet.uniqueservice(v.svr)
+		if not id then
+			abort(string.format("start service[%s] fail", v.svr))
+		end
 		skynet.name(v.named, id)
 	end
-	-- Import("game/global/dpcluster.lua")
 
-	-- local self_ipport = DPCLUSTER_NODE.node_ipport
-	-- for _, service in pairs(CROSS_SERVICE_STARTSEQ) do
-	-- 	local id = skynet.newservice(service)
-	-- 	skynet.name(CROSS_SERVICE_CFG[service].named, id)
-	-- end
+	if IsCross() then
+		for _, service in pairs(CROSS_SERVICE_SEQ) do
+			-- local id = skynet.newservice(service)
+			-- skynet.name(CROSS_SERVICE_CFG[service].named, id)
+		end
+	end
+
 
 
 

@@ -256,11 +256,8 @@ CREATE TABLE cross_server (
 	server_id int unsigned not null comment '服务器编号',
 	ipport varchar(16) not null comment '集群监听地址',
 
-	mail_service bool not null default false comment '启动邮件服务',
-	center_service bool not null default false comment '启动中心服务',
-	net_service bool not null default false comment '启动仲裁网关服务',
-
-	center_server_id int unsigned not null comment '中心服编号',
+	is_startup_example int unsigned not null default false comment '启动玩法A',
+	is_startup_center int unsigned not null default false comment '是否开启跨服中心服(开启则具有中心服节点身份)',
 
 	PRIMARY KEY (cluster_no, server_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
