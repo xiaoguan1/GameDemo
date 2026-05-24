@@ -34,13 +34,13 @@ lua_cpath = "./luaclib/?.so;" ..
 profile = true		-- 默认位true的
 profile_cmd = true	-- 细化指令检测
 
+-- apreload = "tool/luaplugins/preload.lua"  -- 先完成基础信息的加载，再开放preload
 preload = "tool/luaplugins/preload.lua"
 
 ------------------ 节点信息 ------------------
 is_cross = true
 server_id = 55001			-- 服务器编号
 cluster_no = 1				-- 集群编号
-node = "cross"				-- 节点类型为cross（user、freedom）
 gcluster_auths = "!#df@&%s1idf"
 is_testserver = true		-- 测试服
 

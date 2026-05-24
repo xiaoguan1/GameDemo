@@ -1,6 +1,3 @@
-------------------------------------
---- 挖坑1：先简化节点与节点之间的验证。注释authCheck函数
-------------------------------------
 
 local skynet = require "skynet"
 local node = skynet.getenv("node")
@@ -70,8 +67,7 @@ local function dealOvertime()
 end
 
 skynet.start(function ()
-	local dpcluster = skynet.getenv("gcluster_node")
-	DPCLUSTER_NODE = load("return " .. dpcluster)()
+	local SELF_IPPORT = skynet.getenv("self_ipport")
 
 	dofile "game/global/log.lua"
 
@@ -84,8 +80,10 @@ skynet.start(function ()
 	setmetatable(node_channel, { __index = Ghelper.OpenChannel })
 
 	gate_fdx = skynet.newservice("gcluster_gate", skynet.self())
-	if node ~= "main" then
-		nodeListen(DPCLUSTER_NODE.node_ipport)		-- 开启当前节点 gate_fdx
+
+	-- 暂时调试
+	if node ~= "user" then
+		nodeListen(SELF_IPPORT)		-- 开启当前节点 gate_fdx
 	else
 		local t = GetNodeChannel("127.0.0.1:32527", true)
 		print("t ", tool.dumptree(t))

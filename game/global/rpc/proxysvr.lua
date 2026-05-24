@@ -7,7 +7,8 @@ local setmetatable = setmetatable
 local assert = assert
 local error = error
 local type = type
-local selfnode_name = skynet.getenv("self_ipport")
+local selfnode_name = assert(skynet.getenv("self_ipport"))
+local host_id = tonumber(assert(skynet.getenv("server_id")))
 assert(selfnode_name)
 
 local RPC_MISC = Import("game/global/rpc/rpc_misc.lua")
@@ -195,17 +196,43 @@ function GetProxy(addr, node_name, prototype)
 	end
 end
 
+-- 获取当前节点的服务代理
+-- function GetProxyByServiceName(serviceName, prototype, serverId)
+-- 	local namedData = UNIQ_SERVICE_CFG[serviceName]
+-- 	if namedData then
+-- 		assert(namedData.named)
+-- 		return GetProxy(namedData.named, selfnode_name, prototype)
+-- 	end
 
-function GetProxyByServiceName(serviceName, prototype, serverId)
+-- 	namedData = GAME_SERVICE_CFG[serviceName]
+-- 	if namedData then
+-- 		assert(namedData.named)
+-- 		return GetProxy(namedData.named, selfnode_name, prototype)
+-- 	end
+-- end
+
+function GetProxyByServiceName(serviceName, ...)
+	local count = select("#", ...)
+	local nodeName, prototype, serverId = selfnode_name, "lua", host_id -- 默认值
+	-- local nodeName, prototype, serverId
+	if count == 2 then
+		-- 2个参数
+		prototype, serverId = ...
+	elseif count == 3 then
+		-- 3个参数
+		nodeName, prototype, serverId = ...
+	end
+	assert(nodeName and prototype and serverId)
 	local namedData = UNIQ_SERVICE_CFG[serviceName]
 	if namedData then
 		assert(namedData.named)
 		return GetProxy(namedData.named, selfnode_name, prototype)
 	end
 
-	namedData = GAME_SERVICE_CFG[serviceName]
+	namedData = SERVICE_NAME[nodeName] and SERVICE_NAME[nodeName][serviceName]
 	if namedData then
+		print("nodeName, prototype, serverId ", nodeName, prototype, serverId)
 		assert(namedData.named)
-		return GetProxy(namedData.named, selfnode_name, prototype)
+		return GetProxy(namedData.named, nodeName, prototype)
 	end
 end

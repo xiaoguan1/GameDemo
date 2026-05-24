@@ -8,7 +8,7 @@ local tempty = table.empty
 local has_value = table.has_value
 local beginswith = string.beginswith
 local endswith = string.endswith
-local selfnode_name = DPCLUSTER_NODE.node_ipport
+local SELF_IPPORT = skynet.getenv("self_ipport")
 
 -- 执行命令：wget -q -O - "http://127.0.0.1:40001/hot_update"
 
@@ -89,14 +89,14 @@ end
 
 function Handle_Request(data)
 	local PROXYSVR = Import("game/global/rpc/proxysvr.lua")
-	local lsvr = PROXYSVR.GetProxy(".launcher", selfnode_name)
+	local lsvr = PROXYSVR.GetProxy(".launcher", SELF_IPPORT)
 	if not lsvr then
 		_ERROR("hot update fail, because .launcher svr not exists!")
 		return true
 	end
 
 	local psvr = UNIQ_SERVICE_CFG["protosvr"] and UNIQ_SERVICE_CFG["protosvr"].named and
-				PROXYSVR.GetProxy(UNIQ_SERVICE_CFG["protosvr"].named, selfnode_name)
+				PROXYSVR.GetProxy(UNIQ_SERVICE_CFG["protosvr"].named, SELF_IPPORT)
 	if not psvr then
 		_ERROR("hot update fail, because psvr svr not exists!")
 		return true

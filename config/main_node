@@ -36,10 +36,9 @@ preload = "tool/luaplugins/preload.lua"
 alogpath = "./log/main/logpath/" -- logpath 日志文件
 
 ------------------ 节点信息 ------------------
-is_cross = false
+cluster_no = 1				-- 集群编号
 server_id = 1
 nowaiting = true			-- 不挂起【其中利弊还未考量】
-node = "main"				-- 节点名
 gcluster_auths = "!#df@&%s1idf"
 is_testserver = true		-- 测试服
 

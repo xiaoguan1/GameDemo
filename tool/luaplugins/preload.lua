@@ -3,7 +3,7 @@ require "skynet.manager"
 local posix = require "posix"
 local traceback = debug.traceback
 
-local dpcluster = skynet.getenv("dpcluster")
+local dpcluster = skynet.getenv("gcluster_node")
 if dpcluster then
 	DPCLUSTER_NODE = load("return " .. dpcluster)()
 end
@@ -31,17 +31,6 @@ function TryCall(func, ...)
 	return _RetFunc(xpcall(func, traceback, ...))
 end
 
--- 节点类型判断
-function IsUser()
-	return skynet.getenv("node") == "user"	-- user节点
-end
-function IsCross()
-	return skynet.getenv("node") == "cross"	-- 一般跨服节点
-end
-function IsAdhoc()
-	return skynet.getenv("node") == "adhoc"	-- 热门玩法节点
-end
-
 -- lua原生接口函数的拓展（优先加载）
 _G.TOOL_FILES = {
 	"tool/luaplugins/table.lua",
@@ -66,6 +55,20 @@ for _, pathFile in pairs(MACRO_FILES) do
 	if not TryCall(dofile, pathFile) then
 		skynet.abort()
 	end
+end
+
+-- 节点类型判断
+function IsUser()
+	return skynet.getenv("node") == USER_NODE	-- user节点
+end
+function IsCross()
+	return skynet.getenv("node") == CROSS_NODE	-- 一般跨服节点
+end
+function IsCenter()
+	return skynet.getenv("node") == CENTER_NODE	-- 中心服务节点
+end
+function IsAdhoc()
+	return skynet.getenv("node") == ADHOC_NODE	-- 中心服务节点
 end
 
 if not _G.Import then

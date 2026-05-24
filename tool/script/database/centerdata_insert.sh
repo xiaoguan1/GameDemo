@@ -8,14 +8,14 @@ if [ "X$dbname" = "X" ]; then
 fi
 
 ############################ insert into table ############################
-mysql -hlocalhost -uroot -proot $dbname << EOF 2>/dev/null
-insert into game_server(server_id, main_node_ip, main_node_port, cadvarena_serverid, cclubmatch_serverid, cchat_serverid, cthemeact_serverid, ctxranking_serverid, centerchat_serverid) values
-(1, "127.0.0.1", 32526, 55001, 55001, 55001, 55001, 55001, 55001),
-(2, "127.0.0.1", 32538, 55002, 55002, 55002, 55002, 55002, 55002),
-(3, "127.0.0.1", 32548, 55003, 55003, 55003, 55003, 55003, 55003),
-(100, "127.0.0.1", 32526, 55001, 55001, 55001, 55001, 55001, 55001);
-EOF
-[ $? -eq 0 ] && echo "insert table: game_server ok" || echo "insert table: game_server error";
+# mysql -hlocalhost -uroot -proot $dbname << EOF 2>/dev/null
+# insert into game_server(server_id, main_node_ip, main_node_port, cadvarena_serverid, cclubmatch_serverid, cchat_serverid, cthemeact_serverid, ctxranking_serverid, centerchat_serverid) values
+# (1, "127.0.0.1", 32526, 55001, 55001, 55001, 55001, 55001, 55001),
+# (2, "127.0.0.1", 32538, 55002, 55002, 55002, 55002, 55002, 55002),
+# (3, "127.0.0.1", 32548, 55003, 55003, 55003, 55003, 55003, 55003),
+# (100, "127.0.0.1", 32526, 55001, 55001, 55001, 55001, 55001, 55001);
+# EOF
+# [ $? -eq 0 ] && echo "insert table: game_server ok" || echo "insert table: game_server error";
 
 ############################ insert into table ############################
 # mysql -hlocalhost -uroot -proot $dbname << EOF 2>/dev/null
@@ -112,11 +112,9 @@ EOF
 
 
 
-
 mysql -hlocalhost -uroot -proot $dbname << EOF 2>/dev/null
-insert into cross_server(cluster_no, server_id, ipport, is_startup_example, is_startup_center) values
-(1, 55001, "127.0.0.1:32527", 1, 55003),
-(1, 55002, "127.0.0.1:32528", 55001, 55003),
-(1, 55003, "127.0.0.1:32529", 55001, 1);
+insert into server_config(cluster_no, server_id, node_name, ipport, jlogin_ipport, is_start_example, is_start_center) values
+(1, 1, "user", "127.0.0.1:32526", "127.0.0.1:32525", 55001, 55001),
+(1, 55001, "cross", "127.0.0.1:32527", "0", 1, 1);
 EOF
-[ $? -eq 0 ] && echo "insert table: cross_server ok" || echo "insert table: cross_server error";
+[ $? -eq 0 ] && echo "insert table: server_config ok" || echo "insert table: server_config error";

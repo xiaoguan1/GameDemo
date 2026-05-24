@@ -6,8 +6,6 @@ local load = load
 local assert = assert
 local PROFILE_CMD = Import("game/global/profile_cmd.lua")
 
-local is_crossserver = (skynet.getenv("is_cross") == "true") and true or false
-
 local SELF_ADDR = skynet.self()
 
 ACCEPT = {}
