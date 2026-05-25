@@ -7,6 +7,9 @@ local dpcluster = require "dpcluster.core"
 local queue = require "queueplus"
 CS = queue()
 
+local table = table
+local thas_value = table.has_value
+
 function abort(msg)
 	skynet.error(msg)
 	skynet.sleep(100)
@@ -80,15 +83,12 @@ skynet.start(function ()
 	-- adhoc 和 center节点服务
 	local function startOterSvr(nodeSvrSeq)
 		for _, v in ipairs(nodeSvrSeq) do
-			if table.has_value(v.host_node, node) and SELF_NODE[v.svr] == SELF_IPPORT then
-				local nodeAddr = SELF_NODE[v.svr]
-				if nodeAddr == SELF_IPPORT then
-					local id = skynet.newservice(v.svr)
-					if not id then
-						abort(string.format("start service[%s] fail", v.svr))
-					end
-					skynet.name(v.named, id)
+			if thas_value(v.host_node, node) and SELF_NODE[v.svr] == SELF_IPPORT then
+				local id = skynet.newservice(v.svr)
+				if not id then
+					abort(string.format("start service[%s] fail", v.svr))
 				end
+				skynet.name(v.named, id)
 			end
 		end
 	end

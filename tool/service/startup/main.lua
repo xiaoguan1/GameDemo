@@ -7,6 +7,9 @@ local dpcluster = require "dpcluster.core"
 local queue = require "queueplus"
 CS = queue()
 
+local table = table
+local thas_value = table.has_value
+
 function abort(msg)
 	skynet.error(msg)
 	skynet.sleep(100)
@@ -26,7 +29,6 @@ local function _OpenLogPath()
 	if not logpath then
 		local lpath = os.date("%Y-%m-%d %H-%M-%S", util.realtime())
 		lpath = alogpath .. lpath .. "/"
-		print("lpath ", lpath)
 		skynet.setenv("logpath", lpath)
 	end
 
@@ -73,18 +75,22 @@ skynet.start(function ()
 		skynet.name(v.named, id)
 	end
 
-
-	if SELF_NODE.jlogin then
-		-- 需要在当前user节点中，代理启动jlogin服务
-		local id = skynet.newservice(JLOGIN_SERVICE.svr)
-		if not id then
-			abort(string.format("start service[%s] fail", JLOGIN_SERVICE.svr))
+	-- 启动寄生服务
+	local function startOterSvr(nodeSvrSeq)
+		for _, v in ipairs(nodeSvrSeq) do
+			if thas_value(v.host_node, node) and SELF_NODE[v.svr] == SELF_IPPORT then
+				local id = skynet.newservice(v.svr)
+				if not id then
+					abort(string.format("start service[%s] fail", v.svr))
+				end
+				skynet.name(v.named, id)
+			end
 		end
-		skynet.name(JLOGIN_SERVICE.named, id)
 	end
+	startOterSvr(ADHOC_SERVICE_SEQ)
 
 	_OpenLogPath()
 
-
-	print("SERVICES_CONFIG:", tool.dumptree(SERVICES_CONFIG))
+	-- print("SELF_NODE ", tool.dumptree(SELF_NODE))
+	-- print("SERVICES_CONFIG:", tool.dumptree(SERVICES_CONFIG))
 end)

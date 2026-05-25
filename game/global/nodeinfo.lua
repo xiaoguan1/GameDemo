@@ -89,7 +89,8 @@ local function getAllNodeData(db)
 			-- 玩家服节点
 			local host, port = string.match(data.jlogin_ipport, "([^:]+):(.+)$")
 			if host and port then
-				t.jlogin = data.jlogin_ipport
+				t.jlogin = data.ipport
+				t.jlogin_ipport = data.jlogin_ipport
 			else
 				local jlogin_id = tonumber(data.jlogin_ipport)
 				if not jlogin_id or jlogin_id <= 0 then
