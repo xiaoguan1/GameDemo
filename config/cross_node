@@ -39,8 +39,9 @@ lua_cpath = "./luaclib/?.so;" ..
 profile = true		-- 默认位true的
 profile_cmd = true	-- 细化指令检测
 
--- apreload = "tool/luaplugins/preload.lua"  -- 先完成基础信息的加载，再开放preload
+apreload = "tool/luaplugins/apreload.lua"  -- 目的：cross完成必要的操作后 才对后续服务开放加载节点数据
 preload = "tool/luaplugins/preload.lua"
+-- game_preload = ... 	-- 内部设置
 
 ------------------ 节点信息 ------------------
 is_cross = true

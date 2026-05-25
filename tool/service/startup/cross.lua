@@ -34,21 +34,28 @@ local function _GetAllFiles(path, result)
 	return result
 end
 
+local function doGamePreload()
+	assert(not skynet.getenv("game_preload"))
+	local aPreload = assert(skynet.getenv("apreload"))
+	skynet.setenv("game_preload", aPreload)
+	dofile(aPreload)
+end
+
 skynet.start(function ()
 	local nodeInfo = Import("game/global/nodeInfo.lua")
-	local allNodeData, errMsg = nodeInfo.GetAllNodeData()
-	if not allNodeData then
+	local allServerIdMap, errMsg = nodeInfo.GetAllNodeData()
+	if not allServerIdMap then
 		abort(errMsg)
 	end
-	local gcluster_node = assert(allNodeData[host_id])
+	local gcluster_node = assert(allServerIdMap[host_id])
 	local node = assert(gcluster_node.node)
 	local self_ipport = assert(gcluster_node.self_ipport)
 	skynet.setenv("gcluster_node", tool.dumptree(gcluster_node))
 	skynet.setenv("self_ipport", self_ipport)
 	skynet.setenv("node", node)
-	skynet.setenv("all_gcluster_node", tool.dumptree(allNodeData))
-	SELF_NODE = gcluster_node
-	SELF_IPPORT = self_ipport
+	skynet.setenv("all_serverId_map", tool.dumptree(allServerIdMap))
+	doGamePreload()
+
 	print("gcluster_node ", tool.dumptree(gcluster_node))
 
 	dofile "./game/global/log.lua"

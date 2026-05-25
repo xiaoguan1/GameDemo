@@ -56,18 +56,18 @@ ADHOC_SERVICE_SEQ = {
 
 
 -- 服务列表信息(node->named)
-SERVICE_MAP = { }
+SERVICES_CONFIG = { }
 local function setServiceMap(tbl)
 	assert(type(tbl) == "table" and #tbl == table.size(tbl))
 	for _, v in ipairs(tbl) do
 		local node = v.node or node
-		if not SERVICE_MAP[node] then
-			SERVICE_MAP[node] = {}
+		if not SERVICES_CONFIG[node] then
+			SERVICES_CONFIG[node] = {}
 		end
-		if SERVICE_MAP[node][v.svr] then
+		if SERVICES_CONFIG[node][v.svr] then
 			error(string.format("%s repeat set named[%s]", node, v.svr))
 		end
-		SERVICE_MAP[node][v.svr] = v
+		SERVICES_CONFIG[node][v.svr] = v
 	end
 end
 setServiceMap(CROSS_MUST_SERVICE_SEQ)
@@ -75,4 +75,4 @@ setServiceMap(USER_MUST_SERVICE_SEQ)
 setServiceMap(CENTER_MUST_SERVICE_SEQ)
 setServiceMap(ADHOC_SERVICE_SEQ)
 
--- print("SERVICE_MAP:", tool.dumptree(SERVICE_MAP))
+-- print("SERVICES_CONFIG:", tool.dumptree(SERVICES_CONFIG))

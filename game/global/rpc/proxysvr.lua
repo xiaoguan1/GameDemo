@@ -7,9 +7,10 @@ local setmetatable = setmetatable
 local assert = assert
 local error = error
 local type = type
-local selfnode_name = assert(skynet.getenv("self_ipport"))
+
+local SELF_IPPORT = assert(SELF_IPPORT)
+local ALL_SERVERID_MAP = ALL_SERVERID_MAP
 local host_id = tonumber(assert(skynet.getenv("server_id")))
-assert(selfnode_name)
 
 local RPC_MISC = Import("game/global/rpc/rpc_misc.lua")
 
@@ -42,7 +43,7 @@ ALL_PROXYSVR = {
 
 local function gen_send(addr, nodeName, prototype)
 	prototype = prototype or "lua"
-	if nodeName == selfnode_name then
+	if nodeName == SELF_IPPORT then
 		local addrtype = type(addr)
 		local addr_num = nil
 		local cache_func = {}
@@ -99,7 +100,7 @@ end
 
 local function gen_call(addr, nodeName, prototype)
 	prototype = prototype or "lua"
-	if nodeName == selfnode_name then
+	if nodeName == SELF_IPPORT then
 		local addrtype = type(addr)
 		local addr_num = nil
 		local cache_func = {}
@@ -172,7 +173,7 @@ end
 
 -- 外部接口 ------------------------------
 function GetProxy(addr, node_name, prototype)
-	if node_name == selfnode_name then
+	if node_name == SELF_IPPORT then
 		-- 本服节点
 		if ALL_PROXYSVR.self_node[addr] and ALL_PROXYSVR.self_node[addr].prototype == prototype then
 			return ALL_PROXYSVR.self_node[addr]
@@ -201,19 +202,19 @@ end
 -- 	local namedData = UNIQ_SERVICE_CFG[serviceName]
 -- 	if namedData then
 -- 		assert(namedData.named)
--- 		return GetProxy(namedData.named, selfnode_name, prototype)
+-- 		return GetProxy(namedData.named, SELF_IPPORT, prototype)
 -- 	end
 
 -- 	namedData = GAME_SERVICE_CFG[serviceName]
 -- 	if namedData then
 -- 		assert(namedData.named)
--- 		return GetProxy(namedData.named, selfnode_name, prototype)
+-- 		return GetProxy(namedData.named, SELF_IPPORT, prototype)
 -- 	end
 -- end
 
 function GetProxyByServiceName(serviceName, ...)
 	local count = select("#", ...)
-	local nodeName, prototype, serverId = selfnode_name, "lua", host_id -- 默认值
+	local nodeName, prototype, serverId = SELF_IPPORT, "lua", host_id -- 默认值
 	-- local nodeName, prototype, serverId
 	if count == 2 then
 		-- 2个参数
@@ -226,7 +227,7 @@ function GetProxyByServiceName(serviceName, ...)
 	local namedData = UNIQ_SERVICE_CFG[serviceName]
 	if namedData then
 		assert(namedData.named)
-		return GetProxy(namedData.named, selfnode_name, prototype)
+		return GetProxy(namedData.named, SELF_IPPORT, prototype)
 	end
 
 	namedData = SERVICE_NAME[nodeName] and SERVICE_NAME[nodeName][serviceName]
@@ -235,4 +236,14 @@ function GetProxyByServiceName(serviceName, ...)
 		assert(namedData.named)
 		return GetProxy(namedData.named, nodeName, prototype)
 	end
+end
+
+function GetIpport(serverId)
+	return ALL_SERVERID_MAP[serverId] and
+			ALL_SERVERID_MAP[serverId].self_ipport
+end
+
+function GetNodeName(serverId)
+	return ALL_SERVERID_MAP[serverId] and
+			ALL_SERVERID_MAP[serverId].node
 end
