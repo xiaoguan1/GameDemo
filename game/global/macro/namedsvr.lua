@@ -44,12 +44,13 @@ USER_MUST_SERVICE_SEQ = {
 
 -- adhoc节点的服务。相对自由，可以在cross服启动。只要是中心服数据库设置了。
 -- host_node：宿主节点限制。以example服务为例，允许启动该服务的节点只能是 adhoc 和 cross
+-- unique为true，则表示该服务在整个集群中是唯一的
 ADHOC_SERVICE_SEQ = {
 	-- example玩法
 	{ svr = "example", named = ".EXAMPLE", node = ADHOC_NODE, host_node = {CROSS_NODE}},
 
 	-- 仲裁登录服务（仲裁玩家登录那个user节点）
-	{ svr = "jlogin", named = ".JLOGIN", node = ADHOC_NODE, host_node = {USER_NODE}},
+	{ svr = "jlogin", named = ".JLOGIN", node = ADHOC_NODE, unique = true, host_node = {USER_NODE}},
 
 	-- 中心服服务
 	-- { svr = "....", named = "....", node = ADHOC_NODE, host_node = {CROSS_NODE} },

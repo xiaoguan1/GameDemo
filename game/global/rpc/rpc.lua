@@ -9,6 +9,7 @@ end}
 
 local PROXYSVR = Import("game/global/rpc/proxysvr.lua")
 
+local node = assert(skynet.getenv("node")) -- 该进程的节点类型
 local ALL_SERVERID_MAP = assert(ALL_SERVERID_MAP)
 local SELF_NODE = assert(SELF_NODE)
 local SELF_IPPORT = assert(SELF_IPPORT)
@@ -44,16 +45,37 @@ local SERVICES_CONFIG = SERVICES_CONFIG
 -- end
 
 -- 全局集群环境
-local function globalClutserEnv()
+local function loadClutserEnv()
+	local clusterEnv = {}
 	local node2sIds = {}
 	for serverId, data in pairs(ALL_SERVERID_MAP) do
 		if not node2sIds[data.node] then
 			node2sIds[data.node] = {}
 		end
 		assert(not node2sIds[data.node][serverId])
-		node2sIds[data.node][serverId] = data.self_ipport
+		node2sIds[data.node][serverId] = data
 	end
-	for _, nodeName in ipairs(NODE_LIST) do
+	for nodeName, serviceList in pairs(SERVICES_CONFIG) do
+		for serviceName, config in pairs(serviceList) do
+			for serverId, data in pairs(node2sIds[nodeName] or {}) do
+				clusterEnv[nodeName] = clusterEnv[nodeName] or {}
+				clusterEnv[nodeName][serverId] = clusterEnv[nodeName][serverId] or {}
+				
+			end
+			local data = node2sIds[nodeName]
+			if data then
+				if not clusterEnv[nodeName] then
+					clusterEnv[nodeName] = {}
+				end
+
+			end
+
+
+			if data then
+			else
+
+			end
+		end
 		if not node2sIds[nodeName] then
 			-- nodeName节点，寄生在其他节点中!
 			-- 	1.judge节点可寄生在某一个user节点中

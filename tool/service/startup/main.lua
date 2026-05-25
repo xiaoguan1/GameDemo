@@ -91,6 +91,7 @@ skynet.start(function ()
 
 	_OpenLogPath()
 
-	-- print("SELF_NODE ", tool.dumptree(SELF_NODE))
-	-- print("SERVICES_CONFIG:", tool.dumptree(SERVICES_CONFIG))
+	print("SELF_NODE ", tool.dumptree(SELF_NODE))
+	print("SERVICES_CONFIG:", tool.dumptree(SERVICES_CONFIG))
+	print("ALL_SERVERID_MAP:", tool.dumptree(ALL_SERVERID_MAP))
 end)
