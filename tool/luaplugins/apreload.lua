@@ -21,9 +21,6 @@ end
 function IsCross()
 	return skynet.getenv("node") == CROSS_NODE	-- 一般跨服节点
 end
-function IsCenter()
-	return skynet.getenv("node") == CENTER_NODE	-- 中心服务节点
-end
 function IsAdhoc()
 	return skynet.getenv("node") == ADHOC_NODE	-- 中心服务节点
 end
@@ -32,3 +29,4 @@ end
 SELF_NODE = load("return " .. assert(skynet_getenv("gcluster_node")))()
 SELF_IPPORT = assert(skynet_getenv("self_ipport"))
 ALL_SERVERID_MAP = load("return " .. assert(skynet_getenv("all_serverId_map")))()
+

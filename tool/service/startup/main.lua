@@ -84,4 +84,7 @@ skynet.start(function ()
 	end
 
 	_OpenLogPath()
+
+
+	print("SERVICES_CONFIG:", tool.dumptree(SERVICES_CONFIG))
 end)

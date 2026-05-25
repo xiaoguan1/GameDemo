@@ -52,7 +52,7 @@ skynet.start(function ()
 	local self_ipport = assert(gcluster_node.self_ipport)
 	skynet.setenv("gcluster_node", tool.dumptree(gcluster_node))
 	skynet.setenv("self_ipport", self_ipport)
-	skynet.setenv("node", node)
+	skynet.setenv("node", node)	-- 该进程的节点类型
 	skynet.setenv("all_serverId_map", tool.dumptree(allServerIdMap))
 	doGamePreload()
 
@@ -80,16 +80,20 @@ skynet.start(function ()
 	-- adhoc 和 center节点服务
 	local function startOterSvr(nodeSvrSeq)
 		for _, v in ipairs(nodeSvrSeq) do
-			local nodeAddr = SELF_NODE[v.svr]
-			if nodeAddr == SELF_IPPORT then
-				local id = skynet.newservice(v.svr)
-				if not id then
-					abort(string.format("start service[%s] fail", v.svr))
+			if table.has_value(v.host_node, node) and SELF_NODE[v.svr] == SELF_IPPORT then
+				local nodeAddr = SELF_NODE[v.svr]
+				if nodeAddr == SELF_IPPORT then
+					local id = skynet.newservice(v.svr)
+					if not id then
+						abort(string.format("start service[%s] fail", v.svr))
+					end
+					skynet.name(v.named, id)
 				end
-				skynet.name(v.named, id)
 			end
 		end
 	end
 	startOterSvr(ADHOC_SERVICE_SEQ)
-	startOterSvr(CENTER_MUST_SERVICE_SEQ)
+
+
+	print("SERVICES_CONFIG:", tool.dumptree(SERVICES_CONFIG))
 end)

@@ -23,10 +23,11 @@ end
 
 	目前，cross可能会启动adhoc节点相关的服务，（某一个）user节点可能会起到 jlogin 服务
 ]]
-CROSS_NODE = "cross"	-- 普通跨服节点
 USER_NODE = "user"		-- 玩家服节点
+CROSS_NODE = "cross"	-- 普通跨服节点
 ADHOC_NODE = "adhoc"	-- 临时节点(既也可以看成普通跨服节点)
-CENTER_NODE = "center"	-- 中心节点
+
+NODE_LIST = { USER_NODE, CROSS_NODE, ADHOC_NODE, }
 
 -- cross节点必须启动的基础服务
 CROSS_MUST_SERVICE_SEQ = {
@@ -41,17 +42,17 @@ USER_MUST_SERVICE_SEQ = {
 	-- { svr = "agent", named = ".AGENT", node = USER_NODE },	-- 玩家服务
 }
 
--- 仲裁登录服务（仲裁玩家登录那个user节点）
-JLOGIN_SERVICE = { svr = "jlogin", named = ".JLOGIN", node = "jlogin" }
-
--- 中心服节点必须启动的基础服务(没想好)
-CENTER_MUST_SERVICE_SEQ = {
-	-- { svr = "....", named = "....", node = CENTER_NODE },
-}
-
 -- adhoc节点的服务。相对自由，可以在cross服启动。只要是中心服数据库设置了。
+-- host_node：宿主节点限制。以example服务为例，允许启动该服务的节点只能是 adhoc 和 cross
 ADHOC_SERVICE_SEQ = {
-	{ svr = "example", named = ".EXAMPLE", node = "example" },
+	-- example玩法
+	{ svr = "example", named = ".EXAMPLE", node = ADHOC_NODE, host_node = {CROSS_NODE}},
+
+	-- 仲裁登录服务（仲裁玩家登录那个user节点）
+	{ svr = "jlogin", named = ".JLOGIN", node = ADHOC_NODE, host_node = {USER_NODE}},
+
+	-- 中心服服务
+	-- { svr = "....", named = "....", node = ADHOC_NODE, host_node = {CROSS_NODE} },
 }
 
 
@@ -72,7 +73,6 @@ local function setServiceMap(tbl)
 end
 setServiceMap(CROSS_MUST_SERVICE_SEQ)
 setServiceMap(USER_MUST_SERVICE_SEQ)
-setServiceMap(CENTER_MUST_SERVICE_SEQ)
 setServiceMap(ADHOC_SERVICE_SEQ)
 
 -- print("SERVICES_CONFIG:", tool.dumptree(SERVICES_CONFIG))
