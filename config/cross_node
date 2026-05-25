@@ -17,11 +17,16 @@ luaservice = "./tool/service/startup/?.lua;" ..			-- 起服相关
 			"./skynet/service/?.lua;" ..				-- skynet内置服务
 			"./skynet/examples/?.lua;"
 
-lua_path = "./lualib/?.lua;" ..
+lua_path = "./game/global/?.lua;" ..
+			"./lualib/?.lua;" ..
 			"./skynet/lualib/?.lua;" ..
-			"./skynet/lualib/?/init.lua;" ..
-			"./game/global/?.lua;" ..
-			"./game/global/findpath/?.lua;"
+			"./skynet/lualib/?/init.lua;"
+
+-- lua_path = "./lualib/?.lua;" ..
+-- 			"./skynet/lualib/?.lua;" ..
+-- 			"./skynet/lualib/?/init.lua;" ..
+-- 			"./game/global/?.lua;"
+
 
 lua_cpath = "./luaclib/?.so;" ..
 			"./skynet/luaclib/?.so;" ..

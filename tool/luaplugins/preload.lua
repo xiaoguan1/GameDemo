@@ -1,11 +1,20 @@
 local skynet = require "skynet"
 require "skynet.manager"
-local posix = require "posix"
 local traceback = debug.traceback
 
-local dpcluster = skynet.getenv("gcluster_node")
-if dpcluster then
-	DPCLUSTER_NODE = load("return " .. dpcluster)()
+local self_node = skynet.getenv("gcluster_node")
+if self_node then
+	SELF_NODE = load("return " .. self_node)()
+end
+
+local self_ipport = skynet.getenv("self_ipport")
+if self_ipport then
+	SELF_IPPORT = self_ipport
+end
+
+local all_gcluster_node = skynet.getenv("all_gcluster_node")
+if all_gcluster_node then
+	ALL_GCLUSTER_NODE = load("return " .. all_gcluster_node)()
 end
 
 -- 重置随机种子
@@ -22,7 +31,7 @@ skynet.register_protocol({
 -- 容错执行函数
 local function _RetFunc(isOk, ...)
 	if not isOk then
-		print(...)	-- 缺了日志输出，暂用print代替
+		skynet.error(...)	-- 缺了日志输出，暂用skynet.error代替
 	end
 	return isOk, ...
 end

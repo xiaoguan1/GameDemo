@@ -33,8 +33,6 @@ profile_cmd = true	-- 细化指令检测
 
 preload = "tool/luaplugins/preload.lua"
 
-alogpath = "./log/main/logpath/" -- logpath 日志文件
-
 ------------------ 节点信息 ------------------
 cluster_no = 1				-- 集群编号
 server_id = 1

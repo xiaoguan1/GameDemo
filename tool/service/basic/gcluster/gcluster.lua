@@ -11,6 +11,8 @@ local pcall = pcall
 local table = table
 local tconcat = table.concat
 
+local SELF_IPPORT = SELF_IPPORT
+
 node_session2co = {}
 command = {}
 connecting = {}   -- 正在进行节点连接的事件
@@ -67,8 +69,6 @@ local function dealOvertime()
 end
 
 skynet.start(function ()
-	local SELF_IPPORT = skynet.getenv("self_ipport")
-
 	dofile "game/global/log.lua"
 
 	skynet.dispatch("lua", function (session, source, cmd, ...)

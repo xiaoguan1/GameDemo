@@ -47,7 +47,7 @@ skynet.start(function ()
 	skynet.setenv("self_ipport", self_ipport)
 	skynet.setenv("node", node)
 	skynet.setenv("all_gcluster_node", tool.dumptree(allNodeData))
-	DPCLUSTER_NODE = gcluster_node
+	SELF_NODE = gcluster_node
 	SELF_IPPORT = self_ipport
 	print("gcluster_node ", tool.dumptree(gcluster_node))
 
@@ -73,7 +73,7 @@ skynet.start(function ()
 	-- adhoc 和 center节点服务
 	local function startOterSvr(nodeSvrSeq)
 		for _, v in ipairs(nodeSvrSeq) do
-			local nodeAddr = DPCLUSTER_NODE[v.svr]
+			local nodeAddr = SELF_NODE[v.svr]
 			if nodeAddr == SELF_IPPORT then
 				local id = skynet.newservice(v.svr)
 				if not id then

@@ -14,17 +14,19 @@ function abort(msg)
 end
 
 local function _OpenLogPath()
-	local alogpath = skynet.getenv("alogpath")
+	local alogpath = skynet.getenv("alogpath") -- logpath 日志文件
 	if not alogpath then
-		local _print = _ERROR or skynet.error
-		_print("open logpath error, Please set skynet env alogpath!")
-		return
+		-- 设置alogpath
+		local node = assert(skynet.getenv("node"))
+		alogpath = "./log/" .. node .. "/logpath/"
+		skynet.setenv("alogpath", alogpath)
 	end
 
 	local logpath = skynet.getenv("logpath")
 	if not logpath then
 		local lpath = os.date("%Y-%m-%d %H-%M-%S", util.realtime())
 		lpath = alogpath .. lpath .. "/"
+		print("lpath ", lpath)
 		skynet.setenv("logpath", lpath)
 	end
 
@@ -46,7 +48,7 @@ skynet.start(function ()
 	skynet.setenv("self_ipport", self_ipport)
 	skynet.setenv("node", node)
 	skynet.setenv("all_gcluster_node", tool.dumptree(allNodeData))
-	DPCLUSTER_NODE = gcluster_node
+	SELF_NODE = gcluster_node
 	SELF_IPPORT = self_ipport
 
 	dofile "./game/global/log.lua"
@@ -68,7 +70,7 @@ skynet.start(function ()
 	end
 
 
-	if DPCLUSTER_NODE.jlogin then
+	if SELF_NODE.jlogin then
 		-- 需要在当前user节点中，代理启动jlogin服务
 		local id = skynet.newservice(JLOGIN_SERVICE.svr)
 		if not id then

@@ -20,6 +20,7 @@ local connecting = assert(connecting)
 local command = assert(command)
 local node_channel = assert(node_channel)
 local MsgPack = assert(MsgPack)
+local SELF_IPPORT = SELF_IPPORT
 
 -- 认证码
 local authYes = "1"
@@ -156,10 +157,10 @@ end
 -- node：对方节点信息（ip:port）
 -- addr：对方节点的某个服务地址 string
 function command.send(_, node, addr, prototype, msg, sz)
-	if node == DPCLUSTER_NODE.node_ipport then
+	if node == SELF_IPPORT then
 		error("send dpclsterd msg to self")
 	end
-    local request, _session, padding = ldpcluster.pack(0, DPCLUSTER_NODE.node_ipport, addr,
+    local request, _session, padding = ldpcluster.pack(0, SELF_IPPORT, addr,
 			mergePrototype(MSG_TYPE_SEND, prototype), msg, sz)
 	send(node, request, padding)
 end
@@ -170,10 +171,10 @@ end
 -- node：对方节点信息（ip:port）
 -- addr：对方节点的某个服务地址 string
 function command.call(_, overtime, node, addr, prototype, msg, sz)
-    if node == DPCLUSTER_NODE.node_ipport then
+    if node == SELF_IPPORT then
 		error("call dpulsterd msg to self")
 	end
-	local request, _session, padding = ldpcluster.pack(nil, DPCLUSTER_NODE.node_ipport, addr, _merge_prototype(MSG_TYPE_CALL, prototype), msg, sz)	-- pack接口会释放msg内存
+	local request, _session, padding = ldpcluster.pack(nil, SELF_IPPORT, addr, _merge_prototype(MSG_TYPE_CALL, prototype), msg, sz)	-- pack接口会释放msg内存
 	local sock_fd = send(node, request, padding)
 	if not sock_fd then
 		local response_func = skynet.response()

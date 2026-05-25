@@ -1,6 +1,6 @@
 local skynet = require "skynet"
 local node = skynet.getenv("node")		-- 节点类型名称
-local GCLUSTER_NODE = DPCLUSTER_NODE	-- 节点配置
+local GCLUSTER_NODE = SELF_NODE			-- 节点配置
 local SELF_IPPORT = SELF_IPPORT			-- 自己节点的网络地址
 local UNIQ_SERVICE_CFG = UNIQ_SERVICE_CFG
 

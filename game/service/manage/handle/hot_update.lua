@@ -8,7 +8,7 @@ local tempty = table.empty
 local has_value = table.has_value
 local beginswith = string.beginswith
 local endswith = string.endswith
-local SELF_IPPORT = skynet.getenv("self_ipport")
+local SELF_IPPORT = SELF_IPPORT
 
 -- 执行命令：wget -q -O - "http://127.0.0.1:40001/hot_update"
 
