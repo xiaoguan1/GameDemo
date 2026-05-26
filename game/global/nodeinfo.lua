@@ -98,8 +98,6 @@ local function getAllNodeData(db)
 				end
 				t.jlogin_id = jlogin_id	-- v是区服编号，稍后查找具体的ipport地址
 			end
-		elseif nodeName == ADHOC_NODE then
-			-- 没想好
 		else
 			return false, sformat("cluster_no[%s] server_id[%s] invalid node[%s]", cluster_no, serverId, nodeName)
 		end

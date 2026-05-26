@@ -42,6 +42,7 @@ local function doGamePreload()
 	local aPreload = assert(skynet.getenv("apreload"))
 	skynet.setenv("game_preload", aPreload)
 	dofile(aPreload)
+	BuildNamedSvr()
 end
 
 skynet.start(function ()
@@ -62,22 +63,12 @@ skynet.start(function ()
 	print("gcluster_node ", tool.dumptree(gcluster_node))
 
 	dofile "./game/global/log.lua"
-	for _, v in ipairs(UNIQ_SERVICE_SEQ) do
+	for _, v in ipairs(BASIC_SERVICE) do
 		local id = skynet.uniqueservice(v.svr)
 		if not id then
 			abort(string.format("start service[%s] fail", v.svr))
 		end
 		skynet.name(v.named, id)
-	end
-
-	if IsCross() then
-		for _, v in ipairs(CROSS_MUST_SERVICE_SEQ) do
-			local id = skynet.newservice(v.svr)
-			if not id then
-				abort(string.format("start service[%s] fail", v.svr))
-			end
-			skynet.name(v.named, id)
-		end
 	end
 
 	-- adhoc 和 center节点服务
@@ -92,8 +83,7 @@ skynet.start(function ()
 			end
 		end
 	end
-	startOterSvr(ADHOC_SERVICE_SEQ)
+	startOterSvr(ADHOC_SERVICE)
 
-
-	print("SERVICES_CONFIG:", tool.dumptree(SERVICES_CONFIG))
+	Import("game/global/rpc/rpc.lua")
 end)

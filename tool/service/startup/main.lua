@@ -40,6 +40,7 @@ local function doGamePreload()
 	local aPreload = assert(skynet.getenv("apreload"))
 	skynet.setenv("game_preload", aPreload)
 	dofile(aPreload)
+	BuildNamedSvr()
 end
 
 skynet.start(function ()
@@ -58,17 +59,8 @@ skynet.start(function ()
 	doGamePreload()
 
 	dofile "./game/global/log.lua"
-	for _, v in ipairs(UNIQ_SERVICE_SEQ) do
+	for _, v in ipairs(BASIC_SERVICE) do
 		local id = skynet.uniqueservice(v.svr)
-		if not id then
-			abort(string.format("start service[%s] fail", v.svr))
-		end
-		skynet.name(v.named, id)
-	end
-
-
-	for _, v in ipairs(USER_MUST_SERVICE_SEQ) do
-		local id = skynet.newservice(v.svr)
 		if not id then
 			abort(string.format("start service[%s] fail", v.svr))
 		end
@@ -87,11 +79,13 @@ skynet.start(function ()
 			end
 		end
 	end
-	startOterSvr(ADHOC_SERVICE_SEQ)
+	startOterSvr(ADHOC_SERVICE)
 
 	_OpenLogPath()
 
 	print("SELF_NODE ", tool.dumptree(SELF_NODE))
-	print("SERVICES_CONFIG:", tool.dumptree(SERVICES_CONFIG))
 	print("ALL_SERVERID_MAP:", tool.dumptree(ALL_SERVERID_MAP))
+	print("BASIC_SERVICE_MAP ", tool.dumptree(BASIC_SERVICE_MAP))
+	print("ADHOC_SERVICE_MAP ", tool.dumptree(ADHOC_SERVICE_MAP))
+	Import("game/global/rpc/rpc.lua")
 end)

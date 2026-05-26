@@ -27,7 +27,7 @@ if not PROXYSVR then
 	PROXYSVR = Import("game/global/rpc/proxysvr.lua")
 end
 
-local stimerld = UNIQ_SERVICE_CFG and UNIQ_SERVICE_CFG.stimer and UNIQ_SERVICE_CFG.stimer.named
+local stimerld = BASIC_SERVICE_MAP and BASIC_SERVICE_MAP.stimer and BASIC_SERVICE_MAP.stimer.named
 if not stimerld then
 	error("stimer service not localname")
 end

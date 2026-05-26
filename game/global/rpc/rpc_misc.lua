@@ -2,7 +2,7 @@ local skynet = require "skynet"
 local node = skynet.getenv("node")		-- 节点类型名称
 local GCLUSTER_NODE = SELF_NODE			-- 节点配置
 local SELF_IPPORT = SELF_IPPORT			-- 自己节点的网络地址
-local UNIQ_SERVICE_CFG = UNIQ_SERVICE_CFG
+local BASIC_SERVICE_MAP = BASIC_SERVICE_MAP
 
 local is_testserver = (skynet.getenv("is_testserver") == "true") and true or false
 
@@ -26,7 +26,7 @@ local function getClusterAddr()
 	if GCLUSTER_ADDR then
 		return GCLUSTER_ADDR
 	end
-	local named = UNIQ_SERVICE_CFG["gcluster"].named
+	local named = BASIC_SERVICE_MAP["gcluster"].named
 	GCLUSTER_ADDR = skynet.localname(named)
 	return GCLUSTER_ADDR
 end

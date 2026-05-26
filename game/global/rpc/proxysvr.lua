@@ -199,7 +199,7 @@ end
 
 -- 获取当前节点的服务代理
 -- function GetProxyByServiceName(serviceName, prototype, serverId)
--- 	local namedData = UNIQ_SERVICE_CFG[serviceName]
+-- 	local namedData = BASIC_SERVICE_MAP[serviceName]
 -- 	if namedData then
 -- 		assert(namedData.named)
 -- 		return GetProxy(namedData.named, SELF_IPPORT, prototype)
@@ -215,7 +215,6 @@ end
 function GetProxyByServiceName(serviceName, ...)
 	local count = select("#", ...)
 	local nodeName, prototype, serverId = SELF_IPPORT, "lua", host_id -- 默认值
-	-- local nodeName, prototype, serverId
 	if count == 2 then
 		-- 2个参数
 		prototype, serverId = ...
@@ -224,7 +223,7 @@ function GetProxyByServiceName(serviceName, ...)
 		nodeName, prototype, serverId = ...
 	end
 	assert(nodeName and prototype and serverId)
-	local namedData = UNIQ_SERVICE_CFG[serviceName]
+	local namedData = BASIC_SERVICE_MAP[serviceName]
 	if namedData then
 		assert(namedData.named)
 		return GetProxy(namedData.named, SELF_IPPORT, prototype)

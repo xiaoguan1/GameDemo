@@ -12,7 +12,7 @@ local node = skynet.getenv("node")
 local HEADER = "\27"
 local END_FORMAT = "\27[0m"
 local PROXYSVR = Import("game/global/rpc/proxysvr.lua")
-local GAMELOG_SVR = PROXYSVR.GetProxyByServiceName("gamelog")
+local GAMELOG_SVR = false
 local tpack = table.pack
 
 -- 是否为测试服
@@ -124,6 +124,9 @@ local function LogToFile(pfile, level, ...)
 	local arg = tpack(...)
 	for i = 1, arg.n do
 		arg[i] = tostring(arg[i])
+	end
+	if not GAMELOG_SVR then
+		GAMELOG_SVR = PROXYSVR.GetProxyByServiceName("gamelog")
 	end
 	GAMELOG_SVR.send.writelog(pfile, level, tconcat(arg, " "))
 end

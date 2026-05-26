@@ -234,7 +234,7 @@ end
 -- end
 
 function GetProxyByServiceName(serviceName, prototype, serverId)
-	local namedData = UNIQ_SERVICE_CFG[serviceName]
+	local namedData = BASIC_SERVICE_MAP[serviceName]
 	if namedData then
 		assert(namedData.named)
 		return GetProxy(namedData.named, selfnode_name, prototype)

@@ -2,6 +2,8 @@ local skynet = require "skynet"
 local RPCTIMEOUT_CHECKTIME = 200
 local os_time = os.time
 local sfind = string.find
+local table = table
+local thas_value = table.has_value
 local RPCTIMEOUT_SEC = 2
 local MEAT_READONLY = {__newindex = function (t, k, v)
 	error("read only")
@@ -14,14 +16,14 @@ local ALL_SERVERID_MAP = assert(ALL_SERVERID_MAP)
 local SELF_NODE = assert(SELF_NODE)
 local SELF_IPPORT = assert(SELF_IPPORT)
 local NODE_LIST = NODE_LIST
-local SERVICES_CONFIG = SERVICES_CONFIG
+local ADHOC_SERVICE_MAP = assert(ADHOC_SERVICE_MAP)
 
--- mod_call = {}
+mod_call = {}
 -- mod_send = {}
 
--- local function ModCall()
+local function ModCall()
 	
--- end
+end
 
 -- local function ModSend()
 	
@@ -45,44 +47,32 @@ local SERVICES_CONFIG = SERVICES_CONFIG
 -- end
 
 -- 全局集群环境
+local nodeAddrEnv = {}
 local function loadClutserEnv()
-	local clusterEnv = {}
-	local node2sIds = {}
 	for serverId, data in pairs(ALL_SERVERID_MAP) do
-		if not node2sIds[data.node] then
-			node2sIds[data.node] = {}
-		end
-		assert(not node2sIds[data.node][serverId])
-		node2sIds[data.node][serverId] = data
-	end
-	for nodeName, serviceList in pairs(SERVICES_CONFIG) do
-		for serviceName, config in pairs(serviceList) do
-			for serverId, data in pairs(node2sIds[nodeName] or {}) do
-				clusterEnv[nodeName] = clusterEnv[nodeName] or {}
-				clusterEnv[nodeName][serverId] = clusterEnv[nodeName][serverId] or {}
-				
-			end
-			local data = node2sIds[nodeName]
-			if data then
-				if not clusterEnv[nodeName] then
-					clusterEnv[nodeName] = {}
+		local node = data.node	-- 进程的节点身份
+		for svrName, cfg in pairs(ADHOC_SERVICE_MAP) do
+			if data[svrName] and
+				(not cfg.host_node or (cfg.host_node and thas_value(cfg.host_node, node)))
+			then
+				if cfg.unique then
+					nodeAddrEnv[cfg.node] = data.self_ipport
+				else
+					if not nodeAddrEnv[cfg.node] then
+						nodeAddrEnv[cfg.node] = {}
+					end
+					nodeAddrEnv[cfg.node][serverId] = data.self_ipport
 				end
-
-			end
-
-
-			if data then
-			else
-
 			end
 		end
-		if not node2sIds[nodeName] then
-			-- nodeName节点，寄生在其他节点中!
-			-- 	1.judge节点可寄生在某一个user节点中
-			-- 	2.center和adhoc节点可寄生在cross节点中
-			
+		if node == CROSS_NODE or node == USER_NODE then
+			if not nodeAddrEnv[node] then
+				nodeAddrEnv[node] = {}
+			end
+			nodeAddrEnv[node][serverId] = data.self_ipport
 		end
 	end
+	print("nodeAddrEnv ", tool.dumptree(nodeAddrEnv))
 end
 
 function __init__()
@@ -98,7 +88,7 @@ function __init__()
 	-- 	end
 	-- end)
 
-
+	loadClutserEnv()
 
 
 
