@@ -56,55 +56,51 @@ local function getAllNodeData(db)
 	end
 
 	-- print("res ", tool.dumptree(dbRes))
-	local clusterData = {}
+	local serverConfig = {}
+	local serviceNode = {}
 	for _, data in ipairs(dbRes) do
 		local serverId = data.server_id
-		if not serverId or serverId <= 0 or clusterData[serverId] then
+		if not serverId or serverId <= 0 or serverConfig[serverId] then
 			return false, sformat("cluster_no[%s] repeated server_id[%s]", cluster_no, serverId)
 		end
 		local nodeName = data.node_name
+		local startService = {}
 		local t = {
 			node = nodeName,
 			self_ipport = data.ipport,
+			jlogin_ipport = data.jlogin_ipport ~= "" and data.jlogin_ipport or nil,
+			start_service = startService,
 		}
-		clusterData[serverId] = t
+		serverConfig[serverId] = t
 
-		if nodeName == CROSS_NODE then
-			-- 普通跨服节点
-			for key, v in pairs(data) do
-				local sIdx, eIdx = string.find(key, "is_start_")
-				if sIdx and eIdx then
-					local service = string.sub(key, eIdx + 1)
-					if v == 1 then
-						t[service] = data.ipport
-					else
-						if v <= 0 then
-							return false, sformat("cluster_no[%s] server_id[%s] %s %s invalid", cluster_no, serverId, key, v)
-						end
-						t[service] = v	-- v是区服编号，稍后查找具体的ipport地址
+		for _, cfg in pairs(ADHOC_SERVICE) do
+			if table.has_value(cfg.host_node, nodeName) then
+				local isStart = data["is_start_" .. cfg.svr] == 1
+				if isStart then
+					startService[cfg.svr] = data.ipport	-- 感觉设置1或者true没有任何实际用途，故设置网络地址
+				end
+				local identity = string.format("%s@%s_%s", nodeName, cluster_no, serverId)
+				if cfg.unique then
+					if serviceNode[cfg.svr] then
+						return false, sformat("cluster_no[%s] server_id[%s] repeated [%s]", cluster_no, serverId, cfg.svr)
 					end
+					serviceNode[cfg.svr] = identity
+				else
+					if not serviceNode[cfg.svr] then
+						serviceNode[cfg.svr] = {}
+					end
+					if serviceNode[cfg.svr][serverId] then
+						return false, sformat("cluster_no[%s] server_id[%s] repeated [%s]", cluster_no, serverId, cfg.svr)
+					end
+					serviceNode[cfg.svr][serverId] = identity
 				end
 			end
-		elseif nodeName == USER_NODE then
-			-- 玩家服节点
-			local host, port = string.match(data.jlogin_ipport, "([^:]+):(.+)$")
-			if host and port then
-				t.jlogin = data.ipport
-				t.jlogin_ipport = data.jlogin_ipport
-			else
-				local jlogin_id = tonumber(data.jlogin_ipport)
-				if not jlogin_id or jlogin_id <= 0 then
-					return false, sformat("cluster_no[%s] server_id[%s] jlogin_ipport[%s] invalid", cluster_no, serverId, data.jlogin_ipport)
-				end
-				t.jlogin_id = jlogin_id	-- v是区服编号，稍后查找具体的ipport地址
-			end
-		else
-			return false, sformat("cluster_no[%s] server_id[%s] invalid node[%s]", cluster_no, serverId, nodeName)
 		end
 	end
-	-- print("clusterData ", tool.dumptree(clusterData))
+	-- print("serverConfig ", tool.dumptree(serverConfig))
+	-- print("svr2node ", tool.dumptree(serviceNode))
 
-	return clusterData
+	return serverConfig, serviceNode
 end
 
 -- 注意：里面有协程的，会阻塞当前协程，需要处理重入问题

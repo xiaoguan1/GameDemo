@@ -13,7 +13,7 @@ end}
 local PROXYSVR = Import("game/global/rpc/proxysvr.lua")
 
 local node = assert(skynet.getenv("node")) -- 该进程的节点类型
-local ALL_SERVERID_MAP = assert(ALL_SERVERID_MAP)
+local SERVERID_CONFIG = assert(SERVERID_CONFIG)
 local SELF_NODE = assert(SELF_NODE)
 local SELF_IPPORT = assert(SELF_IPPORT)
 local NODE_LIST = NODE_LIST
@@ -114,9 +114,9 @@ end
 -- 全局集群环境
 local nodeAddrEnv = {}
 local function loadClutserEnv()
-	for serverId, data in pairs(ALL_SERVERID_MAP) do
+	for serverId, data in pairs(SERVERID_CONFIG) do
 		local node = data.node	-- 进程的节点身份
-		for svrName, cfg in pairs(ADHOC_SERVICE_MAP) do
+		for svrName, cfg in pairs(SERVERID_CONFIG) do
 			if data[svrName] and
 				(not cfg.host_node or (cfg.host_node and thas_value(cfg.host_node, node)))
 			then

@@ -9,7 +9,7 @@ local error = error
 local type = type
 
 local SELF_IPPORT = assert(SELF_IPPORT)
-local ALL_SERVERID_MAP = ALL_SERVERID_MAP
+local SERVERID_CONFIG = SERVERID_CONFIG
 local host_id = tonumber(assert(skynet.getenv("server_id")))
 
 local RPC_MISC = Import("game/global/rpc/rpc_misc.lua")
@@ -238,11 +238,11 @@ function GetProxyByServiceName(serviceName, ...)
 end
 
 function GetIpport(serverId)
-	return ALL_SERVERID_MAP[serverId] and
-			ALL_SERVERID_MAP[serverId].self_ipport
+	return SERVERID_CONFIG[serverId] and
+			SERVERID_CONFIG[serverId].self_ipport
 end
 
 function GetNodeName(serverId)
-	return ALL_SERVERID_MAP[serverId] and
-			ALL_SERVERID_MAP[serverId].node
+	return SERVERID_CONFIG[serverId] and
+			SERVERID_CONFIG[serverId].node
 end

@@ -253,8 +253,9 @@ CREATE TABLE server_config (
 	node_name varchar(32) not null comment '节点类型名称',
 
 	ipport varchar(32) not null comment '监听地址',
-	jlogin_ipport varchar(32) not null comment '仲裁登录服务',
+	jlogin_ipport varchar(32) not null comment '仲裁登录服务地址',
 
+	is_start_jlogin int unsigned not null comment '是否开启仲裁登录服务',
 	is_start_display int unsigned not null comment '启动display',
 	is_start_example int unsigned not null comment '启动玩法A',
 	is_start_center int unsigned not null comment '是否开启跨服中心服(开启则具有中心服节点身份)',

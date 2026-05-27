@@ -24,7 +24,7 @@ end
 
 
 
-SELF_NODE = load("return " .. assert(skynet_getenv("gcluster_node")))()
+SELF_NODE = load("return " .. assert(skynet_getenv("host_config")))()
 SELF_IPPORT = assert(skynet_getenv("self_ipport"))
-ALL_SERVERID_MAP = load("return " .. assert(skynet_getenv("all_serverId_map")))()
-
+SERVERID_CONFIG = load("return " .. assert(skynet_getenv("serverId_config")))()
+SERVICE_CLUSTERNAME = load("return " .. assert(skynet_getenv("service_clustername")))()

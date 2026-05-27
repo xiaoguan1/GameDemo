@@ -47,20 +47,22 @@ end
 
 skynet.start(function ()
 	local nodeInfo = Import("game/global/nodeInfo.lua")
-	local allServerIdMap, errMsg = nodeInfo.GetAllNodeData()
-	if not allServerIdMap then
-		abort(errMsg)
+	local serverConfig, serviceNode = nodeInfo.GetAllNodeData()
+	if not serverConfig then
+		abort(serviceNode)
 	end
-	local gcluster_node = assert(allServerIdMap[host_id])
-	local node = assert(gcluster_node.node)
-	local self_ipport = assert(gcluster_node.self_ipport)
-	skynet.setenv("gcluster_node", tool.dumptree(gcluster_node))
-	skynet.setenv("self_ipport", self_ipport)
+	local host_config = assert(serverConfig[host_id])
+	local node = assert(host_config.node)
+	local self_ipport = assert(host_config.self_ipport)
+
+	skynet.setenv("host_config", tool.dumptree(host_config))
 	skynet.setenv("node", node)	-- 该进程的节点类型
-	skynet.setenv("all_serverId_map", tool.dumptree(allServerIdMap))
+	skynet.setenv("self_ipport", self_ipport)
+	skynet.setenv("serverId_config", tool.dumptree(serverConfig))
+	skynet.setenv("service_clustername", tool.dumptree(serviceNode))
 	doGamePreload()
 
-	print("gcluster_node ", tool.dumptree(gcluster_node))
+	print("serverId_config ", tool.dumptree(serverConfig))
 
 	dofile "./game/global/log.lua"
 	for _, v in ipairs(BASIC_SERVICE) do
@@ -71,10 +73,10 @@ skynet.start(function ()
 		skynet.name(v.named, id)
 	end
 
-	-- adhoc 和 center节点服务
+	local startService = host_config.start_service
 	local function startOterSvr(nodeSvrSeq)
 		for _, v in ipairs(nodeSvrSeq) do
-			if thas_value(v.host_node, node) and SELF_NODE[v.svr] == SELF_IPPORT then
+			if startService[v.svr] == SELF_IPPORT then
 				local id = skynet.newservice(v.svr)
 				if not id then
 					abort(string.format("start service[%s] fail", v.svr))
