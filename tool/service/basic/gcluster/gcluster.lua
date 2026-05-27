@@ -1,6 +1,6 @@
 
 local skynet = require "skynet"
-local node = skynet.getenv("node")
+local node = assert(skynet.getenv("node"))
 local string = string
 local sformat = string.format
 
@@ -20,14 +20,16 @@ connecting = {}   -- 正在进行节点连接的事件
 node_channel = {}	-- 本节点主动连接其他节点的数据缓存
 accept_fd = {}		-- 外部节点主动连接本节点的数据缓存
 
-gate_fdx = false	-- gate_fdx服务的地址
+CLUSTER_GATE = false	-- 网关服务的地址
+
+NODE_IP_MAP = false
 
 function SyncGate(isCall, ...)
-	assert(gate_fdx)
+	assert(CLUSTER_GATE)
 	if isCall then
-		return skynet.call(gate_fdx, "lua", ...)
+		return skynet.call(CLUSTER_GATE, "lua", ...)
 	else
-		skynet.send(gate_fdx, "lua", ...)
+		skynet.send(CLUSTER_GATE, "lua", ...)
 	end
 end
 
@@ -79,11 +81,11 @@ skynet.start(function ()
 	Ghelper = Import("tool/service/basic/gcluster/gcluster_helper.lua")
 	setmetatable(node_channel, { __index = Ghelper.OpenChannel })
 
-	gate_fdx = skynet.newservice("gcluster_gate", skynet.self())
+	CLUSTER_GATE = skynet.newservice("gcluster_gate", skynet.self())
 
 	-- 暂时调试
 	if node ~= "user" then
-		nodeListen(SELF_IPPORT)		-- 开启当前节点 gate_fdx
+		nodeListen(SELF_IPPORT)		-- 开启当前节点 CLUSTER_GATE
 	else
 		local t = GetNodeChannel("127.0.0.1:32527", true)
 		print("t ", tool.dumptree(t))

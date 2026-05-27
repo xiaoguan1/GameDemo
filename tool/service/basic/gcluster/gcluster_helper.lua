@@ -8,6 +8,8 @@ local pairs = pairs
 local type = type
 local string = string
 
+local ALL_SERVERID_MAP = assert(ALL_SERVERID_MAP) --集群环境
+
 local MSG_TYPE_SEND = 1 -- 异步发消息类型
 local MSG_TYPE_CALL = 2 -- 同步发消息类型
 local MSG_TYPE_MAX = 0xff
@@ -250,4 +252,27 @@ end
 
 function command.kick()
 	-- 主动关闭socket链接(粗暴的方式关闭)
+end
+
+
+local function loadNodeIpMap()
+	NODE_IP_MAP = {}
+	for serverId, data in pairs(ALL_SERVERID_MAP) do
+		if not NODE_IP_MAP[data.node] then
+			NODE_IP_MAP[data.node] = {}
+		end
+		if NODE_IP_MAP[data.node][serverId] then
+			_ERROR_F("cluster_no[%s] server_id[%s] repeat!!!", data.node, serverId)
+		end
+		NODE_IP_MAP[data.node][serverId] = data.self_ipport
+	end
+end
+
+-- 加载和热更的回调方法
+function __init__()
+	loadNodeIpMap()
+end
+
+function __update__()
+	loadNodeIpMap()
 end

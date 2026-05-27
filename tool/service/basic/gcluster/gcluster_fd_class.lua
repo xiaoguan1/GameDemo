@@ -30,6 +30,7 @@ local authCode = MsgPack(gcluster_auths)
 local authYesCode = MsgPack(authYes)
 local authNoCode = MsgPack(authNo)
 
+-- 格式：节点名称@集群编号_区服编号
 local clusterName = sformat("%s@%s_%s", node, clusterNo, serverId)
 local clusterNameCode = MsgPack(clusterName)	-- 在集群中自己的节点名称别名
 
