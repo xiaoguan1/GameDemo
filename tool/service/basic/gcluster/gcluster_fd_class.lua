@@ -3,7 +3,9 @@
 ----------------------------------
 
 local skynet = require "skynet"
-local node = skynet.getenv("node") -- 节点类型名称(main、cross、center、其他)
+local clusterNo = assert(assert(skynet.getenv("cluster_no")))
+local node = assert(skynet.getenv("node")) -- 节点类型名称(user、cross、其他)
+local serverId = assert(skynet.getenv("server_id"))
 local is_testserver = skynet.getenv("is_testserver") == "test"
 
 local driver = require "skynet.socketdriver"
@@ -19,12 +21,18 @@ local sformat = string.format
 
 local MsgPack = assert(MsgPack)
 
-authYes = false
-authNo = false
-gcluster_auths = false
-authYesCode = false
-authNoCode = false
 socket_err = false
+
+local authYes = "1"
+local authNo = "0"
+local gcluster_auths = assert(skynet.getenv("gcluster_auths"))
+local authCode = MsgPack(gcluster_auths)
+local authYesCode = MsgPack(authYes)
+local authNoCode = MsgPack(authNo)
+
+local clusterName = sformat("%s@%s_%s", node, clusterNo, serverId)
+local clusterNameCode = MsgPack(clusterName)	-- 在集群中自己的节点名称别名
+
 
 -- 认证状态类型
 local AUTH_STATIUS_DO 		= 1		-- 主动做认证（把本节点的认证码发送给对端）
@@ -43,6 +51,7 @@ function FdClass:init(fd, extData)
 
 	local o = {
 		create_time = os_time(),
+		node_name = nil,	-- 节点名称
 	}
 
 	-- 设置验证状态
@@ -110,7 +119,7 @@ function FdClass:is_auth_do()
 end
 
 -- 主动做认证操作
-function FdClass:do_auth(msg)
+function FdClass:do_auth()
 	local authStatus = self.auth
 	if not self:is_auth_do() then
 		return authStatus
@@ -124,6 +133,8 @@ function FdClass:do_auth(msg)
 	else
 		self.auth_coroutine = co
 		self.auth_waitcoroutine = {}
+
+		local msg = MsgPack(authCode .. clusterNameCode)
 		if not socket_write(fd, msg) then -- 发送认证码
 			socket_err(self)
 		end
@@ -161,11 +172,24 @@ function FdClass:deal_auth(msg)
 	end
 
 	if self:is_auth_wait() then
-		-- 接收认证码，进行比对
-		local response
-		if msg == gcluster_auths then
-			self.auth = AUTH_STATIUS_YES
-			response = authYesCode
+		local authIdx2, authIdx1 = string.unpack(">I2", msg)
+		local clientAuth = string.sub(msg, authIdx1, authIdx1 + authIdx2 - 1)	-- 客户端发来的认证码
+
+		local response, clientName
+		-- 比对认证码
+		if clientAuth == gcluster_auths then
+			local msg1 = msg:sub(authIdx1 + authIdx2)
+			local nameIdx2, nameIdx1 = string.unpack(">I2", msg1)
+			clientName = string.sub(msg1, nameIdx1, nameIdx1 + nameIdx2 - 1)	-- 客户端的节点名
+
+			if string.find(clientName, "@") then
+				self.node_name = clientName
+				self.auth = AUTH_STATIUS_YES
+				response = MsgPack(authYesCode .. clusterNameCode)
+			else
+				self.auth = AUTH_STATIUS_NO
+				response = authNoCode
+			end
 		else
 			self.auth = AUTH_STATIUS_NO
 			response = authNoCode
@@ -187,8 +211,21 @@ function FdClass:deal_auth(msg)
 		end
 	elseif self:is_auth_do() then
 		-- 认证码的比对结果
-		if msg == authYes then
-			self.auth = AUTH_STATIUS_YES
+		local authIdx2, authIdx1 = string.unpack(">I2", msg)
+		local serverAuth = string.sub(msg, authIdx1, authIdx1 + authIdx2 - 1)	-- 服务端发来的认证码
+
+		local serverName
+		if serverAuth == authYes then
+			local msg1 = msg:sub(authIdx1 + authIdx2)
+			local nameIdx2, nameIdx1 = string.unpack(">I2", msg1)
+			serverName = string.sub(msg1, nameIdx1, nameIdx1 + nameIdx2 - 1)	-- 服务端的节点名
+
+			if string.find(serverName, "@") then
+				self.auth = AUTH_STATIUS_YES
+				self.node_name = serverName
+			else
+				self.auth = AUTH_STATIUS_NO
+			end
 		else
 			self.auth = AUTH_STATIUS_NO
 		end

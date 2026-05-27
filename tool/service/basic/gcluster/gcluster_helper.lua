@@ -23,20 +23,9 @@ local MsgPack = assert(MsgPack)
 local SELF_IPPORT = SELF_IPPORT
 
 -- 认证码
-local authYes = "1"
-local authNo = "0"
-local gcluster_auths = assert(skynet.getenv("gcluster_auths"))
-local authCode = MsgPack(gcluster_auths)
-local authYesCode = MsgPack(authYes)
-local authNoCode = MsgPack(authNo)
 
 -- fd的类
 local FdClass = Import("tool/service/basic/gcluster/gcluster_fd_class.lua")
-FdClass.authYes = authYes
-FdClass.authNo = authNo
-FdClass.gcluster_auths = gcluster_auths
-FdClass.authYesCode = authYesCode
-FdClass.authNoCode = authNoCode
 
 ----- 局部方法 ------------------------------
 
@@ -135,7 +124,7 @@ function OpenChannel(t, key)           -- key可以为node名字也可以直接�
 	if fd then
 		local fdObj = FdClass.FdClass:init(fd, {auth = true, address = key})
 		ct.pre_channel = fdObj
-		fdObj:do_auth(authCode)
+		fdObj:do_auth()
 		ct.pre_channel = nil
 		if fdObj:is_auth_yes() then
 			rawset(t, key, fdObj)
