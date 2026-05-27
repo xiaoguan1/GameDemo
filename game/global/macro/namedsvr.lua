@@ -53,7 +53,7 @@ ADHOC_SERVICE_MAP = false
 -- 构建当前进程节点的基础服务映射
 function BuildNamedSvr()
 	-- 根据进程节点，构建基础服务配置
-	local node = skynet.getenv("node")
+	local node = assert(skynet.getenv("node"))
 	BASIC_SERVICE_MAP = {}
 	if node == USER_NODE then
 		for _, v in ipairs(USER_BASIC_SERVICE) do

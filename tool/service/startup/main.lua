@@ -87,5 +87,9 @@ skynet.start(function ()
 	print("ALL_SERVERID_MAP:", tool.dumptree(ALL_SERVERID_MAP))
 	print("BASIC_SERVICE_MAP ", tool.dumptree(BASIC_SERVICE_MAP))
 	print("ADHOC_SERVICE_MAP ", tool.dumptree(ADHOC_SERVICE_MAP))
-	Import("game/global/rpc/rpc.lua")
+	RPC = Import("game/global/rpc/rpc.lua")
+
+	RPC.mod_call.display["127.0.0.1:11111"].moduleName.funcName(1,2, 3, "4444a")
+
+	RPC.mod_call.display.moduleName.funcName(111,4444, 3, "4444a")
 end)

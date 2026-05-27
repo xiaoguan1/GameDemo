@@ -2,6 +2,7 @@ local skynet = require "skynet"
 local RPCTIMEOUT_CHECKTIME = 200
 local os_time = os.time
 local sfind = string.find
+local sformat = string.format
 local table = table
 local thas_value = table.has_value
 local RPCTIMEOUT_SEC = 2
@@ -17,12 +18,76 @@ local SELF_NODE = assert(SELF_NODE)
 local SELF_IPPORT = assert(SELF_IPPORT)
 local NODE_LIST = NODE_LIST
 local ADHOC_SERVICE_MAP = assert(ADHOC_SERVICE_MAP)
+local BASIC_SERVICE_MAP = assert(BASIC_SERVICE_MAP)
 
 mod_call = {}
 -- mod_send = {}
 
-local function ModCall()
-	
+
+
+
+local function initModCall()
+	local cache1 = {}
+	local cache2 = {}
+
+	local scache1 = {}
+
+	for _, serviceMap in pairs({BASIC_SERVICE_MAP, ADHOC_SERVICE_MAP}) do
+		for svr, data in pairs(serviceMap) do
+			if not mod_call[svr] then
+				mod_call[svr] =  setmetatable({}, {
+					__index = function (_, modOraddr)
+						if string.find(modOraddr, ":") then
+							-- 网络地址
+							local ipportAddr = modOraddr
+							if not cache1[ipportAddr] then
+								cache1[ipportAddr] = setmetatable({}, {
+									__index = function (_, modName)
+										if not cache2[modName] then
+											cache2[modName] = setmetatable({}, {
+												__index = function (_, funcName)
+													-- PROXYSVR.
+													return print
+												end,
+												__newindex = function (_, k, v)
+													error(sformat("not modify. key[%s] value[%s]", k, v))
+												end,
+											})
+										end
+										return cache2[modName]
+									end,
+									__newindex = function (_, k, v)
+										error(sformat("not modify. key[%s] value[%s]", k, v))
+									end,
+								})
+							end
+							return cache1[ipportAddr]
+
+						else
+							-- 本地服务
+							local modName = modOraddr
+							local ipportAddr = SELF_IPPORT
+							if not scache1[modName] then
+								scache1[modName] = setmetatable({}, {
+									__index = function (_, funcName)
+										-- PROXYSVR.
+										return print
+									end,
+									__newindex = function (_, k, v)
+										error(sformat("not modify. key[%s] value[%s]", k, v))
+									end,
+								})
+							end
+							return scache1[modName]
+						end
+					end,
+					__newindex = function (_, k, v)
+						error(sformat("not modify. key[%s] value[%s]", k, v))
+					end,
+				})
+			end
+		end
+	end
 end
 
 -- local function ModSend()
@@ -89,7 +154,7 @@ function __init__()
 	-- end)
 
 	loadClutserEnv()
-
+	initModCall()
 
 
 end
