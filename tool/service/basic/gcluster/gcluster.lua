@@ -11,7 +11,8 @@ local pcall = pcall
 local table = table
 local tconcat = table.concat
 
-local SELF_IPPORT = SELF_IPPORT
+local SELF_IPPORT = assert(SELF_IPPORT)
+local SERVERID_CONFIG = assert(SERVERID_CONFIG) --集群环境
 
 node_session2co = {}
 command = {}
@@ -22,6 +23,7 @@ accept_fd = {}		-- 外部节点主动连接本节点的数据缓存
 
 CLUSTER_GATE = false	-- 网关服务的地址
 
+CLUSTER_FMT = "^(%a+)@(%d+)_(%d+)$"
 NODE_IP_MAP = false
 
 function SyncGate(isCall, ...)
@@ -44,6 +46,32 @@ end
 -- 消息打包
 function MsgPack(msg)
 	return tconcat({string.pack(">I2", msg:len()), msg})
+end
+
+function LoadNodeIpMap()
+	NODE_IP_MAP = {}
+	for serverId, cfg in pairs(SERVERID_CONFIG) do
+		if not NODE_IP_MAP[cfg.node] then
+			NODE_IP_MAP[cfg.node] = {}
+		end
+		if NODE_IP_MAP[cfg.node][serverId] then
+			_ERROR_F("cluster_no[%s] server_id[%s] repeat!!!", cfg.node, serverId)
+		end
+		NODE_IP_MAP[cfg.node][serverId] = cfg.self_ipport
+	end
+	-- print("NODE_IP_MAP", tool.dumptree(NODE_IP_MAP))
+end
+
+-- 解析集群节点名称
+function GetClusterAddr(clusterName)
+	if not clusterName then
+		return
+	end
+	local node, clusterNo, serverId = string.match(clusterName, CLUSTER_FMT)
+	if node and serverId then
+		serverId = tonumber(serverId)
+		return NODE_IP_MAP[node] and NODE_IP_MAP[node][serverId]
+	end
 end
 
 -- 开启当前节点监听
@@ -78,18 +106,19 @@ skynet.start(function ()
 		f(source, ...)
 	end)
 
+	LoadNodeIpMap()
 	Ghelper = Import("tool/service/basic/gcluster/gcluster_helper.lua")
 	setmetatable(node_channel, { __index = Ghelper.OpenChannel })
 
 	CLUSTER_GATE = skynet.newservice("gcluster_gate", skynet.self())
 
 	-- 暂时调试
+	nodeListen(SELF_IPPORT)		-- 开启当前节点 CLUSTER_GATE
 	if node ~= "user" then
-		nodeListen(SELF_IPPORT)		-- 开启当前节点 CLUSTER_GATE
+		-- nodeListen(SELF_IPPORT)		-- 开启当前节点 CLUSTER_GATE
 	else
-		local t = GetNodeChannel("127.0.0.1:32527", true)
+		local t = GetNodeChannel("cross@1_55001", true)
 		print("t ", tool.dumptree(t))
 	end
 	skynet.timeout(0, dealOvertime)
-
 end)

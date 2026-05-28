@@ -20,6 +20,7 @@ local string = string
 local sformat = string.format
 
 local MsgPack = assert(MsgPack)
+local CLUSTER_FMT = assert(CLUSTER_FMT)
 
 socket_err = false
 
@@ -52,7 +53,6 @@ function FdClass:init(fd, extData)
 
 	local o = {
 		create_time = os_time(),
-		node_name = nil,	-- 节点名称
 	}
 
 	-- 设置验证状态
@@ -183,8 +183,8 @@ function FdClass:deal_auth(msg)
 			local nameIdx2, nameIdx1 = string.unpack(">I2", msg1)
 			clientName = string.sub(msg1, nameIdx1, nameIdx1 + nameIdx2 - 1)	-- 客户端的节点名
 
-			if string.find(clientName, "@") then
-				self.node_name = clientName
+			if string.match(clientName, CLUSTER_FMT) then
+				self.cluster_name = clientName
 				self.auth = AUTH_STATIUS_YES
 				response = MsgPack(authYesCode .. clusterNameCode)
 			else
@@ -201,7 +201,7 @@ function FdClass:deal_auth(msg)
 		connecting[self.address] = nil
 		if self:is_auth_yes() then
 			ct.channel = self
-			rawset(node_channel, self.address, self)
+			rawset(node_channel, self.cluster_name, self)
 			skynet.error(sformat("gcluster scoket:%s auth succeed, from address:%s", self.fd, self.address))
 		end
 		for _, co in ipairs(ct.co) do
@@ -221,9 +221,8 @@ function FdClass:deal_auth(msg)
 			local nameIdx2, nameIdx1 = string.unpack(">I2", msg1)
 			serverName = string.sub(msg1, nameIdx1, nameIdx1 + nameIdx2 - 1)	-- 服务端的节点名
 
-			if string.find(serverName, "@") then
+			if string.match(serverName, CLUSTER_FMT) and self.cluster_name == serverName then
 				self.auth = AUTH_STATIUS_YES
-				self.node_name = serverName
 			else
 				self.auth = AUTH_STATIUS_NO
 			end

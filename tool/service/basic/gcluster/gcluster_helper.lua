@@ -8,8 +8,6 @@ local pairs = pairs
 local type = type
 local string = string
 
-local SERVERID_CONFIG = assert(SERVERID_CONFIG) --集群环境
-
 local MSG_TYPE_SEND = 1 -- 异步发消息类型
 local MSG_TYPE_CALL = 2 -- 同步发消息类型
 local MSG_TYPE_MAX = 0xff
@@ -21,8 +19,9 @@ local node_session2co = assert(node_session2co)
 local connecting = assert(connecting)
 local command = assert(command)
 local node_channel = assert(node_channel)
-local MsgPack = assert(MsgPack)
-local SELF_IPPORT = SELF_IPPORT
+local GetClusterAddr = assert(GetClusterAddr)
+
+local SELF_IPPORT = assert(SELF_IPPORT)
 
 -- 认证码
 
@@ -56,7 +55,6 @@ local function send(node, request, padding)
     c:request(request, nil, padding, true)	-- 都不用 lwrite
     return c:sockfd()
 end
-
 
 ----- 全局方法 ------------------------------
 function SocketErr(address, isPassive)
@@ -106,8 +104,13 @@ function DealResponse(session, ok, msg, sz)
 	response_data[2](ok, msg, sz)
 end
 
-function OpenChannel(t, key)           -- key可以为node名字也可以直接是ip:port
-	local ct = connecting[key]
+function OpenChannel(t, clusterName)           -- key集群名称（例：cross@1_55001）
+	local address = GetClusterAddr(clusterName)
+	if not address then
+		error(string.format("%s not find address", clusterName))
+	end
+	assert(not connecting[address])
+	local ct = connecting[clusterName]
 	if ct then
 		local co = coroutine.running()
 		table.insert(ct.co, co)
@@ -117,31 +120,39 @@ function OpenChannel(t, key)           -- key可以为node名字也可以直接�
 	ct = {
 		co = {},
 		channel = nil,-- 已完成认证的fd对象
+		address = address,	-- 网络地址(ip:port)
+		clusterName = clusterName,
 
 		-- 未完成认证的fd对象(socket消息处理需要临时使用到该对象数据)
 		pre_channel = nil,
 	}
-	connecting[key] = ct
-	local fd = SyncGate(true, "connect", key)
+	connecting[clusterName] = ct
+	connecting[address] = ct	-- 映射作用
+	local fd = SyncGate(true, "connect", address)
 	if fd then
-		local fdObj = FdClass.FdClass:init(fd, {auth = true, address = key})
+		local fdObj = FdClass.FdClass:init(fd, {
+				auth = true,
+				address = address,
+				cluster_name = clusterName,
+			})
 		ct.pre_channel = fdObj
 		fdObj:do_auth()
 		ct.pre_channel = nil
 		if fdObj:is_auth_yes() then
-			rawset(t, key, fdObj)
+			rawset(t, clusterName, fdObj)
 			ct.channel = fdObj
 		else
-			skynet.error(string.format("%s auth fail!", key))
+			skynet.error(string.format("%s auth fail!", clusterName))
 		end
 	end
-	connecting[key] = nil
+	connecting[clusterName] = nil
+	connecting[address] = nil
 	for _, co in ipairs(ct.co) do
 		skynet.wakeup(co)
 	end
-	assert(rawget(t, key), key .. " connect fail")
-	skynet.error("gclusterd succeed connect", key)
-	return t[key]
+	assert(rawget(t, clusterName), clusterName .. " connect fail")
+	skynet.error("gclusterd succeed connect", clusterName)
+	return t[clusterName]
 end
 
 -- 异步发消息
@@ -204,8 +215,12 @@ function command.socket(source, subcmd, fd, ...)
 		end
 
 		-- 仅仅只是完成了网络上的连接，未进行认证处理。先放在connecting，不设置node_channel(若设置，则有可能未认证而被使用)
+		-- 并且也不知道该网络地址address，是哪一个节点的(即cluster_name)
 		connecting[address] = {
 			co = {},
+			channel = nil,
+			address = address,
+			clusterName = nil,
 			pre_channel = FdClass.FdClass:init(fd, {address = address}),
 		}
 		skynet.error(string.format("gclusterd socket accept from %s succeed", address))
@@ -219,14 +234,14 @@ function command.socket(source, subcmd, fd, ...)
 		local channelObj = GetNodeChannel(address)
 		if not channelObj then
 			channelObj = connecting[address] and connecting[address].pre_channel
-			if not channelObj then
+			 if not channelObj then
 				SyncGate(false, "close_connect", fd)
-				skynet.error(string.format("not find nodeData, gclusterd socket:%s recv data:%s", fd, msg))
+				skynet.error(string.format("%s not find nodeData, gclusterd socket:%s recv data:%s", address, fd, msg))
 				return
-			end
-			-- 处理验证
-			channelObj:deal_auth(msg)
-			return
+			 end
+			 -- 处理验证
+			 channelObj:deal_auth(msg)
+			 return
 		end
 
 		if not channelObj:is_auth_yes() then
@@ -254,25 +269,6 @@ function command.kick()
 	-- 主动关闭socket链接(粗暴的方式关闭)
 end
 
-
-local function loadNodeIpMap()
-	-- NODE_IP_MAP = {}
-	-- for serverId, data in pairs(SERVERID_CONFIG) do
-	-- 	if not NODE_IP_MAP[data.node] then
-	-- 		NODE_IP_MAP[data.node] = {}
-	-- 	end
-	-- 	if NODE_IP_MAP[data.node][serverId] then
-	-- 		_ERROR_F("cluster_no[%s] server_id[%s] repeat!!!", data.node, serverId)
-	-- 	end
-	-- 	NODE_IP_MAP[data.node][serverId] = data.self_ipport
-	-- end
-end
-
--- 加载和热更的回调方法
-function __init__()
-	loadNodeIpMap()
-end
-
 function __update__()
-	loadNodeIpMap()
+	LoadNodeIpMap()
 end

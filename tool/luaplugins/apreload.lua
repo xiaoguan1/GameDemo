@@ -6,6 +6,9 @@ local skynet = require "skynet"
 local skynet_getenv = skynet.getenv
 require "skynet.manager"
 
+local load = load
+local assert = assert
+
 -- 注册的公共协议
 skynet.register_protocol({
 	name = "callout",
@@ -21,8 +24,6 @@ end
 function IsCross()
 	return skynet.getenv("node") == CROSS_NODE	-- 一般跨服节点
 end
-
-
 
 SELF_NODE = load("return " .. assert(skynet_getenv("host_config")))()
 SELF_IPPORT = assert(skynet_getenv("self_ipport"))
