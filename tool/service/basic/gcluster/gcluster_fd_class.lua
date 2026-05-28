@@ -181,14 +181,21 @@ function FdClass:deal_auth(msg)
 			local msg1 = msg:sub(authIdx1 + authIdx2)
 			local nameIdx2, nameIdx1 = string.unpack(">I2", msg1)
 			clientName = string.sub(msg1, nameIdx1, nameIdx1 + nameIdx2 - 1)	-- 客户端的节点名
-
 			if string.match(clientName, CLUSTER_NAME_MATCH) then
-				self.cluster_name = clientName
-				self.auth = AUTH_STATIUS_YES
-				response = MsgPack(authYesCode .. SELF_CLUSTERNAME_CODE)
+				if GetNodeChannel(clientName) then
+					-- 该节点名已存在连接，强行关闭当前连接。
+					self.auth = AUTH_STATIUS_NO
+					response = authNoCode
+					skynet.error(sformat("clientName[%s] repeated connected!", clientName))
+				else
+					self.cluster_name = clientName
+					self.auth = AUTH_STATIUS_YES
+					response = MsgPack(authYesCode .. SELF_CLUSTERNAME_CODE)
+				end
 			else
 				self.auth = AUTH_STATIUS_NO
 				response = authNoCode
+				skynet.error(sformat("clientName[%s] fmt error!", clientName))
 			end
 		else
 			self.auth = AUTH_STATIUS_NO

@@ -104,12 +104,11 @@ function DealResponse(session, ok, msg, sz)
 	response_data[2](ok, msg, sz)
 end
 
-function OpenChannel(t, clusterName)           -- key集群名称（例：cross@1_55001）
+function OpenChannel(_node_channel, clusterName)           -- key集群名称（例：cross@1_55001）
 	local address = GetClusterAddr(clusterName)
 	if not address then
 		error(string.format("%s not find address", clusterName))
 	end
-	assert(not connecting[address])
 	local ct = connecting[clusterName]
 	if ct then
 		local co = coroutine.running()
@@ -119,8 +118,8 @@ function OpenChannel(t, clusterName)           -- key集群名称（例：cross@
 	end
 	ct = {
 		co = {},
-		channel = nil,-- 已完成认证的fd对象
-		address = address,	-- 网络地址(ip:port)
+		channel = nil,			-- 已完成认证的fd对象
+		address = address,		-- 网络地址(ip:port)
 		clusterName = clusterName,
 
 		-- 未完成认证的fd对象(socket消息处理需要临时使用到该对象数据)
@@ -139,8 +138,16 @@ function OpenChannel(t, clusterName)           -- key集群名称（例：cross@
 		fdObj:do_auth()
 		ct.pre_channel = nil
 		if fdObj:is_auth_yes() then
-			rawset(t, clusterName, fdObj)
-			ct.channel = fdObj
+			local oldFdObj = rawget(_node_channel, clusterName)
+			if oldFdObj then
+				-- 强行关闭最新fd，并将已有的fdObj返回给被沉睡的协程
+				fdObj.fd = nil
+				ct.channel = oldFdObj
+				SyncGate(false, "close_connect", fd)
+			else
+				rawset(_node_channel, clusterName, fdObj)
+				ct.channel = fdObj
+			end
 		else
 			skynet.error(string.format("%s auth fail!", clusterName))
 		end
@@ -150,9 +157,9 @@ function OpenChannel(t, clusterName)           -- key集群名称（例：cross@
 	for _, co in ipairs(ct.co) do
 		skynet.wakeup(co)
 	end
-	assert(rawget(t, clusterName), clusterName .. " connect fail")
+	assert(rawget(_node_channel, clusterName), clusterName .. " connect fail")
 	skynet.error("gclusterd succeed connect", clusterName)
-	return t[clusterName]
+	return _node_channel[clusterName]
 end
 
 -- 异步发消息
@@ -194,20 +201,8 @@ end
 function command.socket(source, subcmd, fd, ...)
 	if subcmd == "accept" then
 		-- 外部节点主动连接本节点
+		-- 因为被链接进来的网络地址是无法确认其身份的，只能在进行认证的过程中确认身份。故只有认证的过程中是否是真正的接受或者拒绝
 		local address = ...
-		local channelObj = GetNodeChannel(address)
-		if channelObj then
-			-- 一般不会！但若已存在则拒绝accept
-			SyncGate(false, "close_connect", fd)
-			skynet.error(string.format("gclusterd socket[%s] %s already exist, refuse accept", fd, address))
-			return
-		end
-		if connecting[address] then
-			-- 一般不会！但若已存在则拒绝accept
-			SyncGate(false, "close_connect", fd)
-			skynet.error(string.format("gclusterd fd[%s] %s already exist, refuse accept", fd, address))
-			return
-		end
 		local isOk = skynet.call(source, "lua", "accept", fd)
 		if not isOk then
 			skynet.error(string.format("gclusterd socket accept from %s fail", address))
