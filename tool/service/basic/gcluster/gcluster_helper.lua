@@ -1,6 +1,4 @@
 local skynet = require "skynet"
-local socketdriver = require "skynet.socketdriver"
-local socket_write = assert(socketdriver.send)
 local ldpcluster = require "dpcluster.core"
 local pcall = pcall
 local assert = assert
@@ -21,9 +19,7 @@ local command = assert(command)
 local node_channel = assert(node_channel)
 local GetClusterAddr = assert(GetClusterAddr)
 
-local SELF_IPPORT = assert(SELF_IPPORT)
-
--- 认证码
+local SELF_CLUSTERNAME = assert(SELF_CLUSTERNAME)
 
 -- fd的类
 local FdClass = Import("tool/service/basic/gcluster/gcluster_fd_class.lua")
@@ -50,10 +46,10 @@ local function socketCloseEvent(sockFd)
 	end
 end
 
-local function send(node, request, padding)
-	local c = node_channel[node]
-    c:request(request, nil, padding, true)	-- 都不用 lwrite
-    return c:sockfd()
+local function _send(clustername, request, padding)
+	local fdObj = node_channel[clustername]
+	fdObj:write(request, padding)
+    return fdObj.fd
 end
 
 ----- 全局方法 ------------------------------
@@ -165,13 +161,13 @@ end
 -- 异步发消息
 -- node：对方节点信息（ip:port）
 -- addr：对方节点的某个服务地址 string
-function command.send(_, node, addr, prototype, msg, sz)
-	if node == SELF_IPPORT then
-		error("send dpclsterd msg to self")
+function command.send(_, clustername, addr, prototype, msg, sz)
+	if clustername == SELF_CLUSTERNAME then
+		error("send gclsterd msg to self")
 	end
-    local request, _session, padding = ldpcluster.pack(0, SELF_IPPORT, addr,
+    local request, _session, padding = ldpcluster.pack(0, SELF_CLUSTERNAME, addr,
 			mergePrototype(MSG_TYPE_SEND, prototype), msg, sz)
-	send(node, request, padding)
+	_send(clustername, request, padding)
 end
 
 
@@ -179,12 +175,12 @@ end
 -- overtime：超时时间
 -- node：对方节点信息（ip:port）
 -- addr：对方节点的某个服务地址 string
-function command.call(_, overtime, node, addr, prototype, msg, sz)
-    if node == SELF_IPPORT then
+function command.call(_, overtime, clustername, addr, prototype, msg, sz)
+    if clustername == SELF_CLUSTERNAME then
 		error("call dpulsterd msg to self")
 	end
-	local request, _session, padding = ldpcluster.pack(nil, SELF_IPPORT, addr, _merge_prototype(MSG_TYPE_CALL, prototype), msg, sz)	-- pack接口会释放msg内存
-	local sock_fd = send(node, request, padding)
+	local request, _session, padding = ldpcluster.pack(nil, SELF_CLUSTERNAME, addr, mergePrototype(MSG_TYPE_CALL, prototype), msg, sz)	-- pack接口会释放msg内存
+	local sock_fd = _send(clustername, request, padding)
 	if not sock_fd then
 		local response_func = skynet.response()
 		response_func(false, "socket error")

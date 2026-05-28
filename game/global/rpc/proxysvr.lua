@@ -202,20 +202,6 @@ function GetProxy(addr, clustername, prototype)
 end
 
 -- 获取当前节点的服务代理
--- function GetProxyByServiceName(serviceName, prototype, serverId)
--- 	local namedData = BASIC_SERVICE_MAP[serviceName]
--- 	if namedData then
--- 		assert(namedData.named)
--- 		return GetProxy(namedData.named, SELF_IPPORT, prototype)
--- 	end
-
--- 	namedData = GAME_SERVICE_CFG[serviceName]
--- 	if namedData then
--- 		assert(namedData.named)
--- 		return GetProxy(namedData.named, SELF_IPPORT, prototype)
--- 	end
--- end
-
 function GetProxyByServiceName(serviceName, ...)
 	local count = select("#", ...)
 	local hostnode, prototype, serverId = host_node, "lua", host_id -- 默认值

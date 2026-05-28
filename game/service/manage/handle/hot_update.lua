@@ -8,7 +8,7 @@ local tempty = table.empty
 local has_value = table.has_value
 local beginswith = string.beginswith
 local endswith = string.endswith
-local SELF_IPPORT = SELF_IPPORT
+local SELF_CLUSTERNAME = assert(SELF_CLUSTERNAME)
 
 -- 执行命令：wget -q -O - "http://127.0.0.1:40001/hot_update"
 
@@ -89,14 +89,14 @@ end
 
 function Handle_Request(data)
 	local PROXYSVR = Import("game/global/rpc/proxysvr.lua")
-	local lsvr = PROXYSVR.GetProxy(".launcher", SELF_IPPORT)
+	local lsvr = PROXYSVR.GetProxy(".launcher", SELF_CLUSTERNAME)
 	if not lsvr then
 		_ERROR("hot update fail, because .launcher svr not exists!")
 		return true
 	end
 
 	local psvr = BASIC_SERVICE_MAP["protosvr"] and BASIC_SERVICE_MAP["protosvr"].named and
-				PROXYSVR.GetProxy(BASIC_SERVICE_MAP["protosvr"].named, SELF_IPPORT)
+				PROXYSVR.GetProxy(BASIC_SERVICE_MAP["protosvr"].named, SELF_CLUSTERNAME)
 	if not psvr then
 		_ERROR("hot update fail, because psvr svr not exists!")
 		return true

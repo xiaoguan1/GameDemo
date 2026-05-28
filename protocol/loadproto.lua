@@ -16,7 +16,7 @@ local has_value = table.has_value
 local _ERROR_F = _ERROR_F
 local _INFO_F = _INFO_F
 local SERVICE_NAME = SERVICE_NAME
-local SELF_IPPORT = assert(SELF_IPPORT)
+local SELF_CLUSTERNAME = assert(SELF_CLUSTERNAME)
 
 -- 需要预先加载协议文件，因为有些porto需要import其他协议文件
 local preload_load = {
@@ -122,7 +122,7 @@ function command.update(isUpdateProto)
 	end
 
 	local PROXYSVR = Import("game/global/rpc/proxysvr.lua")
-	local lsvr = PROXYSVR.GetProxy(".launcher", SELF_IPPORT)
+	local lsvr = PROXYSVR.GetProxy(".launcher", SELF_CLUSTERNAME)
 	if not lsvr then
 		_ERROR("proto hot update fail, because .launcher svr not exists!")
 		return

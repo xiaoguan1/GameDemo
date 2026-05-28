@@ -1,7 +1,4 @@
 local skynet = require "skynet"
--- local node = SELF_NODE.node				-- 节点类型名称
--- local GCLUSTER_NODE = SELF_NODE			-- 节点配置
--- local SELF_IPPORT = SELF_IPPORT			-- 自己节点的网络地址
 local SELF_CLUSTERNAME = SELF_CLUSTERNAME
 local BASIC_SERVICE_MAP = BASIC_SERVICE_MAP
 
@@ -63,7 +60,7 @@ local function __call(overtime, clustername, address, prototype, ...)
 	assert(pack_func and unpack_func)
 
 	local gclusterd = assert(getClusterAddr())
-	local msg, sz = skynet.call(gclusterd, "lua", "req", overtime, clustername, address, prototype, pack_func(...)) -- 肯定是当前节点，所以不用代理了
+	local msg, sz = skynet.call(gclusterd, "lua", "call", overtime, clustername, address, prototype, pack_func(...)) -- 肯定是当前节点，所以不用代理了
 	return _ret_func(msg, sz, xpcall(unpack_func, traceback, msg, sz))
 end
 
@@ -78,7 +75,7 @@ local function __send(clustername, address, prototype, ...)
 
 	local pack_func = assert(skynet.get_prototype_pack(prototype))
 	local gclusterd = assert(getClusterAddr())
-	skynet.send(gclusterd, "lua", "push", clustername, address, prototype, pack_func(...)) -- 肯定是当前节点，所以不用代理了
+	skynet.send(gclusterd, "lua", "send", clustername, address, prototype, pack_func(...)) -- 肯定是当前节点，所以不用代理了
 end
 
 -- 不允许无限时长等待
