@@ -90,16 +90,16 @@ function FdClass:write(request, padding)
 	if padding then
 		-- 分包发送
 		if not socket_write(fd , request) then
-			socket_err(self)
+			socket_err(self.cluster_name)
 		end
 		for _, v in ipairs(padding) do
 			if not socket_write(fd , v) then
-				socket_err(self)
+				socket_err(self.cluster_name)
 			end
 		end
 	else
 		if not socket_write(fd , request) then
-			socket_err(self)
+			socket_err(self.cluster_name)
 		end
 	end
 
@@ -136,7 +136,7 @@ function FdClass:do_auth()
 
 		local msg = MsgPack(authCode .. SELF_CLUSTERNAME_CODE)
 		if not socket_write(fd, msg) then -- 发送认证码
-			socket_err(self)
+			socket_err(self.cluster_name)
 		end
 
 		local stime = os_time()
@@ -182,7 +182,7 @@ function FdClass:deal_auth(msg)
 			local nameIdx2, nameIdx1 = string.unpack(">I2", msg1)
 			clientName = string.sub(msg1, nameIdx1, nameIdx1 + nameIdx2 - 1)	-- 客户端的节点名
 			if string.match(clientName, CLUSTER_NAME_MATCH) then
-				if GetNodeChannel(clientName) then
+				if GetChannel(clientName) then
 					-- 该节点名已存在连接，强行关闭当前连接。
 					self.auth = AUTH_STATIUS_NO
 					response = authNoCode
@@ -214,7 +214,7 @@ function FdClass:deal_auth(msg)
 			skynet.wakeup(co)
 		end
 		if not socket_write(fd, response) then
-			socket_err(self)
+			socket_err(self.cluster_name)
 		end
 	elseif self:is_auth_do() then
 		-- 认证码的比对结果

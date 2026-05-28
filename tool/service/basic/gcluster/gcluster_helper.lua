@@ -5,13 +5,14 @@ local assert = assert
 local pairs = pairs
 local type = type
 local string = string
+local sformat = string.format
 
 local MSG_TYPE_SEND = 1 -- 异步发消息类型
 local MSG_TYPE_CALL = 2 -- 同步发消息类型
 local MSG_TYPE_MAX = 0xff
 
 -- 加载该文件模块时的判断，且这些方法和变量原则上不能热更的！！！
-local GetNodeChannel = assert(GetNodeChannel)
+local GetChannel = assert(GetChannel)
 local SyncGate = assert(SyncGate)
 local node_session2co = assert(node_session2co)
 local connecting = assert(connecting)
@@ -53,17 +54,17 @@ local function _send(clustername, request, padding)
 end
 
 ----- 全局方法 ------------------------------
-function SocketErr(address, isPassive)
-	assert(address)
-	local channelObj = GetNodeChannel(address)
+function SocketErr(clutsername, isPassive)
+	assert(clutsername)
+	local channelObj = GetChannel(clutsername)
 	if channelObj then
-		rawset(node_channel, address, nil)
-		skynet.error(string.format("%s clear node_channel!", address))
+		rawset(node_channel, clutsername, nil)
+		skynet.error(sformat("%s [%s] clear node_channel!", clutsername, channelObj.address))
 	else
-		skynet.error(string.format("%s node_channel not data!", address))
+		skynet.error(sformat("%s node_channel not data!", clutsername))
 	end
 
-	local ct = connecting[address]
+	local ct = connecting[clutsername]
 	local ctChannelObj
 	if ct then
 		ctChannelObj = ct.channel or ct.pre_channel
@@ -72,7 +73,7 @@ function SocketErr(address, isPassive)
 		for _, co in ipairs(ct.co) do
 			skynet.wakeup(co)
 		end
-		skynet.error(string.format("%s clear connecting!", address))
+		skynet.error(sformat("%s clear connecting, co len[%s]", clutsername, #ct.co))
 	end
 
 	local fd
@@ -85,7 +86,7 @@ function SocketErr(address, isPassive)
 		SyncGate(false, "close_connect", fd)
 	end
 	socketCloseEvent(fd)
-	skynet.error(string.format("gcluster socket err! close fd[%s] passive[%s]", fd, isPassive))
+	skynet.error(sformat("gcluster socket finished! close fd[%s] passive[%s]", fd, isPassive))
 end
 FdClass.socket_err = SocketErr
 
@@ -103,7 +104,7 @@ end
 function OpenChannel(_node_channel, clusterName)           -- key集群名称（例：cross@1_55001）
 	local address = GetClusterAddr(clusterName)
 	if not address then
-		error(string.format("%s not find address", clusterName))
+		error(sformat("%s not find address", clusterName))
 	end
 	local ct = connecting[clusterName]
 	if ct then
@@ -145,7 +146,7 @@ function OpenChannel(_node_channel, clusterName)           -- key集群名称（
 				ct.channel = fdObj
 			end
 		else
-			skynet.error(string.format("%s auth fail!", clusterName))
+			skynet.error(sformat("%s auth fail!", clusterName))
 		end
 	end
 	connecting[clusterName] = nil
@@ -155,7 +156,7 @@ function OpenChannel(_node_channel, clusterName)           -- key集群名称（
 	end
 	assert(rawget(_node_channel, clusterName), clusterName .. " connect fail")
 	skynet.error("gclusterd succeed connect", clusterName)
-	return _node_channel[clusterName]
+	return rawget(_node_channel, clusterName)
 end
 
 -- 异步发消息
@@ -201,7 +202,7 @@ function command.socket(source, subcmd, fd, ...)
 		local address = ...
 		local isOk = skynet.call(source, "lua", "accept", fd)
 		if not isOk then
-			skynet.error(string.format("gclusterd socket accept from %s fail", address))
+			skynet.error(sformat("gcluster socket accept from %s fail", address))
 			return
 		end
 
@@ -214,20 +215,24 @@ function command.socket(source, subcmd, fd, ...)
 			clusterName = nil,
 			pre_channel = FdClass.FdClass:init(fd, {address = address}),
 		}
-		skynet.error(string.format("gclusterd socket accept from %s succeed", address))
+		skynet.error(sformat("gcluster socket accept from %s succeed", address))
 	elseif subcmd == "close" then
 		-- 外部节点主动关闭本节点链接
 		local address = ...
-		SocketErr(address, true)
-		skynet.error(string.format("gclusterd socket close from %s", address))
+		local fdObj = LoopFindChannel(address)
+		if not fdObj then
+			skynet.error(sformat("gcluster socket close fail. because %s not find fdObj!", address))
+			return
+		end
+		SocketErr(fdObj.cluster_name, true)
 	elseif subcmd == "data" then
 		local address, msg = ...
-		local channelObj = GetNodeChannel(address)
+		local channelObj = GetChannel(address)
 		if not channelObj then
 			channelObj = connecting[address] and connecting[address].pre_channel
 			 if not channelObj then
 				SyncGate(false, "close_connect", fd)
-				skynet.error(string.format("%s not find nodeData, gclusterd socket:%s recv data:%s", address, fd, msg))
+				skynet.error(sformat("%s not find nodeData, gcluster socket:%s recv data:%s", address, fd, msg))
 				return
 			 end
 			 -- 处理验证

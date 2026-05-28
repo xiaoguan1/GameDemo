@@ -34,11 +34,22 @@ function SyncGate(isCall, ...)
 end
 
 -- 根据地址获取节点，isConnect：若找不到则进行网络链接
-function GetNodeChannel(address, isConnect)
+function GetChannel(clutserName, isConnect)
 	if isConnect then
-		return node_channel[address]
+		return node_channel[clutserName]
 	end
-	return rawget(node_channel, address)
+	return rawget(node_channel, clutserName)
+end
+
+-- 原因：以clusterName为key，现在需要以网络地址来查找（暂时没想到特别好的方法）
+-- 目前最大容量为2048，数量不多。即使是遍历也速度很快！
+function LoopFindChannel(address)
+	if not address then return end
+	for _, fdObj in pairs(node_channel) do
+		if fdObj.address == address then
+			return fdObj
+		end
+	end
 end
 
 -- 消息打包
@@ -115,7 +126,7 @@ skynet.start(function ()
 	if node ~= "user" then
 		-- nodeListen(SELF_IPPORT)		-- 开启当前节点 CLUSTER_GATE
 	else
-		local t = GetNodeChannel("cross@1_55001", true)
+		local t = GetChannel("cross@1_55001", true)
 		print("t ", tool.dumptree(t))
 	end
 	skynet.timeout(0, dealOvertime)
