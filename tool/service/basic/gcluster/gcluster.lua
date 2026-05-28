@@ -112,7 +112,11 @@ skynet.start(function ()
 
 	skynet.dispatch("lua", function (session, source, cmd, ...)
 		local f = assert(command[cmd])
-		f(source, ...)
+		if session == 0 then
+			f(source, ...)
+		else
+			skynet.ret(skynet.pack(f(source, ...)))
+		end
 	end)
 
 	LoadNodeIpMap()
