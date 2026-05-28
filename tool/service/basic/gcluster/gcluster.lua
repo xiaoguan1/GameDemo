@@ -11,6 +11,7 @@ local pcall = pcall
 local table = table
 local tconcat = table.concat
 
+local CLUSTER_NAME_MATCH = CLUSTER_NAME_MATCH
 local SELF_IPPORT = assert(SELF_IPPORT)
 local SERVERID_CONFIG = assert(SERVERID_CONFIG) --集群环境
 
@@ -21,9 +22,6 @@ connecting = {}   -- 正在进行节点连接的事件
 node_channel = {}	-- 本节点主动连接其他节点的数据缓存
 accept_fd = {}		-- 外部节点主动连接本节点的数据缓存
 
-CLUSTER_GATE = false	-- 网关服务的地址
-
-CLUSTER_FMT = "^(%a+)@(%d+)_(%d+)$"
 NODE_IP_MAP = false
 
 function SyncGate(isCall, ...)
@@ -67,7 +65,7 @@ function GetClusterAddr(clusterName)
 	if not clusterName then
 		return
 	end
-	local node, clusterNo, serverId = string.match(clusterName, CLUSTER_FMT)
+	local node, clusterNo, serverId = string.match(clusterName, CLUSTER_NAME_MATCH)
 	if node and serverId then
 		serverId = tonumber(serverId)
 		return NODE_IP_MAP[node] and NODE_IP_MAP[node][serverId]

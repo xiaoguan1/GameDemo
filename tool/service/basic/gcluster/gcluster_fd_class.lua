@@ -20,7 +20,7 @@ local string = string
 local sformat = string.format
 
 local MsgPack = assert(MsgPack)
-local CLUSTER_FMT = assert(CLUSTER_FMT)
+local CLUSTER_NAME_FMT = assert(CLUSTER_NAME_FMT)
 
 socket_err = false
 
@@ -31,10 +31,9 @@ local authCode = MsgPack(gcluster_auths)
 local authYesCode = MsgPack(authYes)
 local authNoCode = MsgPack(authNo)
 
--- 格式：节点名称@集群编号_区服编号
-local clusterName = sformat("%s@%s_%s", node, clusterNo, serverId)
-local clusterNameCode = MsgPack(clusterName)	-- 在集群中自己的节点名称别名
-
+-- 集群中自己的节点名称
+local SELF_CLUSTERNAME = assert(SELF_CLUSTERNAME)
+local SELF_CLUSTERNAME_CODE = MsgPack(SELF_CLUSTERNAME)
 
 -- 认证状态类型
 local AUTH_STATIUS_DO 		= 1		-- 主动做认证（把本节点的认证码发送给对端）
@@ -135,7 +134,7 @@ function FdClass:do_auth()
 		self.auth_coroutine = co
 		self.auth_waitcoroutine = {}
 
-		local msg = MsgPack(authCode .. clusterNameCode)
+		local msg = MsgPack(authCode .. SELF_CLUSTERNAME_CODE)
 		if not socket_write(fd, msg) then -- 发送认证码
 			socket_err(self)
 		end
@@ -183,10 +182,10 @@ function FdClass:deal_auth(msg)
 			local nameIdx2, nameIdx1 = string.unpack(">I2", msg1)
 			clientName = string.sub(msg1, nameIdx1, nameIdx1 + nameIdx2 - 1)	-- 客户端的节点名
 
-			if string.match(clientName, CLUSTER_FMT) then
+			if string.match(clientName, CLUSTER_NAME_MATCH) then
 				self.cluster_name = clientName
 				self.auth = AUTH_STATIUS_YES
-				response = MsgPack(authYesCode .. clusterNameCode)
+				response = MsgPack(authYesCode .. SELF_CLUSTERNAME_CODE)
 			else
 				self.auth = AUTH_STATIUS_NO
 				response = authNoCode
@@ -221,7 +220,7 @@ function FdClass:deal_auth(msg)
 			local nameIdx2, nameIdx1 = string.unpack(">I2", msg1)
 			serverName = string.sub(msg1, nameIdx1, nameIdx1 + nameIdx2 - 1)	-- 服务端的节点名
 
-			if string.match(serverName, CLUSTER_FMT) and self.cluster_name == serverName then
+			if string.match(serverName, CLUSTER_NAME_MATCH) and self.cluster_name == serverName then
 				self.auth = AUTH_STATIUS_YES
 			else
 				self.auth = AUTH_STATIUS_NO

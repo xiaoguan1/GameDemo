@@ -49,6 +49,9 @@ ADHOC_SERVICE = {
 }
 ADHOC_SERVICE_MAP = false
 
+CLUSTER_NAME_MATCH = "^(%a+)@(%d+)_(%d+)$"	-- 解析集群节点名称
+CLUSTER_NAME_FMT = "%s@%s_%s"				-- 集群名称格式
+
 -- 构建当前进程节点的基础服务映射
 function BuildNamedSvr()
 	-- 根据进程节点，构建基础服务配置

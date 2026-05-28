@@ -6,6 +6,9 @@ local skynet = require "skynet"
 local skynet_getenv = skynet.getenv
 require "skynet.manager"
 
+local clusterNo = skynet_getenv("cluster_no")
+local serverId = skynet_getenv("server_id")
+
 local load = load
 local assert = assert
 
@@ -29,3 +32,4 @@ SELF_NODE = load("return " .. assert(skynet_getenv("self_node")))()
 SELF_IPPORT = assert(SELF_NODE.self_ipport)
 SERVERID_CONFIG = load("return " .. assert(skynet_getenv("serverId_config")))()
 SERVICE_CLUSTERNAME = load("return " .. assert(skynet_getenv("service_clustername")))()
+SELF_CLUSTERNAME = string.format(CLUSTER_NAME_FMT, SELF_NODE.node, clusterNo, serverId)

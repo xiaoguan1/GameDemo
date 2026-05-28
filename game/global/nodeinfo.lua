@@ -79,7 +79,7 @@ local function getAllNodeData(db)
 				if isStart then
 					startService[cfg.svr] = data.ipport	-- 感觉设置1或者true没有任何实际用途，故设置网络地址
 				end
-				local identity = string.format("%s@%s_%s", nodeName, cluster_no, serverId)
+				local identity = string.format(CLUSTER_NAME_FMT, nodeName, cluster_no, serverId)
 				if cfg.unique then
 					if serviceNode[cfg.svr] then
 						return false, sformat("cluster_no[%s] server_id[%s] repeated [%s]", cluster_no, serverId, cfg.svr)
