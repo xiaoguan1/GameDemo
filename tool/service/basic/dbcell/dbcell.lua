@@ -7,7 +7,7 @@ local no = ...
 assert(no)
 
 ACCEPT, RESPONSE = {}, {}
-local MISC = Import("game/service/dbcell/dbcell_misc.lua")
+local MISC = Import("tool/service/basic/dbcell/dbcell_misc.lua")
 
 -- 心跳方法
 local HbTime = 1 * 100
@@ -16,10 +16,10 @@ function Heartbeat()
 		skynet.sleep(HbTime)
 		local ntime = os.time()
 		if ntime % 60 == 0 then
-			local db = MISC.ConnDb()
-			db:ping()
+			-- local db = MISC.ConnDb()
+			-- db:ping()
 		end
-		TryCall(MISC.DumpCache)
+		-- TryCall(MISC.DumpCache)
 	end
 end
 
@@ -43,7 +43,7 @@ skynet.start(function ()
 		end
 	end)
 
-	assert(MISC.ConnDb())
+	-- assert(MISC.ConnDb())
 	local _Fenv = getfenv(1)
 	skynet.timeout(0, _Fenv.Heartbeat)
 end)

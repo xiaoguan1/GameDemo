@@ -42,7 +42,6 @@ local function doGamePreload()
 	local aPreload = assert(skynet.getenv("apreload"))
 	skynet.setenv("game_preload", aPreload)
 	dofile(aPreload)
-	BuildNamedSvr()
 end
 
 skynet.start(function ()

@@ -40,7 +40,6 @@ local function doGamePreload()
 	local aPreload = assert(skynet.getenv("apreload"))
 	skynet.setenv("game_preload", aPreload)
 	dofile(aPreload)
-	BuildNamedSvr()
 end
 
 skynet.start(function ()
@@ -58,6 +57,14 @@ skynet.start(function ()
 
 	dofile "./game/global/log.lua"
 	for _, v in ipairs(BASIC_SERVICE) do
+		local id = skynet.uniqueservice(v.svr)
+		if not id then
+			abort(string.format("start service[%s] fail", v.svr))
+		end
+		skynet.name(v.named, id)
+	end
+
+	for _, v in ipairs(USER_BASIC_SERVICE) do
 		local id = skynet.uniqueservice(v.svr)
 		if not id then
 			abort(string.format("start service[%s] fail", v.svr))

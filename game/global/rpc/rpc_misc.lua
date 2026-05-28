@@ -1,7 +1,8 @@
 local skynet = require "skynet"
-local node = SELF_NODE.node				-- 节点类型名称
-local GCLUSTER_NODE = SELF_NODE			-- 节点配置
-local SELF_IPPORT = SELF_IPPORT			-- 自己节点的网络地址
+-- local node = SELF_NODE.node				-- 节点类型名称
+-- local GCLUSTER_NODE = SELF_NODE			-- 节点配置
+-- local SELF_IPPORT = SELF_IPPORT			-- 自己节点的网络地址
+local SELF_CLUSTERNAME = SELF_CLUSTERNAME
 local BASIC_SERVICE_MAP = BASIC_SERVICE_MAP
 
 local is_testserver = (skynet.getenv("is_testserver") == "true") and true or false
@@ -48,12 +49,12 @@ local function _ret_func(msg, sz, ok, ...)
 	return ...
 end
 
-local function __call(overtime, node, address, prototype, ...)
+local function __call(overtime, clustername, address, prototype, ...)
 	-- skynet.error("--__call:", overtime, node, address, prototype, ...)
 	-- ...不能有userdata, 判断一下
 	for _n, _v in pairs({...}) do
 		if type(_v) == "userdata" then
-			error(sformat("node:%s, address:%s, elem no:%d is userdata", node, address, _n))
+			error(sformat("clustername:%s, address:%s, elem no:%d is userdata", clustername, address, _n))
 		end
 	end
 
@@ -62,35 +63,38 @@ local function __call(overtime, node, address, prototype, ...)
 	assert(pack_func and unpack_func)
 
 	local gclusterd = assert(getClusterAddr())
-	local msg, sz = skynet.call(gclusterd, "lua", "req", overtime, node, address, prototype, pack_func(...)) -- 肯定是当前节点，所以不用代理了
+	local msg, sz = skynet.call(gclusterd, "lua", "req", overtime, clustername, address, prototype, pack_func(...)) -- 肯定是当前节点，所以不用代理了
 	return _ret_func(msg, sz, xpcall(unpack_func, traceback, msg, sz))
 end
 
-local function __send(node, address, prototype, ...)
+local function __send(clustername, address, prototype, ...)
 	-- skynet.error("--__send:", overtime, node, address, prototype, ...)
 	-- ...不能有userdata, 判断一下
 	for _n, _v in pairs({...}) do
 		if type(_v) == "userdata" then
-			error(sformat("node:%s, address:%s, elem no:%d is userdata", node, address, _n))
+			error(sformat("node:%s, address:%s, elem no:%d is userdata", clustername, address, _n))
 		end
 	end
 
 	local pack_func = assert(skynet.get_prototype_pack(prototype))
 	local gclusterd = assert(getClusterAddr())
-	skynet.send(gclusterd, "lua", "push", node, address, prototype, pack_func(...)) -- 肯定是当前节点，所以不用代理了
+	skynet.send(gclusterd, "lua", "push", clustername, address, prototype, pack_func(...)) -- 肯定是当前节点，所以不用代理了
 end
 
 -- 不允许无限时长等待
-function call_o(overtime, node, address, ...)
+function call_o(overtime, clustername, address, ...)
 	assert(overtime >= OVERTIME and overtime <= MAX_OVERTIME)
-	return __call(overtime, node, address, ...)
+	assert(clustername ~= SELF_CLUSTERNAME)
+	return __call(overtime, clustername, address, ...)
 end
 
-function call(node, address, ...)
-	return __call(OVERTIME, node, address, ...)
+function call(clustername, address, ...)
+	assert(clustername ~= SELF_CLUSTERNAME)
+	return __call(OVERTIME, clustername, address, ...)
 end
 
 -- 异步跨节点发消息
-function send(node, address, ...)
-	__send(node, address, ...)
+function send(clustername, address, ...)
+	assert(clustername ~= SELF_CLUSTERNAME)
+	__send(clustername, address, ...)
 end

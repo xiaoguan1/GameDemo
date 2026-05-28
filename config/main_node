@@ -63,7 +63,7 @@ centerdatadb_info = [[{
 	dbpasswd = "root",
 }]]
 
-dbcell_num = 8
+dbcell_num = 3
 
 ------------------ 日志 ------------------
 log_stdin = true		-- true:控制台打印日志

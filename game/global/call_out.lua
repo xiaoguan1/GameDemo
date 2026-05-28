@@ -6,7 +6,6 @@
 
 local skynet = require "skynet"
 local skytime = skynet.time
-local SERVICE_NAME = SERVICE_NAME
 local getfenv = getfenv
 local assert = assert
 local type = type
@@ -15,7 +14,7 @@ local tpack = table.pack
 local tunpack = table.unpack
 local collectgarbage = collectgarbage
 local _MEM_ALARM_F = _MEM_ALARM_F
-local SELF_IPPORT = SELF_IPPORT
+local SELF_CLUSTERNAME = SELF_CLUSTERNAME
 local sformat = string.format
 MEM_ALARM_THRESHOLD = 5120				-- 超5m内存警报阈值
 MEM_IGNORE_ALARM = {
@@ -31,7 +30,7 @@ local stimerld = BASIC_SERVICE_MAP and BASIC_SERVICE_MAP.stimer and BASIC_SERVIC
 if not stimerld then
 	error("stimer service not localname")
 end
-local SCALLOUT_SVR = PROXYSVR.GetProxy(stimerld, SELF_IPPORT, "callout")
+local SCALLOUT_SVR = PROXYSVR.GetProxy(stimerld, SELF_CLUSTERNAME, "callout")
 
 local CALLOUT_RT = 0.1					-- 定时器响应时间x秒以上则打印(精确度0.01)
 local ALARM_CALLOUT_RT = 1.5			-- 定时器响应时间x秒以上则警报
@@ -96,14 +95,14 @@ end
 local function _call_multi(t, func)
 	assert(t >= 1)
 	local idx = _GetIndex()
-	SCALLOUT_SVR.send.call_multi(SELF_IPPORT, idx, t)
+	SCALLOUT_SVR.send.call_multi(SELF_CLUSTERNAME, idx, t)
 	callout_func[idx] = func
 	return idx
 end
 
 local function _call_once(t, func)
 	local idx = _GetIndex()
-	SCALLOUT_SVR.send.call_once(SELF_IPPORT, idx, t)
+	SCALLOUT_SVR.send.call_once(SELF_CLUSTERNAME, idx, t)
 	callout_func[idx] = func
 	return idx
 end
@@ -111,7 +110,7 @@ end
 local function _call_daily(hour, min, sec, func)
 	assert(0 <= hour and hour <= 23)
 	local idx = _GetIndex()
-	SCALLOUT_SVR.send.call_daily(SELF_IPPORT, idx, hour, min, sec)
+	SCALLOUT_SVR.send.call_daily(SELF_CLUSTERNAME, idx, hour, min, sec)
 	callout_func[idx] = func
 	return idx
 end

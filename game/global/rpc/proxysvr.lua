@@ -8,9 +8,11 @@ local assert = assert
 local error = error
 local type = type
 
-local SELF_IPPORT = assert(SELF_IPPORT)
+local SELF_CLUSTERNAME = assert(SELF_CLUSTERNAME)
 local SERVERID_CONFIG = SERVERID_CONFIG
 local host_id = tonumber(assert(skynet.getenv("server_id")))
+local host_node = SELF_NODE.node
+local cluster_no = tonumber(assert(skynet.getenv("cluster_no")))
 
 local RPC_MISC = Import("game/global/rpc/rpc_misc.lua")
 
@@ -41,9 +43,9 @@ ALL_PROXYSVR = {
 	-- ....
 }
 
-local function gen_send(addr, nodeName, prototype)
+local function gen_send(addr, clustername, prototype)
 	prototype = prototype or "lua"
-	if nodeName == SELF_IPPORT then
+	if clustername == SELF_CLUSTERNAME then
 		local addrtype = type(addr)
 		local addr_num = nil
 		local cache_func = {}
@@ -79,28 +81,31 @@ local function gen_send(addr, nodeName, prototype)
 			end
 		})
 	else
+		if not string.match(clustername, CLUSTER_NAME_MATCH) then
+			error("clustername fmt error: " .. clustername)
+		end
 		local cache_func = {}
 		return setmetatable({}, {
 			__index = function (t, k)
 				if not cache_func[k] then
 					cache_func[k] = function (...)
 						_obj_check(...)
-						return RPC_MISC.send(nodeName, addr, prototype, k, ...)	-- skynet.send那里有返回是否有那个节点的信息
+						return RPC_MISC.send(clustername, addr, prototype, k, ...)	-- skynet.send那里有返回是否有那个节点的信息
 					end
 				end
 				return cache_func[k]
 			end,
 			__call = function (t, ...)
 				_obj_check(...)
-				return RPC_MISC.send(nodeName, addr, prototype, ...)				-- skynet.send那里有返回是否有那个节点的信息
+				return RPC_MISC.send(clustername, addr, prototype, ...)				-- skynet.send那里有返回是否有那个节点的信息
 			end
 		})
 	end
 end
 
-local function gen_call(addr, nodeName, prototype)
+local function gen_call(addr, clustername, prototype)
 	prototype = prototype or "lua"
-	if nodeName == SELF_IPPORT then
+	if clustername == SELF_CLUSTERNAME then
 		local addrtype = type(addr)
 		local addr_num = nil
 		local cache_func = {}
@@ -136,9 +141,8 @@ local function gen_call(addr, nodeName, prototype)
 			end
 		})
 	else
-		local host, port = string.match(nodeName, "([^:]+):(.*)$")
-		if not host or not port then
-			error("not math host:port " .. nodeName)
+		if not string.match(clustername, CLUSTER_NAME_MATCH) then
+			error("clustername fmt error: " .. clustername)
 		end
 		local cache_func = {}
 		return setmetatable({}, {
@@ -146,53 +150,53 @@ local function gen_call(addr, nodeName, prototype)
 				if not cache_func[k] then
 					cache_func[k] = function (...)
 						_obj_check(...)
-						return RPC_MISC.call(nodeName, addr, prototype, k, ...)
+						return RPC_MISC.call(clustername, addr, prototype, k, ...)
 					end
 				end
 				return cache_func[k]
 			end,
 			__call = function (t, ...)
 				_obj_check(...)
-				return RPC_MISC.call(nodeName, addr, prototype, ...)
+				return RPC_MISC.call(clustername, addr, prototype, ...)
 			end
 		})
 	end
 end
 
-local function create_proxysvr(addr, nodeName, prototype)
+local function create_proxysvr(addr, clustername, prototype)
 	return setmetatable({
 		addr = addr,
-		nodeName = nodeName,
+		clustername = clustername,
 		prototype = prototype,
 
-		send = gen_send(addr, nodeName, prototype),
-		call = gen_call(addr, nodeName, prototype),
+		send = gen_send(addr, clustername, prototype),
+		call = gen_call(addr, clustername, prototype),
 	}, READONLY_META)
 end
 
 
 -- 外部接口 ------------------------------
-function GetProxy(addr, node_name, prototype)
-	if node_name == SELF_IPPORT then
+function GetProxy(addr, clustername, prototype)
+	if clustername == SELF_CLUSTERNAME then
 		-- 本服节点
 		if ALL_PROXYSVR.self_node[addr] and ALL_PROXYSVR.self_node[addr].prototype == prototype then
 			return ALL_PROXYSVR.self_node[addr]
 		else
-			local proxy = create_proxysvr(addr, node_name, prototype)
+			local proxy = create_proxysvr(addr, clustername, prototype)
 			ALL_PROXYSVR.self_node[addr] = proxy
 			return proxy
 		end
 	else
 		-- 跨服节点
-		assert(node_name)
-		local proxy = ALL_PROXYSVR.othernode[addr] and ALL_PROXYSVR.othernode[addr][node_name]
+		assert(clustername)
+		local proxy = ALL_PROXYSVR.othernode[addr] and ALL_PROXYSVR.othernode[addr][clustername]
 		if proxy and proxy.prototype == prototype then
 			return proxy
 		end
-		proxy = create_proxysvr(addr, node_name, prototype)
+		proxy = create_proxysvr(addr, clustername, prototype)
 		ALL_PROXYSVR.othernode[addr] = ALL_PROXYSVR.othernode[addr] or {}
-		ALL_PROXYSVR.othernode[addr][node_name] = ALL_PROXYSVR.othernode[addr][node_name] or {}
-		ALL_PROXYSVR.othernode[addr][node_name] = proxy
+		ALL_PROXYSVR.othernode[addr][clustername] = ALL_PROXYSVR.othernode[addr][clustername] or {}
+		ALL_PROXYSVR.othernode[addr][clustername] = proxy
 		return proxy
 	end
 end
@@ -214,35 +218,32 @@ end
 
 function GetProxyByServiceName(serviceName, ...)
 	local count = select("#", ...)
-	local nodeName, prototype, serverId = SELF_IPPORT, "lua", host_id -- 默认值
+	local hostnode, prototype, serverId = host_node, "lua", host_id -- 默认值
 	if count == 2 then
 		-- 2个参数
 		prototype, serverId = ...
 	elseif count == 3 then
 		-- 3个参数
-		nodeName, prototype, serverId = ...
+		hostnode, prototype, serverId = ...
 	end
-	assert(nodeName and prototype and serverId)
+	assert(hostnode and prototype and serverId)
+
+	-- 目前仅仅支持同一个集群内进行消息发送
+	local clustername = string.format(CLUSTER_NAME_FMT, hostnode, cluster_no, serverId)
 	local namedData = BASIC_SERVICE_MAP[serviceName]
-	if namedData then
-		assert(namedData.named)
-		return GetProxy(namedData.named, SELF_IPPORT, prototype)
+
+	if not namedData then
+		if hostnode == USER_NODE then
+			namedData = USER_SERVICE_MAP[serviceName]
+			if not (namedData and namedData.named) then
+				namedData = ADHOC_SERVICE_MAP[serviceName]
+			end
+		elseif host_node == CROSS_NODE then
+			namedData = ADHOC_SERVICE_MAP[serviceName]
+		else
+			error("proxy unknown " .. hostnode)
+		end
 	end
-
-	namedData = SERVICE_NAME[nodeName] and SERVICE_NAME[nodeName][serviceName]
-	if namedData then
-		print("nodeName, prototype, serverId ", nodeName, prototype, serverId)
-		assert(namedData.named)
-		return GetProxy(namedData.named, nodeName, prototype)
-	end
-end
-
-function GetIpport(serverId)
-	return SERVERID_CONFIG[serverId] and
-			SERVERID_CONFIG[serverId].self_ipport
-end
-
-function GetNodeName(serverId)
-	return SERVERID_CONFIG[serverId] and
-			SERVERID_CONFIG[serverId].node
+	local named = assert(namedData and namedData.named)
+	return GetProxy(named, clustername, prototype)
 end

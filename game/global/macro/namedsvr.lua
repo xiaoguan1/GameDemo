@@ -6,11 +6,11 @@ BASIC_SERVICE = {
 	{svr = "protosvr", named = ".PROTOSVR"},	-- 协议服务，加载协议和更新协议
 	{svr = "gamelog", named = ".GAMELOG"},
 	{svr = "stimer", named = ".STIMER"},
-	-- {svr = "dbserver", named = ".DBSERVER"},
+	{svr = "dbserver", named = ".DBSERVER"},
 	{svr = "gcluster", named = ".GCLUSTER"},
 	{svr = "manage", named = ".MANAGE"},
 }
-BASIC_SERVICE_MAP = false
+BASIC_SERVICE_MAP = {}
 
 --[[
 概念：
@@ -31,6 +31,7 @@ USER_BASIC_SERVICE = {
 	-- { svr = "ugate", named = ".UGATE", node = USER_NODE,	},	-- 登录服务(会代理起到agent服务)
 	-- { svr = "agent", named = ".AGENT", node = USER_NODE },	-- 玩家服务
 }
+USER_SERVICE_MAP = {}
 
 -- 相对自由，可以在cross服启动，也可以在user节点启动。只要是中心服数据库设置了。
 -- host_node：宿主节点限制。以example服务为例，允许启动该服务的节点只能是 cross
@@ -38,48 +39,31 @@ USER_BASIC_SERVICE = {
 -- node 其目的是为了在rpc.lua可以方便地根据服务名称获取网络地址
 ADHOC_SERVICE = {
 	-- example玩法
-	{ svr = "example", named = ".EXAMPLE", node = "example_node", host_node = {CROSS_NODE}},
-	{ svr = "display", named = ".DISPLAY", node = "display_node", host_node = {CROSS_NODE}},
+	{ svr = "example", named = ".EXAMPLE", host_node = {CROSS_NODE}},
+	{ svr = "display", named = ".DISPLAY", host_node = {CROSS_NODE}},
 
 	-- 仲裁登录服务（仲裁玩家登录那个user节点）
-	{ svr = "jlogin", named = ".JLOGIN", node = "jlogin_node", unique = true, host_node = {USER_NODE}},
+	{ svr = "jlogin", named = ".JLOGIN", unique = true, host_node = {USER_NODE}},
 
 	-- 中心服服务
-	-- { svr = "....", named = "....", node = ADHOC_NODE, host_node = {CROSS_NODE} },
+	-- { svr = "....", named = "....", host_node = {CROSS_NODE} },
 }
-ADHOC_SERVICE_MAP = false
+ADHOC_SERVICE_MAP = {}
 
 CLUSTER_NAME_MATCH = "^(%a+)@(%d+)_(%d+)$"	-- 解析集群节点名称
 CLUSTER_NAME_FMT = "%s@%s_%s"				-- 集群名称格式
 
+
 -- 构建当前进程节点的基础服务映射
-function BuildNamedSvr()
-	-- 根据进程节点，构建基础服务配置
-	local node = assert(SELF_NODE.node)
-	BASIC_SERVICE_MAP = {}
-	if node == USER_NODE then
-		for _, v in ipairs(USER_BASIC_SERVICE) do
-			table.insert(BASIC_SERVICE, v)
-		end
-	elseif node == CROSS_NODE then
-		-- ...
-	else
-		skynet.error("namedsvr unknown node:", node)
-	end
-
-	for _, v in ipairs(BASIC_SERVICE) do
-		-- 基础服务，具有唯一性。
-		assert(not BASIC_SERVICE_MAP[v.svr])
-		BASIC_SERVICE_MAP[v.svr] = v
-	end
-
-	ADHOC_SERVICE_MAP = {}
-	for _, v in ipairs(ADHOC_SERVICE) do
-		ADHOC_SERVICE_MAP[v.svr] = v
-	end
+for _, v in ipairs(BASIC_SERVICE) do
+	assert(not BASIC_SERVICE_MAP[v.svr])
+	BASIC_SERVICE_MAP[v.svr] = v
 end
-
-if SELF_NODE and SELF_NODE.node then
-	-- 除了main、cross服务需要手动加载，因为该文件跑在设置node之前
-	BuildNamedSvr()
+for _, v in ipairs(USER_BASIC_SERVICE) do
+	assert(not USER_SERVICE_MAP[v.svr])
+	USER_SERVICE_MAP[v.svr] = v
+end
+for _, v in ipairs(ADHOC_SERVICE) do
+	assert(not ADHOC_SERVICE_MAP[v.svr])
+	ADHOC_SERVICE_MAP[v.svr] = v
 end
