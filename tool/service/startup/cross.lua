@@ -52,12 +52,8 @@ skynet.start(function ()
 		abort(serviceNode)
 	end
 	local host_config = assert(serverConfig[host_id])
-	local node = assert(host_config.node)
-	local self_ipport = assert(host_config.self_ipport)
 
-	skynet.setenv("host_config", tool.dumptree(host_config))
-	skynet.setenv("node", node)	-- 该进程的节点类型
-	skynet.setenv("self_ipport", self_ipport)
+	skynet.setenv("self_node", tool.dumptree(host_config))
 	skynet.setenv("serverId_config", tool.dumptree(serverConfig))
 	skynet.setenv("service_clustername", tool.dumptree(serviceNode))
 	doGamePreload()

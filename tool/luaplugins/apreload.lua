@@ -19,13 +19,13 @@ skynet.register_protocol({
 
 -- 节点类型判断
 function IsUser()
-	return skynet.getenv("node") == USER_NODE	-- user节点
+	return SELF_NODE.node == USER_NODE	-- user节点
 end
 function IsCross()
-	return skynet.getenv("node") == CROSS_NODE	-- 一般跨服节点
+	return SELF_NODE.node == CROSS_NODE	-- 一般跨服节点
 end
 
-SELF_NODE = load("return " .. assert(skynet_getenv("host_config")))()
-SELF_IPPORT = assert(skynet_getenv("self_ipport"))
+SELF_NODE = load("return " .. assert(skynet_getenv("self_node")))()
+SELF_IPPORT = assert(SELF_NODE.self_ipport)
 SERVERID_CONFIG = load("return " .. assert(skynet_getenv("serverId_config")))()
 SERVICE_CLUSTERNAME = load("return " .. assert(skynet_getenv("service_clustername")))()

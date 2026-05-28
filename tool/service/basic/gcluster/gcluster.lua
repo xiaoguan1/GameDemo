@@ -1,6 +1,6 @@
 
 local skynet = require "skynet"
-local node = assert(skynet.getenv("node"))
+local node = assert(SELF_NODE.node)
 local string = string
 local sformat = string.format
 

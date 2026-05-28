@@ -1,6 +1,5 @@
 -- 节点的宏文件
 local skynet = require "skynet"
--- local node = skynet.getenv("node")
 
 -- 每个节点的基础服务
 BASIC_SERVICE = {
@@ -53,7 +52,7 @@ ADHOC_SERVICE_MAP = false
 -- 构建当前进程节点的基础服务映射
 function BuildNamedSvr()
 	-- 根据进程节点，构建基础服务配置
-	local node = assert(skynet.getenv("node"))
+	local node = assert(SELF_NODE.node)
 	BASIC_SERVICE_MAP = {}
 	if node == USER_NODE then
 		for _, v in ipairs(USER_BASIC_SERVICE) do
@@ -76,7 +75,8 @@ function BuildNamedSvr()
 		ADHOC_SERVICE_MAP[v.svr] = v
 	end
 end
-if skynet.getenv("node") then
+
+if SELF_NODE and SELF_NODE.node then
 	-- 除了main、cross服务需要手动加载，因为该文件跑在设置node之前
 	BuildNamedSvr()
 end

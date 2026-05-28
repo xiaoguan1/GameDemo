@@ -4,7 +4,7 @@
 
 local skynet = require "skynet"
 local clusterNo = assert(assert(skynet.getenv("cluster_no")))
-local node = assert(skynet.getenv("node")) -- 节点类型名称(user、cross、其他)
+local node = assert(SELF_NODE.node) -- 节点类型名称(user、cross、其他)
 local serverId = assert(skynet.getenv("server_id"))
 local is_testserver = skynet.getenv("is_testserver") == "test"
 

@@ -8,7 +8,7 @@ local os_date = os.date
 local print = print
 local sformat = string.format
 local logStdin = skynet.getenv("log_stdin") == "true"
-local node = skynet.getenv("node")
+local node = SELF_NODE.node
 local HEADER = "\27"
 local END_FORMAT = "\27[0m"
 local PROXYSVR = Import("game/global/rpc/proxysvr.lua")

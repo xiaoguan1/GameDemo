@@ -12,7 +12,7 @@ end}
 
 local PROXYSVR = Import("game/global/rpc/proxysvr.lua")
 
-local node = assert(skynet.getenv("node")) -- 该进程的节点类型
+local node = assert(SELF_NODE.node) -- 该进程的节点类型
 local SERVERID_CONFIG = assert(SERVERID_CONFIG)
 local SELF_NODE = assert(SELF_NODE)
 local SELF_IPPORT = assert(SELF_IPPORT)

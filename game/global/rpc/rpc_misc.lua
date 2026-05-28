@@ -1,5 +1,5 @@
 local skynet = require "skynet"
-local node = skynet.getenv("node")		-- 节点类型名称
+local node = SELF_NODE.node				-- 节点类型名称
 local GCLUSTER_NODE = SELF_NODE			-- 节点配置
 local SELF_IPPORT = SELF_IPPORT			-- 自己节点的网络地址
 local BASIC_SERVICE_MAP = BASIC_SERVICE_MAP

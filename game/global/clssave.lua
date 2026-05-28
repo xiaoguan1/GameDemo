@@ -15,7 +15,7 @@ local sformat = string.format
 local is_testserver = skynet.getenv("is_testserver") == "true"
 local UTIL = Import("game/global/util.lua")
 local DB_COMMON = Import("game/global/db_common.lua")
-local node = skynet.getenv("node")
+local node = SELF_NODE.node
 local posix = require "posix"
 
 assert(MODULE_DB, "not Import MODULE_DB")

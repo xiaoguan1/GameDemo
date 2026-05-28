@@ -58,4 +58,5 @@ end
 local gamePreload = skynet.getenv("game_preload")
 if gamePreload then
 	dofile(gamePreload)
+	BuildNamedSvr()
 end
