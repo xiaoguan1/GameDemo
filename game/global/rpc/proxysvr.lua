@@ -13,6 +13,7 @@ local SERVERID_CONFIG = SERVERID_CONFIG
 local host_id = tonumber(assert(skynet.getenv("server_id")))
 local host_node = SELF_NODE.node
 local cluster_no = tonumber(assert(skynet.getenv("cluster_no")))
+local NODE_IP_MAP = assert(NODE_IP_MAP)
 
 local RPC_MISC = Import("game/global/rpc/rpc_misc.lua")
 
@@ -215,21 +216,33 @@ function GetProxyByServiceName(serviceName, ...)
 	assert(hostnode and prototype and serverId)
 
 	-- 目前仅仅支持同一个集群内进行消息发送
-	local clustername = string.format(CLUSTER_NAME_FMT, hostnode, cluster_no, serverId)
+	if not (NODE_IP_MAP[hostnode] and NODE_IP_MAP[hostnode][serverId]) then
+		_ERROR_F("%s %s not exists", hostnode, serverId)
+		return
+	end
+
+	local clustername
 	local namedData = BASIC_SERVICE_MAP[serviceName]
 
-	if not namedData then
+	if namedData then
+		-- 基础服务
+		clustername = string.format(CLUSTER_NAME_FMT, hostnode, cluster_no, serverId)
+	else
 		if hostnode == USER_NODE then
 			namedData = USER_SERVICE_MAP[serviceName]
-			if not (namedData and namedData.named) then
+			if namedData then
+				-- user节点的基础服务
+				clustername = string.format(CLUSTER_NAME_FMT, hostnode, cluster_no, serverId)
+			else
 				namedData = ADHOC_SERVICE_MAP[serviceName]
 			end
 		elseif host_node == CROSS_NODE then
-			namedData = ADHOC_SERVICE_MAP[serviceName]
 		else
-			error("proxy unknown " .. hostnode)
+			_ERROR_F("proxy unknown %s", hostnode)
+			return
 		end
 	end
+
 	local named = assert(namedData and namedData.named)
 	return GetProxy(named, clustername, prototype)
 end

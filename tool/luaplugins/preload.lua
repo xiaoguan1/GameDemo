@@ -55,6 +55,14 @@ if not _G.Import then
 	end
 end
 
+-- 注册的公共协议
+skynet.register_protocol({
+	name = "callout",
+	id = skynet.PTYPE_CALLOUT,
+	unpack = skynet.unpack,
+	pack = skynet.pack,
+})
+
 local gamePreload = skynet.getenv("game_preload")
 if gamePreload then
 	dofile(gamePreload)

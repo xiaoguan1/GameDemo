@@ -13,7 +13,7 @@ local tconcat = table.concat
 
 local CLUSTER_NAME_MATCH = CLUSTER_NAME_MATCH
 local SELF_IPPORT = assert(SELF_IPPORT)
-local SERVERID_CONFIG = assert(SERVERID_CONFIG) --集群环境
+local NODE_IP_MAP = assert(NODE_IP_MAP)
 
 node_session2co = {}
 command = {}
@@ -21,8 +21,6 @@ connecting = {}   -- 正在进行节点连接的事件
 
 node_channel = {}	-- 本节点主动连接其他节点的数据缓存
 accept_fd = {}		-- 外部节点主动连接本节点的数据缓存
-
-NODE_IP_MAP = false
 
 function SyncGate(isCall, ...)
 	assert(CLUSTER_GATE)
@@ -55,20 +53,6 @@ end
 -- 消息打包
 function MsgPack(msg)
 	return tconcat({string.pack(">I2", msg:len()), msg})
-end
-
-function LoadNodeIpMap()
-	NODE_IP_MAP = {}
-	for serverId, cfg in pairs(SERVERID_CONFIG) do
-		if not NODE_IP_MAP[cfg.node] then
-			NODE_IP_MAP[cfg.node] = {}
-		end
-		if NODE_IP_MAP[cfg.node][serverId] then
-			_ERROR_F("cluster_no[%s] server_id[%s] repeat!!!", cfg.node, serverId)
-		end
-		NODE_IP_MAP[cfg.node][serverId] = cfg.self_ipport
-	end
-	-- print("NODE_IP_MAP", tool.dumptree(NODE_IP_MAP))
 end
 
 -- 解析集群节点名称
@@ -119,7 +103,6 @@ skynet.start(function ()
 		end
 	end)
 
-	LoadNodeIpMap()
 	Ghelper = Import("tool/service/basic/gcluster/gcluster_helper.lua")
 	setmetatable(node_channel, { __index = Ghelper.OpenChannel })
 

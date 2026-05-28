@@ -246,6 +246,7 @@ function command.socket(source, subcmd, fd, ...)
 			return
 		end
 		-- 处理消息
+		print("qqqqqqq ", msg)
 	elseif subcmd == "error" then
 	else
 		skynet.error("gclusterd subcmd no matching!", subcmd, fd, ...)
@@ -266,5 +267,4 @@ function command.kick()
 end
 
 function __update__()
-	LoadNodeIpMap()
 end
