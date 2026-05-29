@@ -18,7 +18,7 @@ local node_session2co = assert(node_session2co)
 local connecting = assert(connecting)
 local command = assert(command)
 local node_channel = assert(node_channel)
-local GetClusterAddr = assert(GetClusterAddr)
+local GetAddrByClusterName = assert(GetAddrByClusterName)
 
 local SELF_CLUSTERNAME = assert(SELF_CLUSTERNAME)
 
@@ -102,7 +102,7 @@ function DealResponse(session, ok, msg, sz)
 end
 
 function OpenChannel(_node_channel, clusterName)           -- key集群名称（例：cross@1_55001）
-	local address = GetClusterAddr(clusterName)
+	local address = GetAddrByClusterName(clusterName)
 	if not address then
 		error(sformat("%s not find address", clusterName))
 	end

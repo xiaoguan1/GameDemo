@@ -18,15 +18,15 @@ local sformat = string.format
 local OVERTIME = 	300 	-- 3秒
 local MAX_OVERTIME = 600 	-- 6秒
 
-GCLUSTER_ADDR = false
+GCLUSTER_GATE = false
 
-local function getClusterAddr()
-	if GCLUSTER_ADDR then
-		return GCLUSTER_ADDR
+local function gClusterGate()
+	if GCLUSTER_GATE then
+		return GCLUSTER_GATE
 	end
 	local named = BASIC_SERVICE_MAP["gcluster"].named
-	GCLUSTER_ADDR = skynet.localname(named)
-	return GCLUSTER_ADDR
+	GCLUSTER_GATE = skynet.localname(named)
+	return GCLUSTER_GATE
 end
 
 -- 结果检查，不支持userdata作为返回结果！
@@ -59,7 +59,7 @@ local function __call(overtime, clustername, address, prototype, ...)
 	local unpack_func = skynet.get_prototype_unpack(prototype)
 	assert(pack_func and unpack_func)
 
-	local gclusterd = assert(getClusterAddr())
+	local gclusterd = assert(gClusterGate())
 	local msg, sz = skynet.call(gclusterd, "lua", "call", overtime, clustername, address, prototype, pack_func(...)) -- 肯定是当前节点，所以不用代理了
 	return _ret_func(msg, sz, xpcall(unpack_func, traceback, msg, sz))
 end
@@ -74,7 +74,7 @@ local function __send(clustername, address, prototype, ...)
 	end
 
 	local pack_func = assert(skynet.get_prototype_pack(prototype))
-	local gclusterd = assert(getClusterAddr())
+	local gclusterd = assert(gClusterGate())
 	skynet.send(gclusterd, "lua", "send", clustername, address, prototype, pack_func(...)) -- 肯定是当前节点，所以不用代理了
 end
 

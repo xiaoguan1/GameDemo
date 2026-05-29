@@ -7,13 +7,18 @@ local setmetatable = setmetatable
 local assert = assert
 local error = error
 local type = type
+local string = string
+local sformat = string.format
 
 local SELF_CLUSTERNAME = assert(SELF_CLUSTERNAME)
 local SERVERID_CONFIG = SERVERID_CONFIG
 local host_id = tonumber(assert(skynet.getenv("server_id")))
 local host_node = SELF_NODE.node
 local cluster_no = tonumber(assert(skynet.getenv("cluster_no")))
-local NODE_IP_MAP = assert(NODE_IP_MAP)
+local CLUSTER_NAME_FMT = assert(CLUSTER_NAME_FMT)
+
+local GetAddrByClusterName = assert(GetAddrByClusterName)
+local GetAddr = assert(GetAddr)
 
 local RPC_MISC = Import("game/global/rpc/rpc_misc.lua")
 
@@ -82,8 +87,8 @@ local function gen_send(addr, clustername, prototype)
 			end
 		})
 	else
-		if not string.match(clustername, CLUSTER_NAME_MATCH) then
-			error("clustername fmt error: " .. clustername)
+		if not GetAddrByClusterName(clustername) then
+			error("clustername error: " .. clustername)
 		end
 		local cache_func = {}
 		return setmetatable({}, {
@@ -142,8 +147,8 @@ local function gen_call(addr, clustername, prototype)
 			end
 		})
 	else
-		if not string.match(clustername, CLUSTER_NAME_MATCH) then
-			error("clustername fmt error: " .. clustername)
+		if not GetAddrByClusterName(clustername) then
+			error("clustername error: " .. clustername)
 		end
 		local cache_func = {}
 		return setmetatable({}, {
@@ -220,31 +225,30 @@ function GetProxyByServiceName(serviceName, ...)
 	assert(hostnode and prototype and serverId)
 
 	-- 目前仅仅支持同一个集群内进行消息发送
-	if not (NODE_IP_MAP[hostnode] and NODE_IP_MAP[hostnode][serverId]) then
+	if not GetAddr(hostnode, serverId) then
 		_ERROR_F("%s %s not exists", hostnode, serverId)
 		return
 	end
 
+-- SELF_CLUSTERNAME
 	local clustername
 	local namedData = BASIC_SERVICE_MAP[serviceName]
 
-	if namedData then
-		-- 基础服务
-		clustername = string.format(CLUSTER_NAME_FMT, hostnode, cluster_no, serverId)
-	else
+	if not namedData then
 		if hostnode == USER_NODE then
-			namedData = USER_SERVICE_MAP[serviceName]
-			if namedData then
-				-- user节点的基础服务
-				clustername = string.format(CLUSTER_NAME_FMT, hostnode, cluster_no, serverId)
-			else
-				namedData = ADHOC_SERVICE_MAP[serviceName]
-			end
-		elseif host_node == CROSS_NODE then
+			namedData = USER_SERVICE_MAP[serviceName] or ADHOC_SERVICE_MAP[serviceName]
+		elseif hostnode == CROSS_NODE then
+			namedData = ADHOC_SERVICE_MAP[serviceName]
 		else
 			_ERROR_F("proxy unknown %s", hostnode)
 			return
 		end
+	end
+
+	if hostnode == host_node then
+		clustername = SELF_CLUSTERNAME
+	else
+		clustername = sformat(CLUSTER_NAME_FMT, hostnode, cluster_no, serverId)
 	end
 
 	local named = assert(namedData and namedData.named)

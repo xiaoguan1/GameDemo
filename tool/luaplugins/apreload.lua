@@ -5,9 +5,11 @@
 local skynet = require "skynet"
 local skynet_getenv = skynet.getenv
 require "skynet.manager"
+local string = string
+local smatch = string.match
 
-local clusterNo = skynet_getenv("cluster_no")
-local serverId = skynet_getenv("server_id")
+local cluster_no = skynet_getenv("cluster_no")
+local server_id = skynet_getenv("server_id")
 
 local load = load
 local assert = assert
@@ -24,7 +26,7 @@ SELF_NODE = load("return " .. assert(skynet_getenv("self_node")))()
 SELF_IPPORT = assert(SELF_NODE.self_ipport)
 SERVERID_CONFIG = load("return " .. assert(skynet_getenv("serverId_config")))()
 SERVICE_CLUSTERNAME = load("return " .. assert(skynet_getenv("service_clustername")))()
-SELF_CLUSTERNAME = string.format(CLUSTER_NAME_FMT, SELF_NODE.node, clusterNo, serverId)
+SELF_CLUSTERNAME = string.format(CLUSTER_NAME_FMT, SELF_NODE.node, cluster_no, server_id)
 
 NODE_IP_MAP = false
 function LoadNodeIpMap()
@@ -39,13 +41,20 @@ function LoadNodeIpMap()
 end
 LoadNodeIpMap()
 
-function GetClusterAddr(clusterName)
+function GetAddrByClusterName(clusterName)
 	if not clusterName then
 		return
 	end
-	local node, clusterNo, serverId = string.match(clusterName, CLUSTER_NAME_MATCH)
-	if node and serverId then
+	local node, no, serverId = string.match(clusterName, CLUSTER_NAME_MATCH)
+	if node and serverId and cluster_no == no then
 		serverId = tonumber(serverId)
 		return NODE_IP_MAP[node] and NODE_IP_MAP[node][serverId]
 	end
+end
+
+function GetAddr(node, serverId)
+	if not node or not serverId then
+		return
+	end
+	return NODE_IP_MAP[node] and NODE_IP_MAP[node][serverId]
 end

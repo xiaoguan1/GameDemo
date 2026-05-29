@@ -321,7 +321,7 @@ function CMD.connect(source, addrOrIp, port)
 	if listenData and
 		(listenData.fake_addr == address or listenData.real_addr == address)
 	then
-		skynet.error("forbidden connection same node listen!", address)
+		skynet.error("forbidden connection self node listen!", address)
 		return
 	end
 

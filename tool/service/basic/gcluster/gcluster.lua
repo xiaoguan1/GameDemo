@@ -13,7 +13,6 @@ local tconcat = table.concat
 
 local CLUSTER_NAME_MATCH = CLUSTER_NAME_MATCH
 local SELF_IPPORT = assert(SELF_IPPORT)
-local NODE_IP_MAP = assert(NODE_IP_MAP)
 
 node_session2co = {}
 command = {}
@@ -53,18 +52,6 @@ end
 -- 消息打包
 function MsgPack(msg)
 	return tconcat({string.pack(">I2", msg:len()), msg})
-end
-
--- 解析集群节点名称
-function GetClusterAddr(clusterName)
-	if not clusterName then
-		return
-	end
-	local node, clusterNo, serverId = string.match(clusterName, CLUSTER_NAME_MATCH)
-	if node and serverId then
-		serverId = tonumber(serverId)
-		return NODE_IP_MAP[node] and NODE_IP_MAP[node][serverId]
-	end
 end
 
 -- 开启当前节点监听
