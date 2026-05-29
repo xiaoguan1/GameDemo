@@ -207,11 +207,10 @@ function GetProxy(addr, clustername, prototype)
 	end
 end
 
-ttt = true
 -- 获取当前节点的服务代理
 function GetProxyByServiceName(serviceName, ...)
 	local count = select("#", ...)
-	local hostnode, prototype, serverId = host_node, "lua", host_id -- 默认值
+	local targetnode, prototype, serverId = host_node, "lua", host_id -- 默认值
 	if count == 1 then
 		-- 1个参数
 		prototype  = ...
@@ -220,35 +219,33 @@ function GetProxyByServiceName(serviceName, ...)
 		prototype, serverId = ...
 	elseif count == 3 then
 		-- 3个参数
-		hostnode, prototype, serverId = ...
+		targetnode, prototype, serverId = ...
 	end
-	assert(hostnode and prototype and serverId)
+	assert(targetnode and prototype and serverId)
 
 	-- 目前仅仅支持同一个集群内进行消息发送
-	if not GetAddr(hostnode, serverId) then
-		_ERROR_F("%s %s not exists", hostnode, serverId)
+	if not GetAddr(targetnode, serverId) then
+		_ERROR_F("%s %s not exists", targetnode, serverId)
 		return
 	end
 
--- SELF_CLUSTERNAME
-	local clustername
 	local namedData = BASIC_SERVICE_MAP[serviceName]
-
 	if not namedData then
-		if hostnode == USER_NODE then
+		if targetnode == USER_NODE then
 			namedData = USER_SERVICE_MAP[serviceName] or ADHOC_SERVICE_MAP[serviceName]
-		elseif hostnode == CROSS_NODE then
+		elseif targetnode == CROSS_NODE then
 			namedData = ADHOC_SERVICE_MAP[serviceName]
 		else
-			_ERROR_F("proxy unknown %s", hostnode)
+			_ERROR_F("proxy unknown %s", targetnode)
 			return
 		end
 	end
 
-	if hostnode == host_node then
+	local clustername
+	if targetnode == host_node then
 		clustername = SELF_CLUSTERNAME
 	else
-		clustername = sformat(CLUSTER_NAME_FMT, hostnode, cluster_no, serverId)
+		clustername = sformat(CLUSTER_NAME_FMT, targetnode, cluster_no, serverId)
 	end
 
 	local named = assert(namedData and namedData.named)
