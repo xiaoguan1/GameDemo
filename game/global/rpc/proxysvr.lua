@@ -202,11 +202,15 @@ function GetProxy(addr, clustername, prototype)
 	end
 end
 
+ttt = true
 -- 获取当前节点的服务代理
 function GetProxyByServiceName(serviceName, ...)
 	local count = select("#", ...)
 	local hostnode, prototype, serverId = host_node, "lua", host_id -- 默认值
-	if count == 2 then
+	if count == 1 then
+		-- 1个参数
+		prototype  = ...
+	elseif count == 2 then
 		-- 2个参数
 		prototype, serverId = ...
 	elseif count == 3 then

@@ -26,7 +26,7 @@ SERVERID_CONFIG = load("return " .. assert(skynet_getenv("serverId_config")))()
 SERVICE_CLUSTERNAME = load("return " .. assert(skynet_getenv("service_clustername")))()
 SELF_CLUSTERNAME = string.format(CLUSTER_NAME_FMT, SELF_NODE.node, clusterNo, serverId)
 
-NODE_IP_MAP = {}
+NODE_IP_MAP = false
 function LoadNodeIpMap()
 	NODE_IP_MAP = {}
 	for serverId, cfg in pairs(SERVERID_CONFIG) do
@@ -37,6 +37,7 @@ function LoadNodeIpMap()
 		NODE_IP_MAP[cfg.node][serverId] = cfg.self_ipport
 	end
 end
+LoadNodeIpMap()
 
 function GetClusterAddr(clusterName)
 	if not clusterName then
