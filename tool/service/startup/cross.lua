@@ -53,11 +53,11 @@ skynet.start(function ()
 	local host_config = assert(serverConfig[host_id])
 
 	skynet.setenv("self_node", tool.dumptree(host_config))
-	skynet.setenv("serverId_config", tool.dumptree(serverConfig))
+	skynet.setenv("serverid_config", tool.dumptree(serverConfig))
 	skynet.setenv("service_clustername", tool.dumptree(serviceNode))
 	doGamePreload()
 
-	print("serverId_config ", tool.dumptree(serverConfig))
+	-- print("serverid_config ", tool.dumptree(serverConfig))
 
 	dofile "./game/global/log.lua"
 	for _, v in ipairs(BASIC_SERVICE) do
@@ -83,4 +83,8 @@ skynet.start(function ()
 	startOterSvr(ADHOC_SERVICE)
 
 	Import("game/global/rpc/rpc.lua")
+	_DEBUG_F("serverConfig %s", tool.dumptree(serverConfig))
+	_DEBUG_F("service_clustername %s", tool.dumptree(serviceNode))
+	_DEBUG_F("serverConfig %s", tool.dumptree(serverConfig))
+	_DEBUG_F("NODE_IP_MAP %s", tool.dumptree(NODE_IP_MAP))
 end)

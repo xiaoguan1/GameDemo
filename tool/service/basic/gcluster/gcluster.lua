@@ -100,8 +100,8 @@ skynet.start(function ()
 	if node ~= "user" then
 		-- nodeListen(SELF_IPPORT)		-- 开启当前节点 CLUSTER_GATE
 	else
-		local t = GetChannel("cross@1_55001", true)
-		print("t ", tool.dumptree(t))
+		-- local t = GetChannel("cross@1_55001", true)
+		-- print("t ", tool.dumptree(t))
 	end
 	skynet.timeout(0, dealOvertime)
 end)

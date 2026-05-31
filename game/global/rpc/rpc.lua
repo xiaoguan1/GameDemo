@@ -19,75 +19,104 @@ local SELF_IPPORT = assert(SELF_IPPORT)
 local NODE_LIST = NODE_LIST
 local ADHOC_SERVICE_MAP = assert(ADHOC_SERVICE_MAP)
 local BASIC_SERVICE_MAP = assert(BASIC_SERVICE_MAP)
+local SERVICE_CLUSTERNAME = assert(SERVICE_CLUSTERNAME)
 
 mod_call = {}
 -- mod_send = {}
 
+local function isSameServer(serverId)
+	assert(serverId)
 
+end
 
+local function isVaildSvr(svr)
+	if not svr then
+		return
+	end
+	local mData = BASIC_SERVICE_MAP[svr] or USER_SERVICE_MAP[svr] or ADHOC_SERVICE_MAP[svr]
+	-- 这里有问题，因为namedsvr.lua没有限制svr重名！！！
+	return mData and mData.named
+end
 
+local function isOtherNode(serverId)
+	local cfg = serverId and SERVERID_CONFIG[serverId]
+	if cfg and cfg.self_ipport ~= SELF_IPPORT then
+		return true
+	end
+end
+
+local function getClusterName(service, serverId)
+	if not service or not serverId then
+		return
+	end
+	local sId2name = SERVICE_CLUSTERNAME[service]
+	if type(sId2name) == "table" then
+		return sId2name[serverId]
+	end
+	return sId2name
+end
+
+-- rpc.mod_call.服务名[区服编号].模块名.函数名(参数1, ....)
 local function initModCall()
-	local cache1 = {}
-	local cache2 = {}
 
-	local scache1 = {}
-
-	for _, serviceMap in pairs({BASIC_SERVICE_MAP, ADHOC_SERVICE_MAP}) do
-		for svr, data in pairs(serviceMap) do
-			if not mod_call[svr] then
-				mod_call[svr] =  setmetatable({}, {
-					__index = function (_, modOraddr)
-						if string.find(modOraddr, ":") then
-							-- 网络地址
-							local ipportAddr = modOraddr
-							if not cache1[ipportAddr] then
-								cache1[ipportAddr] = setmetatable({}, {
+		-- rpc.mod_call.服务名[区服编号].模块名.函数名(参数1, ....)
+	local mod_call = {}
+	local cache = {}
+	local self_cache = {}
+	local other_cache = {}
+	local other_cache2 = {}
+	local function __newIndexFun(_, key, val)
+		error(string.format("not modify key[%s] val[%s]", key, val))
+	end
+	setmetatable(mod_call, {
+		__index = function (_, svr)
+			if not cache[svr] then
+				-- service的检查校验
+				local addr = assert(isVaildSvr(svr))
+				cache[svr] = setmetatable({}, {
+					__index = function (_, sidOrmod)
+						local serverId = tonumber(sidOrmod)
+						if serverId and isOtherNode(serverId) then
+							local clustername = assert(getClusterName(svr, serverId))
+							-- 跨服发消息(校验是否为本服，若是则禁止 或者 走的skynet.send or call)
+							if not other_cache[serverId] then
+								other_cache[serverId] = setmetatable({}, {
 									__index = function (_, modName)
-										if not cache2[modName] then
-											cache2[modName] = setmetatable({}, {
+										if not other_cache2[modName] then
+											other_cache2[modName] = setmetatable({}, {
 												__index = function (_, funcName)
-													-- PROXYSVR.
-													return print
+													local p = PROXYSVR.GetProxy(addr, clustername, "rpc")
+													return p.call
 												end,
-												__newindex = function (_, k, v)
-													error(sformat("not modify. key[%s] value[%s]", k, v))
-												end,
+												__newindex = __newIndexFun,
 											})
 										end
-										return cache2[modName]
+										return other_cache2[modName]
 									end,
-									__newindex = function (_, k, v)
-										error(sformat("not modify. key[%s] value[%s]", k, v))
-									end,
+									__newindex = __newIndexFun,
 								})
 							end
-							return cache1[ipportAddr]
-
+							return other_cache[serverId]
 						else
-							-- 本地服务
-							local modName = modOraddr
-							local ipportAddr = SELF_IPPORT
-							if not scache1[modName] then
-								scache1[modName] = setmetatable({}, {
+							local modName = sidOrmod
+							if not self_cache[modName] then
+								self_cache[modName] = setmetatable({}, {
 									__index = function (_, funcName)
-										-- PROXYSVR.
 										return print
 									end,
-									__newindex = function (_, k, v)
-										error(sformat("not modify. key[%s] value[%s]", k, v))
-									end,
+									__newindex = __newIndexFun,
 								})
 							end
-							return scache1[modName]
+							return self_cache[modName]
 						end
 					end,
-					__newindex = function (_, k, v)
-						error(sformat("not modify. key[%s] value[%s]", k, v))
-					end,
+					__newindex = __newIndexFun,
 				})
 			end
-		end
-	end
+			return cache[svr]
+		end,
+		__newindex = __newIndexFun,
+	})
 end
 
 -- local function ModSend()

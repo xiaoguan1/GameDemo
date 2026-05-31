@@ -24,7 +24,7 @@ end
 
 SELF_NODE = load("return " .. assert(skynet_getenv("self_node")))()
 SELF_IPPORT = assert(SELF_NODE.self_ipport)
-SERVERID_CONFIG = load("return " .. assert(skynet_getenv("serverId_config")))()
+SERVERID_CONFIG = load("return " .. assert(skynet_getenv("serverid_config")))()
 SERVICE_CLUSTERNAME = load("return " .. assert(skynet_getenv("service_clustername")))()
 SELF_CLUSTERNAME = string.format(CLUSTER_NAME_FMT, SELF_NODE.node, cluster_no, server_id)
 

@@ -51,7 +51,7 @@ skynet.start(function ()
 	local host_config = assert(serverConfig[host_id])
 
 	skynet.setenv("self_node", tool.dumptree(host_config))
-	skynet.setenv("serverId_config", tool.dumptree(serverConfig))
+	skynet.setenv("serverid_config", tool.dumptree(serverConfig))
 	skynet.setenv("service_clustername", tool.dumptree(serviceNode))
 	doGamePreload()
 
