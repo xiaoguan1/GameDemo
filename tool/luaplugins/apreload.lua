@@ -58,3 +58,13 @@ function GetAddr(node, serverId)
 	end
 	return NODE_IP_MAP[node] and NODE_IP_MAP[node][serverId]
 end
+
+-- 添加rpc协议
+if not skynet.get_proto(skynet.PTYPE_RPC) then
+	skynet.register_protocol {
+		name = "rpc",
+		id = skynet.PTYPE_RPC,
+		unpack = skynet.unpack,
+		pack = skynet.pack,
+	}
+end

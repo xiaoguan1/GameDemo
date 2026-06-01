@@ -109,14 +109,7 @@ function GetAllNodeData()
 	if not ok then
 		return false, db
 	end
-	return getAllNodeData(db)
-end
-
-
-function GetOneNodeData(serverId)
-	local ok, db = _GetDb()
-	if not ok then
-		return false, db
-	end
-	return getOneNodeData(db)
+	local serverConfig, serviceNode = getAllNodeData(db)
+	db:disconnect()
+	return serverConfig, serviceNode
 end

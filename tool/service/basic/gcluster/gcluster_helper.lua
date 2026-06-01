@@ -34,6 +34,7 @@ local function mergePrototype(msgType, protoType)
 	else
 		prototypeId = protoType
 	end
+	print("msgType, protoType ", msgType, protoType,prototypeId)
 	assert(msgType <= MSG_TYPE_MAX)
 	return (prototypeId << 8) + msgType
 end
@@ -185,13 +186,13 @@ function command.call(_, overtime, clustername, addr, prototype, msg, sz)
 	if not sock_fd then
 		local response_func = skynet.response()
 		response_func(false, "socket error")
-	else
-		node_session2co[_session] = {
-			overtime + skynet.now(),
-			skynet.response(),
-			sock_fd,
-		}
+		return
 	end
+	node_session2co[_session] = {
+		overtime + skynet.now(),
+		skynet.response(),
+		sock_fd,
+	}
 end
 
 -- gate服务发来的消息处理
@@ -228,6 +229,7 @@ function command.socket(source, subcmd, fd, ...)
 	elseif subcmd == "data" then
 		local address, msg = ...
 		local channelObj = GetChannel(address)
+		print("address ", address)
 		if not channelObj then
 			channelObj = connecting[address] and connecting[address].pre_channel
 			 if not channelObj then
@@ -264,6 +266,13 @@ end
 
 function command.kick()
 	-- 主动关闭socket链接(粗暴的方式关闭)
+	for k, v in pairs(connecting) do
+		print("connecting ", k, v)
+	end
+	print()
+	for k, v in pairs(node_channel) do
+		print("node_channel ", k, v)
+	end
 end
 
 function __update__()

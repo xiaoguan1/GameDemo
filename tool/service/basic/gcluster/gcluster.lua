@@ -83,11 +83,7 @@ skynet.start(function ()
 
 	skynet.dispatch("lua", function (session, source, cmd, ...)
 		local f = assert(command[cmd])
-		if session == 0 then
-			f(source, ...)
-		else
-			skynet.ret(skynet.pack(f(source, ...)))
-		end
+		f(source, ...)
 	end)
 
 	Ghelper = Import("tool/service/basic/gcluster/gcluster_helper.lua")

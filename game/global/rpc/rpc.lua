@@ -60,11 +60,12 @@ end
 local function initModCall()
 
 		-- rpc.mod_call.服务名[区服编号].模块名.函数名(参数1, ....)
-	local mod_call = {}
 	local cache = {}
 	local self_cache = {}
+	local self_cache2 = {}
 	local other_cache = {}
 	local other_cache2 = {}
+	local other_cache3 = {}
 	local function __newIndexFun(_, key, val)
 		error(string.format("not modify key[%s] val[%s]", key, val))
 	end
@@ -85,8 +86,12 @@ local function initModCall()
 										if not other_cache2[modName] then
 											other_cache2[modName] = setmetatable({}, {
 												__index = function (_, funcName)
-													local p = PROXYSVR.GetProxy(addr, clustername, "rpc")
-													return p.call
+													if not other_cache3[funcName] then
+														other_cache3[funcName] = function (...)
+															return PROXYSVR.GetProxy(addr, clustername, "rpc").call(...)
+														end
+													end
+													return other_cache3[funcName]
 												end,
 												__newindex = __newIndexFun,
 											})
@@ -102,7 +107,12 @@ local function initModCall()
 							if not self_cache[modName] then
 								self_cache[modName] = setmetatable({}, {
 									__index = function (_, funcName)
-										return print
+										if not self_cache2[funcName] then
+											self_cache2[funcName] = function (...)
+												return PROXYSVR.GetProxy(addr, SELF_CLUSTERNAME, "rpc").call(...)
+											end
+										end
+										return self_cache2[funcName]
 									end,
 									__newindex = __newIndexFun,
 								})
