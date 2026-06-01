@@ -17,7 +17,6 @@ local SyncGate = assert(SyncGate)
 local node_session2co = assert(node_session2co)
 local connecting = assert(connecting)
 local command = assert(command)
-local node_channel = assert(node_channel)
 local GetAddrByClusterName = assert(GetAddrByClusterName)
 
 local SELF_CLUSTERNAME = assert(SELF_CLUSTERNAME)
@@ -49,7 +48,7 @@ local function socketCloseEvent(sockFd)
 end
 
 local function _send(clustername, request, padding)
-	local fdObj = node_channel[clustername]
+	local fdObj = GetChannel(clustername, true)
 	fdObj:write(request, padding)
     return fdObj.fd
 end
@@ -59,7 +58,7 @@ function SocketErr(clutsername, isPassive)
 	assert(clutsername)
 	local channelObj = GetChannel(clutsername)
 	if channelObj then
-		rawset(node_channel, clutsername, nil)
+		SetChannel(clutsername)
 		skynet.error(sformat("%s [%s] clear node_channel!", clutsername, channelObj.address))
 	else
 		skynet.error(sformat("%s node_channel not data!", clutsername))
@@ -136,14 +135,14 @@ function OpenChannel(_node_channel, clusterName)           -- key集群名称（
 		fdObj:do_auth()
 		ct.pre_channel = nil
 		if fdObj:is_auth_yes() then
-			local oldFdObj = rawget(_node_channel, clusterName)
+			local oldFdObj = GetChannel(clusterName)
 			if oldFdObj then
 				-- 强行关闭最新fd，并将已有的fdObj返回给被沉睡的协程
 				fdObj.fd = nil
 				ct.channel = oldFdObj
 				SyncGate(false, "close_connect", fd)
 			else
-				rawset(_node_channel, clusterName, fdObj)
+				SetChannel(clusterName, fdObj)
 				ct.channel = fdObj
 			end
 		else
@@ -155,9 +154,9 @@ function OpenChannel(_node_channel, clusterName)           -- key集群名称（
 	for _, co in ipairs(ct.co) do
 		skynet.wakeup(co)
 	end
-	assert(rawget(_node_channel, clusterName), clusterName .. " connect fail")
+	assert(GetChannel(clusterName), clusterName .. " connect fail")
 	skynet.error("gclusterd succeed connect", clusterName)
-	return rawget(_node_channel, clusterName)
+	return GetChannel(clusterName)
 end
 
 -- 异步发消息
@@ -227,9 +226,8 @@ function command.socket(source, subcmd, fd, ...)
 		end
 		SocketErr(fdObj.cluster_name, true)
 	elseif subcmd == "data" then
-		local address, msg = ...
+		local address, msg, a, b, c = ...
 		local channelObj = GetChannel(address)
-		print("address ", address)
 		if not channelObj then
 			channelObj = connecting[address] and connecting[address].pre_channel
 			 if not channelObj then
@@ -248,7 +246,11 @@ function command.socket(source, subcmd, fd, ...)
 			return
 		end
 		-- 处理消息
-		print("qqqqqqq ", msg)
+
+		print("qqqqqqq ", msg, msg:len())
+
+		print("a, b, c ", a, b, c)
+		print("000000 ", ldpcluster.unpack(msg))
 	elseif subcmd == "error" then
 	else
 		skynet.error("gclusterd subcmd no matching!", subcmd, fd, ...)
@@ -266,6 +268,7 @@ end
 
 function command.kick()
 	-- 主动关闭socket链接(粗暴的方式关闭)
+	print("kickkickkickkickkickkick")
 	for k, v in pairs(connecting) do
 		print("connecting ", k, v)
 	end

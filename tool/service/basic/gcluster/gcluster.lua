@@ -18,8 +18,7 @@ node_session2co = {}
 command = {}
 connecting = {}   -- 正在进行节点连接的事件
 
-node_channel = {}	-- 本节点主动连接其他节点的数据缓存
-accept_fd = {}		-- 外部节点主动连接本节点的数据缓存
+node_channel = {}	-- 本节点与外部节点的socket连接缓存
 
 function SyncGate(isCall, ...)
 	assert(CLUSTER_GATE)
@@ -36,6 +35,28 @@ function GetChannel(clutserName, isConnect)
 		return node_channel[clutserName]
 	end
 	return rawget(node_channel, clutserName)
+end
+
+function SetChannel(clutserName, newFdObj)
+	if newFdObj then
+		-- 约束：必须是有效操作
+		local newAddress = newFdObj.address
+		local oldFdObj = rawget(node_channel, clutserName) or rawget(node_channel, newAddress)
+		if oldFdObj then
+			error(sformat("clutserName:%s address:%s exists", clutserName, newAddress))
+		end
+		rawset(node_channel, clutserName, newFdObj)
+		rawset(node_channel, newAddress, newFdObj)
+	else
+		-- 置nil
+		local oldFdObj = rawget(node_channel, clutserName)
+		if not oldFdObj then
+			_ERROR_F("clutserName:%s not exists", clutserName)
+			return
+		end
+		rawset(node_channel, clutserName, nil)
+		rawset(node_channel, oldFdObj.address, nil)
+	end
 end
 
 -- 原因：以clusterName为key，现在需要以网络地址来查找（暂时没想到特别好的方法）

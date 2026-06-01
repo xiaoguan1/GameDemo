@@ -207,7 +207,7 @@ function FdClass:deal_auth(msg)
 		connecting[self.address] = nil
 		if self:is_auth_yes() then
 			ct.channel = self
-			rawset(node_channel, self.cluster_name, self)
+			SetChannel(self.cluster_name, self)
 			skynet.error(sformat("gcluster scoket:%s auth succeed, from address:%s", self.fd, self.address))
 		end
 		for _, co in ipairs(ct.co) do
