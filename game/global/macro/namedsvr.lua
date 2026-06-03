@@ -67,3 +67,15 @@ for _, v in ipairs(ADHOC_SERVICE) do
 	assert(not ADHOC_SERVICE_MAP[v.svr])
 	ADHOC_SERVICE_MAP[v.svr] = v
 end
+
+-- 新增两个宏，分别是cross和user的启动顺序，手动添加
+START_USER_SERVICE = {
+	"protosvr",
+	"gamelog",
+	"stimer",
+	"dbserver",
+	"gcluster",
+	"manage",
+}
+
+-- 然后根据具体的配置是否是自由的或者必须启动的，尽量简单化不要复杂化。尽量写死为后续的rpc提供便利
