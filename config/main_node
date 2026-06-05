@@ -42,6 +42,8 @@ nowaiting = true			-- 不挂起【其中利弊还未考量】
 gcluster_auths = "!#df@&%s1idf"
 is_testserver = true		-- 测试服
 
+node_name = "user"
+
 ------------------ 数据库 ------------------
 database_cachecnt = 100		-- 每个数据库链接缓存数据数量
 database_num = 10			-- 每个链接数据库的个数

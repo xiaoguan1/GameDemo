@@ -46,9 +46,9 @@ end
 
 skynet.start(function ()
 	local nodeInfo = Import("game/global/nodeInfo.lua")
-	local serverConfig, serviceNode = nodeInfo.GetAllNodeData()
-	if not serverConfig then
-		abort(serviceNode)
+	local isOk, serverConfig, serviceNode = pcall(nodeInfo.GetAllNodeData)
+	if not isOk then
+		abort(serverConfig)
 	end
 	local host_config = assert(serverConfig[host_id])
 
@@ -60,27 +60,27 @@ skynet.start(function ()
 	-- print("serverid_config ", tool.dumptree(serverConfig))
 
 	dofile "./game/global/log.lua"
-	for _, v in ipairs(BASIC_SERVICE) do
-		local id = skynet.uniqueservice(v.svr)
+	for _, svrname in ipairs(START_CROSS_SERVICE.unique) do
+		local id = skynet.uniqueservice(svrname)
 		if not id then
-			abort(string.format("start service[%s] fail", v.svr))
+			abort(string.format("start service[%s] fail", svrname))
 		end
-		skynet.name(v.named, id)
+		skynet.name(BASIC_SERVICE_MAP[svrname].named, id)
 	end
 
 	local startService = host_config.start_service
 	local function startOterSvr(nodeSvrSeq)
-		for _, v in ipairs(nodeSvrSeq) do
-			if startService[v.svr] == SELF_IPPORT then
-				local id = skynet.newservice(v.svr)
+		for _, svrname in ipairs(nodeSvrSeq) do
+			if startService[svrname] == SELF_IPPORT then
+				local id = skynet.newservice(svrname)
 				if not id then
-					abort(string.format("start service[%s] fail", v.svr))
+					abort(string.format("start service[%s] fail", svrname))
 				end
-				skynet.name(v.named, id)
+				skynet.name(ADHOC_SERVICE_MAP[svrname].named, id)
 			end
 		end
 	end
-	startOterSvr(ADHOC_SERVICE)
+	startOterSvr(START_CROSS_SERVICE.adhoc)
 
 	Import("game/global/rpc/rpc.lua")
 	_DEBUG_F("serverConfig %s", tool.dumptree(serverConfig))

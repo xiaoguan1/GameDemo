@@ -5,6 +5,8 @@ local table = table
 local pairs = pairs
 local string = string
 local sformat = string.format
+
+local nodename = skynet.getenv("node_name")
 local CENTER_DATABASE = assert(load("return " .. skynet.getenv("centerdatadb_info"))())
 
 local host_id = tonumber(skynet.getenv("server_id"))
@@ -42,11 +44,6 @@ end
 local selectSql_1 = "select * from server_config where cluster_no = %d;"
 local selectSql_2 = "select * from server_config where cluster_no = %d and server_id = %d;"
 
--- 获取单个阶段的数据
-local function getOneNodeData()
-	
-end
-
 local function getAllNodeData(db)
 	assert(db)
 	local sql = sformat(selectSql_1, cluster_no)
@@ -55,7 +52,67 @@ local function getAllNodeData(db)
 		return false, sformat("query:%s database error!, res:%s", sql, tool.dump(dbRes))
 	end
 
-	-- print("res ", tool.dumptree(dbRes))
+	local hostConfig, oSvrConfigMap = nil, {}
+	for _, res in ipairs(dbRes) do
+		if res.server_id == host_id then
+			hostConfig = res
+		else
+			oSvrConfigMap[res.server_id] = res
+		end
+	end
+
+	if not hostConfig then
+		return false, "not find self server config"
+	end
+	if hostConfig.node_name ~= nodename then
+		return false, sformat("centerdatabase server_config node_name error! %s ~= %s", hostConfig.node_name, nodename)
+	end
+
+	local SERVER_CONFIG = {}	-- 全部区服的配置，包括自己
+
+	local startService = {}
+	local selfIpPort = hostConfig.ipport
+	local hostEnv = {
+		server_id = host_id,
+		nodename = nodename,
+		ipport = selfIpPort,
+		jlogin_ipport = hostConfig.jlogin_ipport ~= "" and hostConfig.jlogin_ipport or nil,
+		start_service = startService
+	}
+	for key, val in pairs(hostConfig) do
+		local isOk, sIdx, eIdx = string.beginswith(key, "is_start_")
+		if isOk then
+			local svriceName = string.sub(key, eIdx + 1)
+			if svriceName and ADHOC_SERVICE_MAP[nodename][svriceName] then
+				if val == 1 then
+					startService[svriceName] = selfIpPort
+				elseif val ~= 0 and oSvrConfigMap[val] then
+					startService[svriceName] = oSvrConfigMap[val].ipport
+				end
+			end
+		end
+	end
+	-- print("self_config ", tool.dumptree(self_config))
+	SERVER_CONFIG[host_id] = hostEnv
+
+
+	for serverId, config in pairs(oSvrConfigMap) do
+		local svrEnv = {}
+		-- local svrNodeName = config.
+		for key, val in pairs(config) do
+			local isOk, sIdx, eIdx = string.beginswith(key, "is_start_")
+			if isOk then
+				local svriceName = string.sub(key, eIdx + 1)
+				if svriceName and ADHOC_SERVICE_MAP[nodename][svriceName] then
+				end
+			end
+		end
+	end
+	
+
+
+
+
 	local serverConfig = {}
 	local serviceNode = {}
 	for _, data in ipairs(dbRes) do
