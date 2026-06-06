@@ -15,7 +15,7 @@ local sformat = string.format
 local is_testserver = skynet.getenv("is_testserver") == "true"
 local UTIL = Import("game/global/util.lua")
 local DB_COMMON = Import("game/global/db_common.lua")
-local node = SELF_NODE.node
+local nodename = assert(skynet.getenv("node_name"))
 local posix = require "posix"
 
 assert(MODULE_DB, "not Import MODULE_DB")
@@ -28,7 +28,7 @@ AllClsSave = {}
 
 local CHECK_SPLIT_SECORDS = 60 * 10	-- 10分钟检测一次
 
-local DUMP_PATH = "./log/" .. node .. "/module_data/"
+local DUMP_PATH = "./log/" .. nodename .. "/module_data/"
 local DUMP_FILE = DUMP_PATH .. "%s.data"
 posix.mkdir_p(DUMP_PATH)
 function _DumpFile(saveName, data)

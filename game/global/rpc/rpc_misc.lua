@@ -1,6 +1,9 @@
 local skynet = require "skynet"
-local SELF_CLUSTERNAME = SELF_CLUSTERNAME
-local BASIC_SERVICE_MAP = BASIC_SERVICE_MAP
+local skynet_getenv = skynet.getenv
+local SELF_CLUSTERNAME = assert(SELF_CLUSTERNAME)
+local BASIC_SERVICE_MAP = assert(BASIC_SERVICE_MAP)
+local CLUSTER_NAME_MATCH = assert(CLUSTER_NAME_MATCH)
+local CLUSTER_MAP = assert(CLUSTER_MAP)
 
 local is_testserver = (skynet.getenv("is_testserver") == "true") and true or false
 
@@ -18,6 +21,8 @@ local sformat = string.format
 local OVERTIME = 	300 	-- 3秒
 local MAX_OVERTIME = 600 	-- 6秒
 
+local cluster_no = skynet_getenv("cluster_no")
+
 GCLUSTER_GATE = false
 
 local function gClusterGate()
@@ -25,7 +30,7 @@ local function gClusterGate()
 		return GCLUSTER_GATE
 	end
 	local named = BASIC_SERVICE_MAP["gcluster"].named
-	GCLUSTER_GATE = skynet.localname(named)
+	GCLUSTER_GATE = assert(skynet.localname(named))
 	return GCLUSTER_GATE
 end
 
@@ -94,4 +99,42 @@ end
 function send(clustername, address, ...)
 	assert(clustername ~= SELF_CLUSTERNAME)
 	__send(clustername, address, ...)
+end
+
+
+
+function GetAddrByClusterName(clusterName)
+	if not clusterName then
+		return
+	end
+	local ipport
+	local nodename, no, serverId = string.match(clusterName, CLUSTER_NAME_MATCH)
+	if nodename and serverId and cluster_no == no then
+		serverId = tonumber(serverId)
+		ipport = CLUSTER_MAP[nodename] and
+				CLUSTER_MAP[nodename][serverId] and
+				CLUSTER_MAP[nodename][serverId].ipport
+	end
+	return ipport
+end
+
+function GetClusterName(nodename, serverId)
+	if not nodename or not serverId then
+		return
+	end
+	return CLUSTER_MAP[nodename] and
+		CLUSTER_MAP[nodename][serverId] and
+		CLUSTER_MAP[nodename][serverId].clustername
+end
+
+function IsValidClusterName(clusterName)
+	if not clusterName then
+		return
+	end
+	local nodename, no, serverId = string.match(clusterName, CLUSTER_NAME_MATCH)
+	if no ~= cluster_no then
+		return
+	end
+	serverId = tonumber(serverId)
+	return CLUSTER_MAP[nodename] and CLUSTER_MAP[nodename][serverId]
 end

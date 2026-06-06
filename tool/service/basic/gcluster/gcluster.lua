@@ -1,6 +1,6 @@
 
 local skynet = require "skynet"
-local node = assert(SELF_NODE.node)
+local nodename = assert(skynet.getenv("node_name"))
 local string = string
 local sformat = string.format
 
@@ -114,7 +114,7 @@ skynet.start(function ()
 
 	-- 暂时调试
 	nodeListen(SELF_IPPORT)		-- 开启当前节点 CLUSTER_GATE
-	if node ~= "user" then
+	if nodename ~= "user" then
 		-- nodeListen(SELF_IPPORT)		-- 开启当前节点 CLUSTER_GATE
 	else
 		-- local t = GetChannel("cross@1_55001", true)

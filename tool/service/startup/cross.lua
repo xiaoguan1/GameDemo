@@ -1,5 +1,5 @@
 local skynet = require "skynet"
-local host_id = assert(tonumber(skynet.getenv("server_id")))
+local nodename = assert(skynet.getenv("node_name"))
 require "skynet.manager"
 local util = require "util.core"
 local posix = require "posix"
@@ -46,18 +46,13 @@ end
 
 skynet.start(function ()
 	local nodeInfo = Import("game/global/nodeInfo.lua")
-	local isOk, serverConfig, serviceNode = pcall(nodeInfo.GetAllNodeData)
+	local isOk, hostConfig, SERVER_CONFIG = pcall(nodeInfo.GetAllNodeData)
 	if not isOk then
-		abort(serverConfig)
+		abort(hostConfig)
 	end
-	local host_config = assert(serverConfig[host_id])
-
-	skynet.setenv("self_node", tool.dumptree(host_config))
-	skynet.setenv("serverid_config", tool.dumptree(serverConfig))
-	skynet.setenv("service_clustername", tool.dumptree(serviceNode))
+	skynet.setenv("host_env", tool.dumptree(hostConfig))
+	skynet.setenv("server_config", tool.dumptree(SERVER_CONFIG))
 	doGamePreload()
-
-	-- print("serverid_config ", tool.dumptree(serverConfig))
 
 	dofile "./game/global/log.lua"
 	for _, svrname in ipairs(START_CROSS_SERVICE.unique) do
@@ -68,7 +63,7 @@ skynet.start(function ()
 		skynet.name(BASIC_SERVICE_MAP[svrname].named, id)
 	end
 
-	local startService = host_config.start_service
+	local startService = hostConfig.start_service
 	local function startOterSvr(nodeSvrSeq)
 		for _, svrname in ipairs(nodeSvrSeq) do
 			if startService[svrname] == SELF_IPPORT then
@@ -76,15 +71,18 @@ skynet.start(function ()
 				if not id then
 					abort(string.format("start service[%s] fail", svrname))
 				end
-				skynet.name(ADHOC_SERVICE_MAP[svrname].named, id)
+				skynet.name(ADHOC_SERVICE_MAP[nodename][svrname].named, id)
 			end
 		end
 	end
 	startOterSvr(START_CROSS_SERVICE.adhoc)
 
 	Import("game/global/rpc/rpc.lua")
-	_DEBUG_F("serverConfig %s", tool.dumptree(serverConfig))
-	_DEBUG_F("service_clustername %s", tool.dumptree(serviceNode))
-	_DEBUG_F("serverConfig %s", tool.dumptree(serverConfig))
-	_DEBUG_F("NODE_IP_MAP %s", tool.dumptree(NODE_IP_MAP))
+	_DEBUG_F("hostConfig %s", tool.dumptree(hostConfig))
+	_DEBUG_F("SERVER_CONFIG %s", tool.dumptree(SERVER_CONFIG))
+	_DEBUG_F("SELF_IPPORT %s", SELF_IPPORT)
+	_DEBUG_F("SELF_CLUSTERNAME ", tool.dumptree(SELF_CLUSTERNAME))
+	_DEBUG_F("CLUSTER_MAP %s", tool.dumptree(CLUSTER_MAP))
+	_DEBUG_F("ADHOC_SERVICE_MAP %s", tool.dumptree(ADHOC_SERVICE_MAP))
+	_DEBUG_F("SERVICE_CLUSTERNAME %s", tool.dumptree(SERVICE_CLUSTERNAME))
 end)

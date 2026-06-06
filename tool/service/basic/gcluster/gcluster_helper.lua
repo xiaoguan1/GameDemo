@@ -17,12 +17,12 @@ local SyncGate = assert(SyncGate)
 local node_session2co = assert(node_session2co)
 local connecting = assert(connecting)
 local command = assert(command)
-local GetAddrByClusterName = assert(GetAddrByClusterName)
 
 local SELF_CLUSTERNAME = assert(SELF_CLUSTERNAME)
 
 -- fd的类
 local FdClass = Import("tool/service/basic/gcluster/gcluster_fd_class.lua")
+local RPC_MISC = Import("game/global/rpc/rpc_misc.lua")
 
 ----- 局部方法 ------------------------------
 
@@ -102,7 +102,7 @@ function DealResponse(session, ok, msg, sz)
 end
 
 function OpenChannel(_node_channel, clusterName)           -- key集群名称（例：cross@1_55001）
-	local address = GetAddrByClusterName(clusterName)
+	local address = RPC_MISC.GetAddrByClusterName(clusterName)
 	if not address then
 		error(sformat("%s not find address", clusterName))
 	end
@@ -226,7 +226,7 @@ function command.socket(source, subcmd, fd, ...)
 		end
 		SocketErr(fdObj.cluster_name, true)
 	elseif subcmd == "data" then
-		local address, msg, a, b, c = ...
+		local address, msg  = ...
 		local channelObj = GetChannel(address)
 		if not channelObj then
 			channelObj = connecting[address] and connecting[address].pre_channel
@@ -246,11 +246,25 @@ function command.socket(source, subcmd, fd, ...)
 			return
 		end
 		-- 处理消息
+		local multCnt, session, srcNodeName, addr, protoType, sz, msg = ldpcluster.unpack(msg)
+		if multCnt == 0 then
+			-- 整包
+		else
+		end
 
-		print("qqqqqqq ", msg, msg:len())
 
-		print("a, b, c ", a, b, c)
-		print("000000 ", ldpcluster.unpack(msg))
+
+
+
+
+
+
+
+
+
+		print("消息长度 ", msg:len())
+		-- local a, b, c, d, e, f, h = ldpcluster.unpack(msg)
+		print("反序列化 ", ldpcluster.unpack(msg))
 	elseif subcmd == "error" then
 	else
 		skynet.error("gclusterd subcmd no matching!", subcmd, fd, ...)

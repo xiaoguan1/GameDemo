@@ -9,8 +9,8 @@ local sformat = string.format
 local nodename = skynet.getenv("node_name")
 local CENTER_DATABASE = assert(load("return " .. skynet.getenv("centerdatadb_info"))())
 
-local host_id = tonumber(skynet.getenv("server_id"))
-local cluster_no = tonumber(skynet.getenv("cluster_no"))
+local host_id = assert(tonumber(skynet.getenv("server_id")))
+local cluster_no = assert(tonumber(skynet.getenv("cluster_no")))
 local merge_hosts = skynet.getenv("merge_hosts")
 if merge_hosts then
 	merge_hosts = assert(load("return " .. merge_hosts))()
@@ -52,112 +52,99 @@ local function getAllNodeData(db)
 		return false, sformat("query:%s database error!, res:%s", sql, tool.dump(dbRes))
 	end
 
-	local hostConfig, oSvrConfigMap = nil, {}
+	local hostDbRes, otherDbRes = nil, {}
 	for _, res in ipairs(dbRes) do
 		if res.server_id == host_id then
-			hostConfig = res
+			hostDbRes = res
 		else
-			oSvrConfigMap[res.server_id] = res
+			otherDbRes[res.server_id] = res
 		end
 	end
 
-	if not hostConfig then
+	if not hostDbRes then
 		return false, "not find self server config"
 	end
-	if hostConfig.node_name ~= nodename then
-		return false, sformat("centerdatabase server_config node_name error! %s ~= %s", hostConfig.node_name, nodename)
+	if hostDbRes.node_name ~= nodename then
+		return false, sformat("centerdatabase server_config node_name error! %s ~= %s", hostDbRes.node_name, nodename)
 	end
 
 	local SERVER_CONFIG = {}	-- 全部区服的配置，包括自己
 
-	local startService = {}
-	local selfIpPort = hostConfig.ipport
-	local hostEnv = {
+	local startSvc = {}
+	local selfIpPort = hostDbRes.ipport
+	local hostConfig = {	-- 本服数据信息
 		server_id = host_id,
 		nodename = nodename,
 		ipport = selfIpPort,
-		jlogin_ipport = hostConfig.jlogin_ipport ~= "" and hostConfig.jlogin_ipport or nil,
-		start_service = startService
+		jlogin_ipport = hostDbRes.jlogin_ipport ~= "" and hostDbRes.jlogin_ipport or nil,
+		start_service = startSvc
 	}
-	for key, val in pairs(hostConfig) do
+	for key, val in pairs(hostDbRes) do
 		local isOk, sIdx, eIdx = string.beginswith(key, "is_start_")
 		if isOk then
 			local svriceName = string.sub(key, eIdx + 1)
-			if svriceName and ADHOC_SERVICE_MAP[nodename][svriceName] then
-				if val == 1 then
-					startService[svriceName] = selfIpPort
-				elseif val ~= 0 and oSvrConfigMap[val] then
-					startService[svriceName] = oSvrConfigMap[val].ipport
+			if val == 1 then
+				if not ADHOC_SERVICE_MAP[nodename][svriceName] then
+					return false, sformat("ADHOC_SERVICE_MAP11 [%s] [%s] not find!", nodename, svriceName)
 				end
+				startSvc[svriceName] = selfIpPort
+			elseif val ~= 0 then
+				local res = otherDbRes[val]
+				if val == host_id or not res then
+					return false, sformat("centerdatabase server_config[%s] error! %s ~= %s", host_id)
+				end
+				startSvc[svriceName] = res.ipport
 			end
 		end
 	end
-	-- print("self_config ", tool.dumptree(self_config))
-	SERVER_CONFIG[host_id] = hostEnv
+	SERVER_CONFIG[host_id] = hostConfig
 
-
-	for serverId, config in pairs(oSvrConfigMap) do
-		local svrEnv = {}
-		-- local svrNodeName = config.
+	-- 其他服数据信息
+	for serverId, config in pairs(otherDbRes) do
+		local startSvc = {}
+		local serverConfig = {
+			server_id = serverId,
+			nodename = config.node_name,
+			ipport = config.ipport,
+			jlogin_ipport = config.jlogin_ipport ~= "" and config.jlogin_ipport or nil,
+			start_service = startSvc
+		}
 		for key, val in pairs(config) do
 			local isOk, sIdx, eIdx = string.beginswith(key, "is_start_")
 			if isOk then
 				local svriceName = string.sub(key, eIdx + 1)
-				if svriceName and ADHOC_SERVICE_MAP[nodename][svriceName] then
+				if val == 1 then
+					if not ADHOC_SERVICE_MAP[config.node_name][svriceName] then
+						return false, sformat("ADHOC_SERVICE_MAP22 [%s] [%s] not find!", config.node_name, svriceName)
+					end
+					startSvc[svriceName] = config.ipport
+				elseif val ~= 0 then
+					local res = otherDbRes[val] or SERVER_CONFIG[val]
+					if (val == config.server_id) or not res then
+							return false, sformat("centerdatabase server_config[%s] error! %s ~= %s", config.server_id)
+					end
+					startSvc[svriceName] = res.ipport
 				end
 			end
 		end
+		SERVER_CONFIG[serverId] = serverConfig
 	end
-	
 
-
-
-
-	local serverConfig = {}
-	local serviceNode = {}
-	for _, data in ipairs(dbRes) do
-		local serverId = data.server_id
-		if not serverId or serverId <= 0 or serverConfig[serverId] then
-			return false, sformat("cluster_no[%s] repeated server_id[%s]", cluster_no, serverId)
+	-- 校验SERVER_CONFIG的网络地址唯一性
+	local ipPort2ServerId = {}
+	for serverId, config in pairs(SERVER_CONFIG) do
+		assert(not ipPort2ServerId[config.ipport])
+		if ipPort2ServerId[config.ipport] then
+			return false, sformat("centerdatabase server_config ipport repeated [%s] [%s]", ipPort2ServerId[config.ipport], serverId)
 		end
-		local nodeName = data.node_name
-		local startService = {}
-		local t = {
-			node = nodeName,
-			self_ipport = data.ipport,
-			jlogin_ipport = data.jlogin_ipport ~= "" and data.jlogin_ipport or nil,
-			start_service = startService,
-		}
-		serverConfig[serverId] = t
-
-		for _, cfg in pairs(ADHOC_SERVICE) do
-			if table.has_value(cfg.host_node, nodeName) then
-				local isStart = data["is_start_" .. cfg.svr] == 1
-				if isStart then
-					startService[cfg.svr] = data.ipport	-- 感觉设置1或者true没有任何实际用途，故设置网络地址
-				end
-				local identity = string.format(CLUSTER_NAME_FMT, nodeName, cluster_no, serverId)
-				if cfg.unique then
-					if serviceNode[cfg.svr] then
-						return false, sformat("cluster_no[%s] server_id[%s] repeated [%s]", cluster_no, serverId, cfg.svr)
-					end
-					serviceNode[cfg.svr] = identity
-				else
-					if not serviceNode[cfg.svr] then
-						serviceNode[cfg.svr] = {}
-					end
-					if serviceNode[cfg.svr][serverId] then
-						return false, sformat("cluster_no[%s] server_id[%s] repeated [%s]", cluster_no, serverId, cfg.svr)
-					end
-					serviceNode[cfg.svr][serverId] = identity
-				end
-			end
-		end
+		ipPort2ServerId[config.ipport] = serverId
 	end
-	-- print("serverConfig ", tool.dumptree(serverConfig))
-	-- print("svr2node ", tool.dumptree(serviceNode))
 
-	return serverConfig, serviceNode
+	-- print("dbRes ", tool.dumptree(dbRes))
+	-- print("hostEnv ", tool.dumptree(hostConfig))
+	-- print("SERVER_CONFIG ", tool.dumptree(SERVER_CONFIG))
+
+	return hostConfig, SERVER_CONFIG
 end
 
 -- 注意：里面有协程的，会阻塞当前协程，需要处理重入问题
@@ -166,7 +153,7 @@ function GetAllNodeData()
 	if not ok then
 		return false, db
 	end
-	local serverConfig, serviceNode = getAllNodeData(db)
+	local hostConfig, SERVER_CONFIG = getAllNodeData(db)
 	db:disconnect()
-	return serverConfig, serviceNode
+	return hostConfig, SERVER_CONFIG
 end

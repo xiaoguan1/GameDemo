@@ -8,7 +8,7 @@ local os_date = os.date
 local print = print
 local sformat = string.format
 local logStdin = skynet.getenv("log_stdin") == "true"
-local node = SELF_NODE.node
+local nodename = assert(skynet.getenv("node_name"))
 local HEADER = "\27"
 local END_FORMAT = "\27[0m"
 local PROXYSVR = Import("game/global/rpc/proxysvr.lua")
@@ -23,13 +23,13 @@ local LOG_LEVEL = {
 	WRITE_NOW = 2,
 }
 
-local _INFO_LOG_PATH = "./log/" .. node .. "/info/"
-local _DEBUG_LOG_PATH = "./log/" .. node .. "/debug/"
-local _WARN_LOG_PATH = "./log/" .. node .. "/warn/"
-local _ERROR_LOG_PATH =	"./log/" .. node .. "/error/"
-local _MEM_LOG_PATH = "./log/" .. node .. "/mem/"
-local _ERROR_A_ALARM_PATH = "./log/" .. node .. "/runtime/login_alarm/"
-local _LOG_EVENT_PATH = "./log/" .. node .. "/log_event/%s/%s"
+local _INFO_LOG_PATH = "./log/" .. nodename .. "/info/"
+local _DEBUG_LOG_PATH = "./log/" .. nodename .. "/debug/"
+local _WARN_LOG_PATH = "./log/" .. nodename .. "/warn/"
+local _ERROR_LOG_PATH =	"./log/" .. nodename .. "/error/"
+local _MEM_LOG_PATH = "./log/" .. nodename .. "/mem/"
+local _ERROR_A_ALARM_PATH = "./log/" .. nodename .. "/runtime/login_alarm/"
+local _LOG_EVENT_PATH = "./log/" .. nodename .. "/log_event/%s/%s"
 
 local SERVICE_INFO = sformat("[:%08x %s] ", skynet.self(), SERVICE_NAME)
 

@@ -11,14 +11,12 @@ local string = string
 local sformat = string.format
 
 local SELF_CLUSTERNAME = assert(SELF_CLUSTERNAME)
-local SERVERID_CONFIG = SERVERID_CONFIG
+local SERVER_CONFIG = SERVER_CONFIG
 local host_id = tonumber(assert(skynet.getenv("server_id")))
-local host_node = SELF_NODE.node
+local nodename = assert(skynet.getenv("node_name"))
 local cluster_no = tonumber(assert(skynet.getenv("cluster_no")))
 local CLUSTER_NAME_FMT = assert(CLUSTER_NAME_FMT)
-
-local GetAddrByClusterName = assert(GetAddrByClusterName)
-local GetAddr = assert(GetAddr)
+local SERVICE_CLUSTERNAME = assert(SERVICE_CLUSTERNAME)
 
 local RPC_MISC = Import("game/global/rpc/rpc_misc.lua")
 
@@ -87,7 +85,7 @@ local function gen_send(addr, clustername, prototype)
 			end
 		})
 	else
-		if not GetAddrByClusterName(clustername) then
+		if not RPC_MISC.IsValidClusterName(clustername) then
 			error("clustername error: " .. clustername)
 		end
 		local cache_func = {}
@@ -147,7 +145,7 @@ local function gen_call(addr, clustername, prototype)
 			end
 		})
 	else
-		if not GetAddrByClusterName(clustername) then
+		if not RPC_MISC.IsValidClusterName(clustername) then
 			error("clustername error: " .. clustername)
 		end
 		local cache_func = {}
@@ -210,7 +208,7 @@ end
 -- 获取当前节点的服务代理
 function GetProxyByServiceName(serviceName, ...)
 	local count = select("#", ...)
-	local targetnode, prototype, serverId = host_node, "lua", host_id -- 默认值
+	local targetnode, prototype, serverId = nodename, "lua", host_id -- 默认值
 	if count == 1 then
 		-- 1个参数
 		prototype  = ...
@@ -224,30 +222,28 @@ function GetProxyByServiceName(serviceName, ...)
 	assert(targetnode and prototype and serverId)
 
 	-- 目前仅仅支持同一个集群内进行消息发送
-	if not GetAddr(targetnode, serverId) then
+	local clusterName = RPC_MISC.GetClusterName(targetnode, serverId)
+	if not clusterName then
 		_ERROR_F("%s %s not exists", targetnode, serverId)
 		return
 	end
 
 	local namedData = BASIC_SERVICE_MAP[serviceName]
+	if namedData then
+		-- 基础设施服务，不支持跨节点通信
+		assert(namedData.named and clusterName == SELF_CLUSTERNAME)
+		return GetProxy(namedData.named, SELF_CLUSTERNAME, prototype)
+	end
+
+	-- 优先查找一般性服务，找不到再找adhoc服务
+	namedData = NORMAL_SERVICE_MAP[targetnode] and NORMAL_SERVICE_MAP[targetnode][serviceName]
 	if not namedData then
-		if targetnode == USER_NODE then
-			namedData = USER_SERVICE_MAP[serviceName] or ADHOC_SERVICE_MAP[serviceName]
-		elseif targetnode == CROSS_NODE then
-			namedData = ADHOC_SERVICE_MAP[serviceName]
-		else
-			_ERROR_F("proxy unknown %s", targetnode)
-			return
-		end
+		namedData = ADHOC_SERVICE_MAP[targetnode] and ADHOC_SERVICE_MAP[targetnode][serviceName]
 	end
-
-	local clustername
-	if targetnode == host_node then
-		clustername = SELF_CLUSTERNAME
-	else
-		clustername = sformat(CLUSTER_NAME_FMT, targetnode, cluster_no, serverId)
+	assert(namedData and namedData.named)
+	if clusterName ~= SELF_CLUSTERNAME then
+		-- 若是跨节点则检查对方节点是否启动了该服务（暂时不考虑normal的情况）
+		assert(SERVICE_CLUSTERNAME[serviceName] and SERVICE_CLUSTERNAME[serviceName][serverId])
 	end
-
-	local named = assert(namedData and namedData.named)
-	return GetProxy(named, clustername, prototype)
+	return GetProxy(namedData.named, clusterName, prototype)
 end

@@ -5,6 +5,7 @@ local util = require "util.core"
 local posix = require "posix"
 local dpcluster = require "dpcluster.core"
 local queue = require "queueplus"
+local nodename = assert(skynet.getenv("node_name"))
 CS = queue()
 
 local table = table
@@ -20,8 +21,7 @@ local function _OpenLogPath()
 	local alogpath = skynet.getenv("alogpath") -- logpath 日志文件
 	if not alogpath then
 		-- 设置alogpath
-		local node = assert(SELF_NODE.node)
-		alogpath = "./log/" .. node .. "/logpath/"
+		alogpath = "./log/" .. nodename .. "/logpath/"
 		skynet.setenv("alogpath", alogpath)
 	end
 
@@ -44,15 +44,12 @@ end
 
 skynet.start(function ()
 	local nodeInfo = Import("game/global/nodeInfo.lua")
-	local serverConfig, serviceNode = nodeInfo.GetAllNodeData()
-	if not serverConfig then
-		abort(serviceNode)
+	local isOk, hostConfig, SERVER_CONFIG = pcall(nodeInfo.GetAllNodeData)
+	if not isOk then
+		abort(hostConfig)
 	end
-	local host_config = assert(serverConfig[host_id])
-
-	skynet.setenv("self_node", tool.dumptree(host_config))
-	skynet.setenv("serverid_config", tool.dumptree(serverConfig))
-	skynet.setenv("service_clustername", tool.dumptree(serviceNode))
+	skynet.setenv("host_env", tool.dumptree(hostConfig))
+	skynet.setenv("server_config", tool.dumptree(SERVER_CONFIG))
 	doGamePreload()
 
 	dofile "./game/global/log.lua"
@@ -65,15 +62,15 @@ skynet.start(function ()
 	end
 
 	for _, svrname in ipairs(START_USER_SERVICE.normal) do
-		local id = skynet.uniqueservice(svrname)
+		local id = skynet.newservice(svrname)
 		if not id then
 			abort(string.format("start service[%s] fail", svrname))
 		end
-		skynet.name(USER_SERVICE_MAP[svrname].named, id)
+		skynet.name(NORMAL_SERVICE_MAP[nodename][svrname].named, id)
 	end
 
 	-- 启动寄生服务
-	local startService = host_config.start_service
+	local startService = hostConfig.start_service
 	local function startOterSvr(nodeSvrSeq)
 		for _, svrname in ipairs(nodeSvrSeq) do
 			if startService[svrname] == SELF_IPPORT then
@@ -81,7 +78,7 @@ skynet.start(function ()
 				if not id then
 					abort(string.format("start service[%s] fail", svrname))
 				end
-				skynet.name(ADHOC_SERVICE_MAP[svrname].named, id)
+				skynet.name(ADHOC_SERVICE_MAP[nodename][svrname].named, id)
 			end
 		end
 	end
@@ -89,9 +86,12 @@ skynet.start(function ()
 
 	_OpenLogPath()
 
-	print("SELF_NODE ", tool.dumptree(SELF_NODE))
-	print("SERVERID_CONFIG:", tool.dumptree(SERVERID_CONFIG))
+	print("HOST_ENV ", tool.dumptree(HOST_ENV))
+	print("SERVER_CONFIG:", tool.dumptree(SERVER_CONFIG))
 	print("BASIC_SERVICE_MAP ", tool.dumptree(BASIC_SERVICE_MAP))
 	print("ADHOC_SERVICE_MAP ", tool.dumptree(ADHOC_SERVICE_MAP))
 	print("SERVICE_CLUSTERNAME ", tool.dumptree(SERVICE_CLUSTERNAME))
+_DEBUG()
+	print("ADHOC_SERVICE_MAP ", tool.dumptree(ADHOC_SERVICE_MAP))
+	print("NORMAL_SERVICE_MAP ", tool.dumptree(NORMAL_SERVICE_MAP))
 end)
