@@ -567,7 +567,7 @@ local function init(skynet, export)
 
 		function dbgcmd.ATABLE_STATE_CMD(dumpsize)
 			local dumpsize = dumpsize or 512
-			local SNODE = SELF_NODE.node or "unknow"
+			local SNODE = skynet.getenv("node_name") or "unknow"
 			local BASE_DIR = "log/" .. SNODE .. "/ftablecheck/point"
 			local ftablecheck = require "ftablecheck"
 			local addr = skynet.format("%08x", skynet.self())
