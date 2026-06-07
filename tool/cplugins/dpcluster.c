@@ -17,9 +17,10 @@
 #define TEMP_LENGTH		0X8200
 #define MULTI_PART		0x8000
 
-#define MULTI_F 		0x41
-#define MULTI_M 		0x42
-#define MULTI_E 		0x44
+#define MULTI_ONE		0x0			// 整包
+#define MULTI_F 		0x41		// 多包的包头新信息
+#define MULTI_M 		0x42		// 多包的包体数据
+#define MULTI_E 		0x44		// 多包的最后一个包体数据
 
 #ifdef _MSC_VER
 #define COMPATIBLE_INLINE __inline
@@ -114,7 +115,7 @@ pack_addrn(lua_State *L, uint32_t session, void *msg, uint32_t sz, bool is_free)
 		*/
 
 		fill_header(buf, 15 + node_sz + sz);	//1 + 4 + 1(node_len) + node_sz + 1(addr type) + 4 + 4 + sz
-		fill_uint8(buf + 2, 0);					//单个发送
+		fill_uint8(buf + 2, MULTI_ONE);			//单个发送
 		fill_uint32(buf + 3, session);			//session
 		fill_uint8(buf + 7, (uint8_t)node_sz);	//node长度
 		memcpy(buf + 8, node, node_sz);			//node
@@ -186,7 +187,7 @@ pack_addrs(lua_State *L, uint32_t session, void *msg, uint32_t sz, bool is_free)
 		uint8_t buf[NODE_MAX_LEN + ADDR_MAX_LEN + sz + 50];
 #endif
 		fill_header(buf, 12 + node_sz + addr_sz + sz);		//1 + 4 + 1(node_len) + node_sz + 1(addr type) + 1(addr_len) - addr_sz + 4 + sz
-		fill_uint8(buf + 2, 0);								//单个发送
+		fill_uint8(buf + 2, MULTI_ONE);						//单个发送
 		fill_uint32(buf + 3, session);						//session
 		fill_uint8(buf + 7, (uint8_t)node_sz);				//node长度
 		memcpy(buf + 8, node, node_sz);						//node
@@ -381,7 +382,7 @@ lunpack(lua_State *L) {
 		luaL_error(L, "invalid package size:%d", sz);
 	}
 	switch (msg[0]) {
-		case 0:
+		case MULTI_ONE:
 			return unpack_one(L, (const uint8_t *)msg, sz);
 		case MULTI_F:
 			return unpack_mult_f(L, (const uint8_t *)msg, sz);
