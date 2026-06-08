@@ -1,5 +1,12 @@
 #!/bin/bash
 
+#注意：UID范围可以修改，也存在UID≥1000的系统用户，应查阅/etc/login.defs中的UID_MIN。
+COMMON_UID_MIN=`awk '/^UID_MIN/ {print $2}' /etc/login.defs`
+if [ "$UID" -lt $COMMON_UID_MIN ]; then
+	echo "必须普通用户启动引擎"
+	exit
+fi
+
 getDir(){
 	dir=`echo $0 | grep "^/"`
 	if test "${dir}"; then	# test 变量。 dir 为空字符串("") 则为false，否则为true
