@@ -18,7 +18,7 @@ local cluster_no = tonumber(assert(skynet.getenv("cluster_no")))
 local CLUSTER_NAME_FMT = assert(CLUSTER_NAME_FMT)
 local SERVICE_CLUSTERNAME = assert(SERVICE_CLUSTERNAME)
 
-local RPC_MISC = Import("game/global/rpc/rpc_misc.lua")
+local MISC = Import("game/global/rpc/misc.lua")
 
 local skynet_send = skynet.send
 local skynet_call = skynet.call
@@ -85,7 +85,7 @@ local function gen_send(addr, clustername, prototype)
 			end
 		})
 	else
-		if not RPC_MISC.IsValidClusterName(clustername) then
+		if not MISC.IsValidClusterName(clustername) then
 			error("clustername error: " .. clustername)
 		end
 		local cache_func = {}
@@ -94,14 +94,14 @@ local function gen_send(addr, clustername, prototype)
 				if not cache_func[k] then
 					cache_func[k] = function (...)
 						_obj_check(...)
-						return RPC_MISC.send(clustername, addr, prototype, k, ...)	-- skynet.send那里有返回是否有那个节点的信息
+						return MISC.send(clustername, addr, prototype, k, ...)	-- skynet.send那里有返回是否有那个节点的信息
 					end
 				end
 				return cache_func[k]
 			end,
 			__call = function (t, ...)
 				_obj_check(...)
-				return RPC_MISC.send(clustername, addr, prototype, ...)				-- skynet.send那里有返回是否有那个节点的信息
+				return MISC.send(clustername, addr, prototype, ...)				-- skynet.send那里有返回是否有那个节点的信息
 			end
 		})
 	end
@@ -145,7 +145,7 @@ local function gen_call(addr, clustername, prototype)
 			end
 		})
 	else
-		if not RPC_MISC.IsValidClusterName(clustername) then
+		if not MISC.IsValidClusterName(clustername) then
 			error("clustername error: " .. clustername)
 		end
 		local cache_func = {}
@@ -154,14 +154,14 @@ local function gen_call(addr, clustername, prototype)
 				if not cache_func[k] then
 					cache_func[k] = function (...)
 						_obj_check(...)
-						return RPC_MISC.call(clustername, addr, prototype, k, ...)
+						return MISC.call(clustername, addr, prototype, k, ...)
 					end
 				end
 				return cache_func[k]
 			end,
 			__call = function (t, ...)
 				_obj_check(...)
-				return RPC_MISC.call(clustername, addr, prototype, ...)
+				return MISC.call(clustername, addr, prototype, ...)
 			end
 		})
 	end
@@ -222,7 +222,7 @@ function GetProxyByServiceName(serviceName, ...)
 	assert(targetnode and prototype and serverId)
 
 	-- 目前仅仅支持同一个集群内进行消息发送
-	local clusterName = RPC_MISC.GetClusterName(targetnode, serverId)
+	local clusterName = MISC.GetClusterName(targetnode, serverId)
 	if not clusterName then
 		_ERROR_F("%s %s not exists", targetnode, serverId)
 		return

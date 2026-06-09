@@ -27,7 +27,7 @@ local MULTI_E 	=	0x44		-- 多包的最后一个包体数据
 
 -- fd的类
 local FdClass = Import("tool/service/basic/gcluster/gcluster_fd_class.lua")
-local RPC_MISC = Import("game/global/rpc/rpc_misc.lua")
+local RPC_MISC = Import("game/global/rpc/misc.lua")
 
 LAEGE_REQUEST = {}
 

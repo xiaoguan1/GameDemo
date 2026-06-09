@@ -44,10 +44,11 @@ end
 
 skynet.start(function ()
 	local nodeInfo = Import("game/global/nodeInfo.lua")
-	local isOk, hostConfig, SERVER_CONFIG = pcall(nodeInfo.GetAllNodeData)
-	if not isOk then
-		abort(hostConfig)
+	local hostConfig, SERVER_CONFIG = nodeInfo.GetAllNodeData()
+	if not hostConfig then
+		abort(SERVER_CONFIG)
 	end
+	print("hostConfig ", tool.dumptree(hostConfig), SERVER_CONFIG)
 	skynet.setenv("host_env", tool.dumptree(hostConfig))
 	skynet.setenv("server_config", tool.dumptree(SERVER_CONFIG))
 	doGamePreload()
