@@ -6,10 +6,25 @@ local pairs = pairs
 local type = type
 local string = string
 local sformat = string.format
+local debug = debug
+local traceback = debug.traceback
 
 local MSG_TYPE_SEND = 1 -- 异步发消息类型
 local MSG_TYPE_CALL = 2 -- 同步发消息类型
+local MSG_TYPE_CALL_R = 3 -- 同步消息回应
+local MSG_TYPE_CALL_E = 4 -- 同步消息回应（请求出错）
+
 local MSG_TYPE_MAX = 0xff
+
+--[[
+local MSG_TYPE_REQUEST		= 1			-- 请求中
+local MSG_TYPE_RESPONSE		= 2			-- 回应
+local MSG_TYPE_RESPONSE_E	= 3			-- 回应（请求出错）
+local MSG_TYPE_NOTIFY		= 4			-- 通知
+local MSG_TYPE_W_PROTO		= 5			-- 发送协议
+local MSG_TYPE_PINGPONG		= 6			-- 测试链接
+local MSG_TYPE_MAX			= 0xff
+]]
 
 -- 加载该文件模块时的判断，且这些方法和变量原则上不能热更的！！！
 local GetChannel = assert(GetChannel)
@@ -27,9 +42,22 @@ local MULTI_E 	=	0x44		-- 多包的最后一个包体数据
 
 -- fd的类
 local FdClass = Import("tool/service/basic/gcluster/gcluster_fd_class.lua")
-local RPC_MISC = Import("game/global/rpc/misc.lua")
+local MISC = Import("game/global/rpc/misc.lua")
 
 LAEGE_REQUEST = {}
+
+local HOST_ADDR_NUM = setmetatable({}, {
+	__index = function (t, desAddr)
+		if type(desAddr) == "string" then
+			local addrNum = skynet.localname(desAddr)
+			if addrNum then
+				rawset(t, desAddr, addrNum)
+			end
+			return addrNum or desAddr
+		end
+		return desAddr
+	end,
+})
 
 ----- 局部方法 ------------------------------
 
@@ -65,6 +93,68 @@ local function _send(clustername, request, padding)
 	fdObj:write(request, padding)
     return fdObj.fd
 end
+
+local function rpc_response(source_node, session, isOk, msg, sz)
+	if isOk then
+		-- msg的释放交给引擎
+		local request, session, padding = ldpcluster.pack_nf(session, DPCLUSTER_NODE.node_ipport, nil, MSG_TYPE_CALL, msg, sz)
+		-- _double_send(node, "rpc_response", request, padding)
+	else
+		-- 这里需要释放，因为他是自己打包的
+		local request, session, padding = ldpcluster.pack(session, DPCLUSTER_NODE.node_ipport, nil, MSG_TYPE_CALL_E, msg, sz)
+		-- _double_send(node, "rpc_response", request, padding)
+	end
+end
+
+local function deal_rpc(source_node, des_addr, session, msg_type, proto_type, msg, sz)
+	if msg_type == MSG_TYPE_CALL_R then
+		-- 这里要确认好本节点是否启动成功了，若启动成功了才能接收外部的链接操作（可以在启动节点逻辑中，完成时先该服务发送消息 打标记）
+		-- if not skynet.isstartDk() then
+		-- 	skynet.error("dpclusterd not ready for rpc request!! des_addr, session, msg_type:", des_addr, session, msg_type)
+		-- 	return
+		-- end
+		des_addr = HOST_ADDR_NUM[des_addr]
+		local isOk, msg, sz = xpcall(skynet.rawcall, traceback, des_addr, proto_type, msg, sz)	-- 肯定是当前节点的，所以不用代理了
+		if not isOk then
+			msg, sz = skynet.pack(msg)
+		end
+		rpc_response(source_node, session, isOk, msg, sz)
+	end
+
+	if msg_type == MSG_TYPE_REQUEST then
+		-- 这里要确认好本节点是否启动成功了，若启动成功了才能接收外部的链接操作（可以在启动节点逻辑中，完成时先该服务发送消息 打标记）
+		-- if not skynet.isstartDk() then
+		-- 	skynet.error("dpclusterd not ready for rpc request!! des_addr, session, msg_type:", des_addr, session, msg_type)
+		-- 	return
+		-- end
+
+		des_addr = _addr_number(des_addr)
+		local isOk, msg, sz = xpcall(skynet.rawcall, traceback, des_addr, proto_type, msg, sz)	-- 肯定是当前节点的，所以不用代理了
+		if not isOk then
+		msg, sz = skynet.pack(msg)
+		end
+		rpc_response(source_node, session, isOk, msg, sz)
+	elseif msg_type == MSG_TYPE_RESPONSE then
+		-- 由于msg, sz是可能别的打包方式所以加一个skynet.pack在外层，因为外层是由dpcluste穿过来的，必定是lua类型
+		deal_response(session, true, skynet.pack(msg, sz))
+	elseif msg_type == MSG_TYPE_RESPONSE_E then
+		deal_response(session, false, msg, sz)
+	elseif msg_type == MSG_TYPE_NOTIFY then
+		des_addr = _addr_number(des_addr)
+		skynet.rawsend(des_addr, proto_type, msg, sz)
+	elseif msg_type == MSG_TYPE_W_PROTO then
+		_write_direct(msg, sz, skynet.unpack(msg, sz))
+	elseif msg_type == MSG_TYPE_PINGPONG then
+		rpc_response(source_node, session, true, msg, sz)
+	else
+		skynet.trash(msg, sz)	-- 释放内存
+		error(string.format("dealrpc error, form:%s, addr:%s, session:%s, msg_type:%d",
+			source_node, tostring(des_addr), session, msg_type
+		))
+	end
+end
+
+
 
 ----- 全局方法 ------------------------------
 function SocketErr(clutsername, isPassive)
@@ -115,7 +205,7 @@ function DealResponse(session, ok, msg, sz)
 end
 
 function OpenChannel(_node_channel, clusterName)           -- key集群名称（例：cross@1_55001）
-	local address = RPC_MISC.GetAddrByClusterName(clusterName)
+	local address = MISC.GetAddrByClusterName(clusterName)
 	if not address then
 		error(sformat("%s not find address", clusterName))
 	end
