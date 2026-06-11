@@ -44,14 +44,22 @@ local MULTI_E 	=	0x44		-- 多包的最后一个包体数据
 local FdClass = Import("tool/service/basic/gcluster/gcluster_fd_class.lua")
 local MISC = Import("game/global/rpc/misc.lua")
 
-LAEGE_REQUEST = {}
+-- 大型消息的分包缓存
+LARGE_REQUEST = setmetatable({}, {
+	__index = function (t, clustername)
+		local largeReq = {}
+		rawset(t, clustername, largeReq)
+		return largeReq
+	end
+})
 
-local HOST_ADDR_NUM = setmetatable({}, {
+local HOSTADDR_M = setmetatable({}, {
 	__index = function (t, desAddr)
 		if type(desAddr) == "string" then
 			local addrNum = skynet.localname(desAddr)
 			if addrNum then
 				rawset(t, desAddr, addrNum)
+				rawset(t, addrNum, desAddr)
 			end
 			return addrNum or desAddr
 		end
@@ -123,16 +131,16 @@ local function deal_rpc(source, des_addr, session, msg_type, proto_type, msg, sz
 		-- 	skynet.error("dpclusterd not ready for rpc request!! des_addr, session, msg_type:", des_addr, session, msg_type)
 		-- 	return
 		-- end
-		local tag = des_addr
-		des_addr = HOST_ADDR_NUM[des_addr]
+		-- local tag = des_addr
+		des_addr = HOSTADDR_M[des_addr]
 		local isOk, responseMsg, sz = xpcall(skynet.rawcall, traceback, des_addr, proto_type, msg, sz)	-- 肯定是当前节点的，所以不用代理了
-		-- local isOk, responseMsg, sz = xpcall(skynet.tracecall, traceback, tag, des_addr, proto_type, msg, sz)
+		-- local isOk, responseMsg, sz = xpcall(skynet.tracecall, traceback, HOST_ADDR_NUM[des_addr], des_addr, proto_type, msg, sz)
 		if not isOk then
 			responseMsg, sz = skynet.pack(responseMsg)
 		end
 		rpc_response(source, session, isOk, responseMsg, sz)
 	elseif msg_type == MSG_TYPE_PUSH then
-		des_addr = HOST_ADDR_NUM[des_addr]
+		des_addr = HOSTADDR_M[des_addr]
 		skynet.rawsend(des_addr, proto_type, msg, sz)
 	elseif msg_type == MSG_TYPE_RESPONSE then
 		deal_response(session, true, msg, sz)
@@ -322,17 +330,17 @@ function command.socket(source, subcmd, fd, ...)
 		end
 		SocketErr(fdObj.cluster_name, true)
 	elseif subcmd == "data" then
-		local address, reqMsg  = ...
+		local address, netMsg  = ...
 		local channelObj = GetChannel(address)
 		if not channelObj then
 			channelObj = connecting[address] and connecting[address].pre_channel
 			 if not channelObj then
 				SyncGate(false, "close_connect", fd)
-				skynet.error(sformat("%s not find nodeData, gcluster socket:%s recv data:%s", address, fd, reqMsg))
+				skynet.error(sformat("%s not find nodeData, gcluster socket:%s recv data:%s", address, fd, netMsg))
 				return
 			 end
 			 -- 处理验证
-			 channelObj:deal_auth(reqMsg)
+			 channelObj:deal_auth(netMsg)
 			 return
 		end
 
@@ -341,81 +349,53 @@ function command.socket(source, subcmd, fd, ...)
 			skynet.error("not auth!!!!!", tool.dumptree(channelObj))
 			return
 		end
+
 		-- 处理消息
-		local multType, session, sourceName, addr, protocolId, sz, msg = ldpcluster.unpack(reqMsg)
-		local msgType, prototypeId = unmergeProtoType(protocolId)
+		local multType, session, sourceName, addrOrMsg, protocolId, sz, msg = ldpcluster.unpack(netMsg)
 		if multType == MULTI_ONE then
 			-- 整包
-			deal_rpc(sourceName, addr, session, msgType, prototypeId, msg, sz)
+			local msgType, prototypeId = unmergeProtoType(protocolId)
+			deal_rpc(sourceName, addrOrMsg, session, msgType, prototypeId, msg, sz)
 		elseif multType == MULTI_F then
 			-- 分包包头
-		elseif multType == MULTI_M then
-			-- 分包数据
-		elseif multType == MULTI_E then
-			-- 最后一个分包数据
+			local msgType, prototypeId = unmergeProtoType(protocolId)
+			local largeReq = LARGE_REQUEST[sourceName]
+			if largeReq[session] then
+				local oReq = largeReq[session]
+				largeReq[session] = nil
+				-- 若出现某个节点的session重复，则需要将旧的msg缓存进行释放。否则会内存堆积。
+				for _, pUserData in pairs(oReq.padding) do
+					skynet.packstring(pUserData, #pUserData)	-- 字节流
+				end
+				_ERROR_F("clustername:[%s] session:[%s] repeated! addr:[%s] msgType:[%s] prototypeId:[%s] sz:[%s]",
+						sourceName, session, oReq.addr, oReq.msgType, oReq.prototypeId, oReq.sz)
+			end
+			largeReq[session] = {
+				clusterName = sourceName,
+				addr = addrOrMsg,
+				msgType = msgType,
+				prototypeId = prototypeId,
+				sz = sz,
+				padding = {},
+			}
+		elseif multType == MULTI_M or multType == MULTI_E then
+			local largeReq = LARGE_REQUEST[sourceName]
+			local req = largeReq[session]
+			if req then
+				table.insert(req.padding, addrOrMsg)
+			else
+				skynet.packstring(addrOrMsg, #addrOrMsg)	-- 字节流
+				_ERROR_F("clustername:[%s] session:[%s] not find req!", sourceName, session)
+				return
+			end
+
+			if multType == MULTI_E and req then
+				-- 最后一个分包数据
+				largeReq[session] = nil
+				local msg, sz = ldpcluster.concat(req.padding, req.sz)
+				deal_rpc(req.clusterName, req.addr, session, req.msgType, req.prototypeId, msg, sz)
+			end
 		end
-
-
-		-- local function deal_rpc(source_node, des_addr, session, msg_type, proto_type, msg, sz)
-		-- 	if msg_type == MSG_TYPE_REQUEST then
-		-- 		-- 这里要确认好本节点是否启动成功了，若启动成功了才能接收外部的链接操作（可以在启动节点逻辑中，完成时先该服务发送消息 打标记）
-		-- 		-- if not skynet.isstartDk() then
-		-- 		-- 	skynet.error("dpclusterd not ready for rpc request!! des_addr, session, msg_type:", des_addr, session, msg_type)
-		-- 		-- 	return
-		-- 		-- end
-
-		-- 		des_addr = _addr_number(des_addr)
-		-- 		local isOk, msg, sz = xpcall(skynet.rawcall, traceback, des_addr, proto_type, msg, sz)	-- 肯定是当前节点的，所以不用代理了
-		-- 		if not isOk then
-		-- 		msg, sz = skynet.pack(msg)
-		-- 		end
-		-- 		rpc_response(source_node, session, isOk, msg, sz)
-		-- 	elseif msg_type == MSG_TYPE_RESPONSE then
-		-- 		-- 由于msg, sz是可能别的打包方式所以加一个skynet.pack在外层，因为外层是由dpcluste穿过来的，必定是lua类型
-		-- 		deal_response(session, true, skynet.pack(msg, sz))
-		-- 	elseif msg_type == MSG_TYPE_RESPONSE_E then
-		-- 		deal_response(session, false, msg, sz)
-		-- 	elseif msg_type == MSG_TYPE_NOTIFY then
-		-- 		des_addr = _addr_number(des_addr)
-		-- 		skynet.rawsend(des_addr, proto_type, msg, sz)
-		-- 	elseif msg_type == MSG_TYPE_W_PROTO then
-		-- 		_write_direct(msg, sz, skynet.unpack(msg, sz))
-		-- 	elseif msg_type == MSG_TYPE_PINGPONG then
-		-- 		rpc_response(source_node, session, true, msg, sz)
-		-- 	else
-		-- 		skynet.trash(msg, sz)	-- 释放内存
-		-- 		error(string.format("dealrpc error, form:%s, addr:%s, session:%s, msg_type:%d",
-		-- 			source_node, tostring(des_addr), session, msg_type
-		-- 		))
-		-- 	end
-		-- end
-
-			-- if mult_type == 0 then
-			-- 	local msg_type, proto_type = _unmerge_prototype(msg_type)
-			-- 	deal_rpc(source_node, des_addr, session, msg_type, proto_type, msg, sz)
-			-- elseif mult_type == MULTI_F then
-			-- 	if not large_request[source_node] then
-			-- 		large_request[source_node] = {}
-			-- 	end
-            --     large_request[source_node][session] = {
-			-- 		des_addr = des_addr,
-			-- 		msg_type = msg_type,
-			-- 		sz = sz,
-			-- 		msg_list = {},
-			-- 	}
-			-- elseif mult_type == MULTI_M then
-			-- 	local msg_list = large_request[source_node][session].msg_list
-			-- 	tinsert(msg_list, des_addr)
-			-- elseif mult_type == MULTI_E then
-			-- 	local l_req = large_request[source_node][session]
-			-- 	large_request[source_node][session] = nil
-
-			-- 	local msg_list = l_req.msg_list
-			-- 	tinsert(msg_list, des_addr)
-			-- 	local msg, sz = ldpcluster.concat(msg_list, l_req.sz)
-			-- 	local msg_type, proto_type = _unmerge_prototype(l_req.msg_type)
-			-- 	deal_rpc(source_node, l_req.des_addr, session, msg_type, proto_type, msg, sz)
-			-- end
 	elseif subcmd == "error" then
 	else
 		skynet.error("gclusterd subcmd no matching!", subcmd, fd, ...)
