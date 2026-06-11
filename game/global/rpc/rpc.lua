@@ -88,7 +88,7 @@ local function initModCall()
 												__index = function (_, funcName)
 													if not other_cache3[funcName] then
 														other_cache3[funcName] = function (...)
-															return PROXYSVR.GetProxy(addr, clustername, "rpc").call(...)
+															return PROXYSVR.GetProxy(addr, clustername, "rpc").call(modName, funcName, ...)
 														end
 													end
 													return other_cache3[funcName]
@@ -109,7 +109,7 @@ local function initModCall()
 									__index = function (_, funcName)
 										if not self_cache2[funcName] then
 											self_cache2[funcName] = function (...)
-												return PROXYSVR.GetProxy(addr, SELF_CLUSTERNAME, "rpc").call(...)
+												return PROXYSVR.GetProxy(addr, SELF_CLUSTERNAME, "rpc").call(modName, funcName, ...)
 											end
 										end
 										return self_cache2[funcName]

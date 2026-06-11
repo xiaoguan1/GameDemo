@@ -65,7 +65,7 @@ local function __call(overtime, clustername, address, prototype, ...)
 	assert(pack_func and unpack_func)
 
 	local gclusterd = assert(gClusterGate())
-	local msg, sz = skynet.call(gclusterd, "lua", "call", overtime, clustername, address, prototype, pack_func(...)) -- 肯定是当前节点，所以不用代理了
+	local msg, sz = skynet.call(gclusterd, "lua", "request", overtime, clustername, address, prototype, pack_func(...)) -- 肯定是当前节点，所以不用代理了
 	return _ret_func(msg, sz, xpcall(unpack_func, traceback, msg, sz))
 end
 
@@ -80,7 +80,7 @@ local function __send(clustername, address, prototype, ...)
 
 	local pack_func = assert(skynet.get_prototype_pack(prototype))
 	local gclusterd = assert(gClusterGate())
-	skynet.send(gclusterd, "lua", "send", clustername, address, prototype, pack_func(...)) -- 肯定是当前节点，所以不用代理了
+	skynet.send(gclusterd, "lua", "push", clustername, address, prototype, pack_func(...)) -- 肯定是当前节点，所以不用代理了
 end
 
 -- 不允许无限时长等待
@@ -137,4 +137,18 @@ function IsValidClusterName(clusterName)
 	end
 	serverId = tonumber(serverId)
 	return CLUSTER_MAP[nodename] and CLUSTER_MAP[nodename][serverId]
+end
+
+
+---------- 注册协议回调处理 ----------
+
+if not skynet.dispatch("rpc") then
+	skynet.dispatch("rpc", function (session, source, modname, funcname, ...)
+		local f = _G[modname] and _G[modname][funcname]
+		if session == 0 then
+			f(...)
+		else
+			skynet.retpack(f(...))
+		end
+	end)
 end
