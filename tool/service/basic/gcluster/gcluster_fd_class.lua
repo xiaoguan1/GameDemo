@@ -3,8 +3,7 @@
 ----------------------------------
 
 local skynet = require "skynet"
-local clusterNo = assert(assert(skynet.getenv("cluster_no")))
-local serverId = assert(skynet.getenv("server_id"))
+local padding_warn = tonumber(assert(skynet.getenv("gcluster_padding_warn")))
 local is_testserver = skynet.getenv("is_testserver") == "test"
 
 local driver = require "skynet.socketdriver"
@@ -19,7 +18,6 @@ local string = string
 local sformat = string.format
 
 local MsgPack = assert(MsgPack)
-local CLUSTER_NAME_FMT = assert(CLUSTER_NAME_FMT)
 
 socket_err = false
 
@@ -95,6 +93,9 @@ function FdClass:write(request, padding)
 			if not socket_write(fd , v) then
 				socket_err(self.cluster_name)
 			end
+		end
+		if #padding >= padding_warn then
+			_WARN_F("fd send cluster_name:[%s] padding message:[%s] > %s", #padding, padding_warn)
 		end
 	else
 		if not socket_write(fd , request) then

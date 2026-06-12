@@ -364,8 +364,8 @@ function command.socket(source, subcmd, fd, ...)
 				local oReq = largeReq[session]
 				largeReq[session] = nil
 				-- 若出现某个节点的session重复，则需要将旧的msg缓存进行释放。否则会内存堆积。
-				for _, pUserData in pairs(oReq.padding) do
-					skynet.packstring(pUserData, #pUserData)	-- 字节流
+				for _, pMsg in pairs(oReq.padding) do
+					skynet.packstring(pMsg, #pMsg)	-- 字节流
 				end
 				_ERROR_F("clustername:[%s] session:[%s] repeated! addr:[%s] msgType:[%s] prototypeId:[%s] sz:[%s]",
 						sourceName, session, oReq.addr, oReq.msgType, oReq.prototypeId, oReq.sz)
@@ -395,6 +395,9 @@ function command.socket(source, subcmd, fd, ...)
 				local msg, sz = ldpcluster.concat(req.padding, req.sz)
 				deal_rpc(req.clusterName, req.addr, session, req.msgType, req.prototypeId, msg, sz)
 			end
+		else
+			_ERROR_F("clustername:[%s] session:[%s] unknown multType:[%s]! ",
+						sourceName, session, multType)
 		end
 	elseif subcmd == "error" then
 	else
