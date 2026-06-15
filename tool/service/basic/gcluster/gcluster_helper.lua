@@ -354,6 +354,7 @@ function command.socket(source, subcmd, fd, ...)
 		local multType, session, sourceName, addrOrMsg, protocolId, sz, msg = ldpcluster.unpack(netMsg)
 		if multType == MULTI_ONE then
 			-- 整包
+			channelObj:update_heartbeat()
 			local msgType, prototypeId = unmergeProtoType(protocolId)
 			deal_rpc(sourceName, addrOrMsg, session, msgType, prototypeId, msg, sz)
 		elseif multType == MULTI_F then
@@ -391,6 +392,7 @@ function command.socket(source, subcmd, fd, ...)
 
 			if multType == MULTI_E and req then
 				-- 最后一个分包数据
+				channelObj:update_heartbeat()
 				largeReq[session] = nil
 				local msg, sz = ldpcluster.concat(req.padding, req.sz)
 				deal_rpc(req.clusterName, req.addr, session, req.msgType, req.prototypeId, msg, sz)

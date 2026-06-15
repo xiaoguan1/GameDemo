@@ -69,6 +69,7 @@ function FdClass:init(fd, extData)
 	o.auth_finish = nil			-- 完成认证操作的时间戳
 	o.auth_coroutine = nil		-- 主动做认证的协程
 	o.auth_waitcoroutine = nil
+	o.heartbeat_time = nil		-- 最近一次发送消息时间
 
 	local m = {__index = self, }
 	if is_testserver then
@@ -80,6 +81,10 @@ function FdClass:init(fd, extData)
 		end
 	end
 	return setmetatable(o, m)
+end
+
+function FdClass:update_heartbeat()
+	self.heartbeat_time = os_time()
 end
 
 function FdClass:write(request, padding)
@@ -102,6 +107,7 @@ function FdClass:write(request, padding)
 			socket_err(self.cluster_name)
 		end
 	end
+	self:update_heartbeat()
 
 	return true
 end
