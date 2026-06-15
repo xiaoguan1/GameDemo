@@ -10,3 +10,5 @@ fi
 echo "mongodb pid = $mPid"
 
 /opt/mongodb/bin/mongo --host localhost --port 27017
+# 若想连接具体ip下的数据库可指定ip和端口。例如：连接jltx的数据库
+# --host 192.168.0.94 --port 27017    
