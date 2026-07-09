@@ -8,35 +8,33 @@ if [ "$UID" -lt $COMMON_UID_MIN ]; then
 fi
 
 rsList=`ls ./script/database/rs_env`
-
-rsDbPath=$HOME/rs_db
+rsDb=$HOME/rs_db
 
 # 尝试初始化相关文件夹
-if [ ! -d "$rsDbPath" ]; then
+if [ ! -d "$rsDb" ]; then
 	# 创建文件
-	mkdir "$rsDbPath"
+	mkdir "$rsDb"
 fi
-
 for rsName in $rsList; do
-	echo $rsName
-	port=$(echo "$rsName" | awk -F'-' '{print $2}' | awk -F'.' '{print $1}')sDbPath/
-	echo $port
-	#if [ ! -d $rsDbPath/   ]; then
-#	fi
+	port=$(echo "$rsName" | awk -F'-' '{print $2}' | awk -F'.' '{print $1}')
+	portDir="$rsDb"/"$port"
+	if [ ! -d "$portDir" ]; then
+		mkdir "$portDir"
+	fi
+	if [ ! -d "$portDir"/data ]; then
+		mkdir "$portDir"/data
+	fi
 done
 
-
-
-echo $HOME
-
-rsList=`ls ./script/database/rs_env`
-
+# 启动副本集节点
 for rsName in $rsList; do
 	mPid=`ps -ef | grep $rsName | grep -v grep | awk '{print $2}'`
 	if [ -z "$mPid" ] || [ "$mPid" -lt 0 ]; then
 		# 启动rsName的mongod副本集进程
-		#mongod -f ./script/database/rs_env/"$rsName"
+		mongod -f ./script/database/rs_env/"$rsName"
 		echo -e "start $rsName finish\n"
+	else
+		echo -e "$rsName already start, pid:$mPid\n"
 	fi	
 done
 
