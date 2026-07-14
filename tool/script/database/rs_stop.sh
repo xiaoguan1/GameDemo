@@ -7,34 +7,32 @@ if [ "$UID" -lt $COMMON_UID_MIN ]; then
 	exit
 fi
 
-# rsList=`ls ./script/database/rs_env`
+# 副本集的启动配置
+RS_ENV_PATH="./script/database/rs_env"
+RS_ENV_FILES=`ls "$RS_ENV_PATH"`
 
-# rsDbPath=$HOME/rs_db
+# 副本集的数据目录
+RS_DB_PATH=$HOME/rs_db
 
-# # 尝试初始化相关文件夹
-# if [ ! -d "$rsDbPath" ]; then
-# 	# 创建文件
-# 	mkdir "$rsDbPath"
-# fi
+for name in $RS_ENV_FILES; do
+	port=$(echo "$name" | awk -F'-' '{print $2}' | awk -F'.' '{print $1}')
+	db_dir="$RS_DB_PATH"/"$port"
+	pid_file="$db_dir"/data/mongod.lock
 
-# for rsName in $rsList; do
-# 	echo $rsName
-# 	port=$(echo "$rsName" | awk -F'-' '{print $2}' | awk -F'.' '{print $1}')sDbPath/
-# 	echo $port
-# 	#if [ ! -d $rsDbPath/   ]; then
-# #	fi
-# done
+	if [ ! -f "$pid_file" ]; then
+		# mongod.lock文件不存在，则直接跳过
+		echo "$RS_ENV_PATH/$name not mongod.lock file!"
+		continue
+	fi
 
-
-
-rsList=`ls ./script/database/rs_env`
-
-for rsName in $rsList; do
-	mPid=`ps -ef | grep $rsName | grep -v grep | awk '{print $2}'`
-	if [ -n "$mPid" ] && [ "$mPid" -gt 0 ]; then
-		kill $mPid
-		echo -e "kill $rsName finish\n"
+	db_pid=`cat "$pid_file"`
+	if [ -n "$db_pid" ] && [ "$db_pid" -gt 0 ]; then
+		mongod --shutdown -f "$RS_ENV_PATH/$name"
+		echo -e "$RS_ENV_PATH/$name shutdown mongod $db_pid\n"
+	else
+		echo -e "$RS_ENV_PATH/$name already shutdown!\n"
 	fi
 done
+
 
 echo "执行完毕"
