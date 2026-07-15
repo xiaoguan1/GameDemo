@@ -10,6 +10,11 @@ local crypt = require "skynet.crypt"
 local rawget = rawget
 local assert = assert
 local table = table
+local string = string
+local sformat = string.format
+
+-- 服务器地址
+local SERVICEADDR = sformat("[:%08x]", skynet.self())
 
 local bson_encode =	bson.encode
 local bson_encode_order	= bson.encode_order
@@ -85,6 +90,12 @@ end
 
 local function __parse_addr(addr)
 	local host,	port = string.match(addr, "([^:]+):(.+)")
+	if not host or not port then
+		return
+	end
+	if host:match("^%d+.%d+.%d+.%d+") ~= host then
+		return
+	end
 	return host, tonumber(port)
 end
 
@@ -109,21 +120,32 @@ local function mongo_auth(mongoc)
 		end
 		local rs_data =	mongoc:runCommand("ismaster")
 		if rs_data.ok == 1 then
-			if rs_data.hosts then
-				local backup = {}
-				for	_, v in	ipairs(rs_data.hosts) do
-					local host,	port = __parse_addr(v)
-					table.insert(backup, {host = host, port	= port})
-				end
-				mongoc.__sock:changebackup(backup)
-			end
+			-- if rs_data.hosts then
+			-- 	local backup = {}
+			-- 	for	_, v in	ipairs(rs_data.hosts) do
+			-- 		local host,	port = __parse_addr(v)
+			-- 		if host and port then
+			-- 			table.insert(backup, {host = host, port	= port})
+			-- 		else
+			-- 			skynet.error(sformat("mongodb %s error", v))
+			-- 		end
+			-- 	end
+			-- 	mongoc.__sock:changebackup(backup)
+			-- end
+			local primary = rs_data.primary
 			if rs_data.ismaster	then
+				skynet.error(sformat("connect mongodb primary node, addr %s", mongoc.host .. ":" .. mongoc.port))
 				return
-			elseif rs_data.primary then
-				local host,	port = __parse_addr(rs_data.primary)
-				mongoc.host	= host
-				mongoc.port	= port
-				mongoc.__sock:changehost(host, port)
+			elseif primary then
+				local host,	port = __parse_addr(primary)
+				if host and port then
+					mongoc.host	= host
+					mongoc.port	= port
+					skynet.error(sformat("change mongodb primary addr %s", primary))
+					mongoc.__sock:changehost(host, port)
+				else
+					skynet.error(sformat("mongodb primary addr %s error", primary))
+				end
 			else
 				-- socketchannel would try the next host in backup list
 				error ("No primary return : " .. tostring(rs_data.me))
