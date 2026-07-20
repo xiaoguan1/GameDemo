@@ -2,6 +2,7 @@ local skynet = require "skynet"
 local skynet_error = skynet.error
 local string = string
 local table = table
+local tconcat = table.concat
 local tinsert = table.insert
 local sformat = string.format
 local debug = debug
@@ -36,13 +37,19 @@ function string.endswith(str, pattern)
 	return _resIdx == sIdx
 end
 
-function string.split(str, sep)
+-- reg：正则表达式（true、nil） 非正则表达式（false）
+function string.split(str, sep, reg)
 	if type(str) ~= "string" then
 		skynet_error(sformat("split str:[%s] error, because str not is string. %s",
 			str, traceback()))
 		return
 	end
+	if str:len() >= 1024 then
+		skynet_error(sformat("split str too long, traceback:%s", debug.traceback()))
+	end
+
 	local res = {}
+	sep = (reg == false) and ("[^" .. sep .. "]") or sep
 	for w in str:gmatch(sep) do
 		tinsert(res, w)
 	end
