@@ -124,7 +124,7 @@ local function LogToFile(pfile, level, logContext)
 	-- 注意，字符串的链接不能直接table.concat(arg)
 	GAMELOG_SVR = GAMELOG_SVR or PROXYSVR.GetProxyByServiceName("gamelog")
 	if GAMELOG_SVR then
-		GAMELOG_SVR.send.writelog(pfile, level, logContext)
+		GAMELOG_SVR.send.writefilelog(pfile, level, logContext)
 	else
 		skynet.error(sformat("not find gamelog service, log:%s traceback:%s", logContext, traceback()))
 	end

@@ -15,13 +15,15 @@ luaservice = "./tool/service/startup/?.lua;" ..			-- 起服相关
 			"./tool/service/basic/?/?.lua;" ..			-- 基础设施功能（定时器、集群、数据库等等）
 			"./game/service/?/?.lua;" ..				-- 游戏玩法逻辑服务
 			"./skynet/service/?.lua;" ..				-- skynet内置服务
-			"./skynet/examples/?.lua;"
+			"./skynet/examples/?.lua;" ..
+			"./skynet/test/?.lua;"
 
 lua_path = "./lualib/?.lua;" ..
 			"./skynet/lualib/?.lua;" ..
 			"./skynet/lualib/?/init.lua;" ..
 			"./game/global/?.lua;" ..
 			"./game/global/findpath/?.lua;"
+
 lua_cpath = "./luaclib/?.so;" .. "./skynet/luaclib/?.so;" .. "./tool/cplugins-so/?.so"
 
 --后台模式（必要时开启）
@@ -66,6 +68,13 @@ centerdatadb_info = [[{
 	dbuser = "root",
 	dbpasswd = "root",
 }]]
+
+mongo_center_db = [[{
+	host = "127.0.0.1",
+	port = 27018,
+	dbname = "centerdata",
+}]]
+
 
 dbcell_num = 3
 
