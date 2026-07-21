@@ -16,5 +16,5 @@ local function _GetDb()
 end
 
 function WriteDb(collName, logTbl)
-	assert(_GetDb)
+	local handle = assert(_GetDb)
 end
