@@ -3,114 +3,124 @@ require "skynet.manager"
 local tinsert = table.insert
 local string = string
 local mfloor = math.floor
+local debug = debug
+local traceback = debug.traceback
+local os = os
+local ostime = os.time
+local io = io
+local ioopen = io.open
 local posix = require "posix"
 assert(posix.mkdir_p)
 
-local writelog_time = tonumber(skynet.getenv("writelog_time")) or 3
-local CMD = {}
-local CatchLogStr = {}
 local isShutDown = false
+local is_testserver = skynet.getenv("is_testserver") == "true"
+local writelog_time = tonumber(skynet.getenv("writelog_time")) or 3
+local closefopen_time = tonumber(skynet.getenv("closefopen_time")) or 300	-- 默认3分钟
+
+CMD = {}
+CatchLogStr = {}
+CacheFopen = {}
 
 local LOG_LEVEL = {
 	WRITE_DELAY = 1,
-	WRITE_NOW = 2,
+	WRITE_NOW = 2,		-- 立即dump
 }
 
--- 将一个str以del分割为若干个table中的元素
--- n为分割次数
-function string.split( line, sep, maxsplit )
-	if string.len(line) == 0 then
-		return {}
+-- local functions --------------------
+
+-- 缓存文件路径的句柄f
+local function GetFopen(filePath)
+	if type(filePath) ~= "string" then
+		return nil, "invalid filePath"
 	end
-	sep = sep or ' '
-	maxsplit = maxsplit or 0
-	local retval = {}
-	local pos = 1
-	local step = 0
-	while true do
-		local from, to = string.find(line, sep, pos, true)
-		step = step + 1
-		if (maxsplit ~= 0 and step > maxsplit) or from == nil then
-			local item = string.sub(line, pos)
-			tinsert( retval, item )
-			break
-		else
-			local item = string.sub(line, pos, from-1)
-			tinsert( retval, item )
-			pos = to + 1
-		end
+	local temp = CacheFopen[filePath]
+	if temp then
+		temp.utime = ostime()	-- 更新时间
+		return temp.f
 	end
-	return retval
+	posix.mkdir_p(filePath)
+	local f, errMsg = ioopen(filePath, "a")
+	if not f then
+		return nil, errMsg
+	end
+	CacheFopen[filePath] = {
+		ctime = ostime(), utime = ostime(),	-- 创建、更新时间
+		f = f,
+	}
+	return f
 end
 
-local function GetTimeLogStr(logStr)
-    return "[" .. os.date("%F %T", mfloor(skynet.time())) .. "]" .. logStr
-end
-
-function CMD.writelog(filePath, level, logStr, notTime)
-	assert(filePath and logStr, "not filePath or logStr")
-	if level == LOG_LEVEL.WRITE_NOW then
-		local ok, err = xpcall(function()
-			posix.mkdir_p(filePath)
-			local f = io.open(filePath, 'a')
-			if f then
-				if notTime then
-					f:write(logStr)
-				else
-					f:write(GetTimeLogStr(logStr))
-				end
-				f:write("\n")
-				f:close()
-			end
-		end, debug.traceback)	--调用函数
-		if not ok then
-			skynet.error("CMD.writelog: " .. tostring(err))
-		end
-	else
-		local filePathTbl = CatchLogStr[filePath]
-		if not filePathTbl then
-			filePathTbl = {}
-			CatchLogStr[filePath] = filePathTbl
-		end
-		local lmsg = nil
-		if notTime then
-			lmsg = logStr
-		else
-			lmsg = GetTimeLogStr(logStr)
-		end
-		local tmpTbl = {
-			level, lmsg,
-		}
-		tinsert(filePathTbl, tmpTbl)
-	end
+local function WriteFile(filePath, logStr)
+	local f, errMsg = GetFopen(filePath)
+	assert(f, errMsg)
+	f:write(logStr)
+	f:write("\n")
+	f:flush()
 end
 
 local function DoOnceWriteLog()
-	local ok, err = xpcall(function()
-		for _filePath, _logInfo in pairs(CatchLogStr) do
-			posix.mkdir_p(_filePath)
-			local f = io.open(_filePath, 'a')
-			if f then
-				for _, _logStrInfo in ipairs(_logInfo) do
-					f:write(_logStrInfo[2])
-					f:write("\n")
-				end
-				f:close()
+	for filePath, fileCacheLogs in pairs(CatchLogStr) do
+		for _, logStr in ipairs(fileCacheLogs) do
+			local isOk, errMsg = TryCall(WriteFile, filePath, logStr)
+			if is_testserver and not isOk then
+				-- 测试环境下才在控制台输出相关报错
+				skynet.error("gamelog DoOnceWriteLog: " .. tostring(errMsg))
 			end
-			CatchLogStr[_filePath] = nil
 		end
-	end, debug.traceback)    --调用函数
-	if not ok then
-		skynet.error("gamelog DealwithTimer: " .. tostring(err))
+		CatchLogStr[filePath] = nil
 	end
 end
 
-local function DealwithTimer()
+local function DoCloseFopen()
+	local ntime = ostime()
+	for filename, temp in pairs(CacheFopen) do
+		if (ntime - temp.utime) >= closefopen_time then
+			CacheFopen[filename] = nil
+			temp.f:flush()
+			temp.f:close()
+		end
+	end
+end
+
+
+
+-- 定时器相关回调函数 --------------------
+function DealFopenTimer()
+	while true do
+		skynet.sleep(1000)	-- 10秒
+		if isShutDown then return end
+		--写文件
+		TryCall(DoCloseFopen)
+	end
+end
+
+function DealwithTimer()
 	while true do
 		skynet.sleep(100 * writelog_time)
 		if isShutDown then return end
 		--写文件
-		DoOnceWriteLog()
+		TryCall(DoOnceWriteLog)
+	end
+end
+
+
+
+-- dispatch CMD --------------------
+function CMD.writelog(filePath, level, logStr)
+	assert(filePath and logStr, "not filePath or logStr")
+	if level == LOG_LEVEL.WRITE_NOW then
+		local isOk, errMsg = TryCall(WriteFile, filePath, logStr)
+		if is_testserver and not isOk then
+			-- 测试环境下才在控制台输出相关报错
+			skynet.error("CMD.writelog: " .. tostring(errMsg))
+		end
+	else
+		local fileCacheLogs = CatchLogStr[filePath]
+		if not fileCacheLogs then
+			fileCacheLogs = {}
+			CatchLogStr[filePath] = fileCacheLogs
+		end
+		tinsert(fileCacheLogs, logStr)
 	end
 end
 
@@ -120,6 +130,7 @@ function CMD.shutdown()
 	DoOnceWriteLog()
 end
 
+-- start service --------------------
 skynet.start(function()
 	skynet.dispatch("lua", function(session, _, cmd, ...)
 		local f = assert(CMD[cmd])
@@ -131,5 +142,6 @@ skynet.start(function()
 		end
 	end)
 
-	skynet.timeout(0, DealwithTimer)
+	skynet.timeout(0, _G.DealwithTimer)
+	skynet.timeout(0, _G.DealFopenTimer)
 end)

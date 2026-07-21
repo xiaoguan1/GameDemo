@@ -45,7 +45,7 @@ function string.split(str, sep, reg)
 		return
 	end
 	if str:len() >= 1024 then
-		skynet_error(sformat("split str too long, traceback:%s", debug.traceback()))
+		skynet_error(sformat("split str too long, traceback:%s", traceback()))
 	end
 
 	local res = {}
