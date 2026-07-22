@@ -69,10 +69,10 @@ centerdatadb_info = [[{
 	dbpasswd = "root",
 }]]
 
-mongo_center_db = [[{
+mongo_log_db = [[{
 	host = "127.0.0.1",
 	port = 27018,
-	dbname = "centerdata",
+	dbname = "server1",
 }]]
 
 

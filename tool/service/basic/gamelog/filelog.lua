@@ -16,7 +16,7 @@ assert(posix.mkdir_p)
 local closefopen_time = tonumber(skynet.getenv("closefopen_time")) or 1	-- 默认3分钟
 local is_testserver = skynet.getenv("is_testserver") == "true"
 CacheFopen = assert(CacheFopen)
-CatchLogStr = assert(CatchLogStr)
+CacheLogs = assert(CacheLogs)
 
 -- local function ------------------------------
 
@@ -51,7 +51,7 @@ function WriteFile(filePath, logStr)
 end
 
 function DoOnceWriteLog()
-	for filePath, fileCacheLogs in pairs(CatchLogStr) do
+	for filePath, fileCacheLogs in pairs(CacheLogs) do
 		for _, logStr in ipairs(fileCacheLogs) do
 			local isOk, errMsg = TryCall(WriteFile, filePath, logStr)
 			if is_testserver and not isOk then
@@ -59,7 +59,7 @@ function DoOnceWriteLog()
 				skynet.error("gamelog DoOnceWriteLog: " .. tostring(errMsg))
 			end
 		end
-		CatchLogStr[filePath] = nil
+		CacheLogs[filePath] = nil
 	end
 end
 
