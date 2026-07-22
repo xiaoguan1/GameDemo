@@ -55,6 +55,7 @@ skynet.start(function ()
 	doGamePreload()
 
 	dofile "./game/global/log.lua"
+	dofile "./game/global/dblog.lua"
 	for _, svrname in ipairs(START_CROSS_SERVICE.unique) do
 		local id = skynet.uniqueservice(svrname)
 		if not id then

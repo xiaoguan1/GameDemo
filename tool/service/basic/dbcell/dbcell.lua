@@ -25,6 +25,7 @@ end
 
 skynet.start(function ()
 	dofile "./game/global/log.lua"
+	dofile "game/global/dblog.lua"
 	skynet.register(".DBCELL_" .. no)
 
 	skynet.dispatch("lua", function (session, source, command, ...)

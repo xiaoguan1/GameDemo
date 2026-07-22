@@ -62,6 +62,7 @@ skynet.register_protocol({
 -- 使用skynet.forward_type的主要目的是 需要转发的协议类型的消息数据包不要进行内存释放，由对应接受处理的子服务去释放内存！
 skynet.forward_type({[skynet.PTYPE_DB] = skynet.PTYPE_DB}, function ()
 	dofile "./game/global/log.lua"
+	dofile "game/global/dblog.lua"
 
 	DBCELL_LIST = {}
 	for i = 1, cell_num do

@@ -75,6 +75,12 @@ centerdatadb_info = [[{
 	dbpasswd = "root",
 }]]
 
+mongo_log_db = [[{
+	host = "127.0.0.1",
+	port = 27018,
+	dbname = "server55001",
+}]]
+
 dbcell_num = 3
 
 ------------------ 日志 ------------------

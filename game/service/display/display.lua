@@ -38,5 +38,6 @@ skynet.start(function ()
 	end)
 
 	dofile "game/global/log.lua"
+	dofile "game/global/dblog.lua"
 	dofile "game/service/display/global.lua"
 end)

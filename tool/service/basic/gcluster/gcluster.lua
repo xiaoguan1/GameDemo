@@ -101,6 +101,7 @@ end
 
 skynet.start(function ()
 	dofile "game/global/log.lua"
+	dofile "game/global/dblog.lua"
 
 	skynet.dispatch("lua", function (session, source, cmd, ...)
 		local f = assert(command[cmd])

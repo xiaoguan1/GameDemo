@@ -20,10 +20,7 @@ CacheFopen = {}
 -- db日志相关缓存
 CacheCollLogs = {}
 
-local LOG_LEVEL = {
-	WRITE_DELAY = 1,
-	WRITE_NOW = 2,		-- 立即dump
-}
+local LOG_LEVEL = LOG_LEVEL
 
 -- 定时器相关回调函数 --------------------
 function DealFopenTimer()

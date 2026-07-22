@@ -12,6 +12,7 @@ local error = error
 command = {}
 skynet.start(function (...)
 	dofile "./game/global/log.lua"
+	dofile "game/global/dblog.lua"
 
 	LoadP = Import("protocol/loadproto.lua")
 	if not LoadP.LoadProto() then

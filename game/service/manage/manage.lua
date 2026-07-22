@@ -57,6 +57,7 @@ end
 
 skynet.start(function ()
 	dofile "./game/global/log.lua"
+	dofile "game/global/dblog.lua"
 
 	-- 开启监听
 	MGE_SOCKETID = socket.listen(listenPortIpv6, mcsport, backlog)

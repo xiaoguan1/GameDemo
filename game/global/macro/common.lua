@@ -19,3 +19,9 @@ UPDATE_DOFILE_FILE = {
     ["service/activity/init/global.lua"] = string.find(SERVICE_NAME, "^actsvc/([%w_]+)") and true or false,
     ["service/cactivity/init/global.lua"] = string.find(SERVICE_NAME, "^crosssvc/([%w_]+)") and true or false,
 }
+
+-- 日志的写入方式
+LOG_LEVEL = {
+	WRITE_DELAY = 1,	-- 批量写入
+	WRITE_NOW = 2,		-- 立即写入
+}

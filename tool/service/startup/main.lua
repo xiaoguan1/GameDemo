@@ -54,6 +54,7 @@ skynet.start(function ()
 	doGamePreload()
 
 	dofile "./game/global/log.lua"
+	dofile "game/global/dblog.lua"
 	for _, svrname in ipairs(START_USER_SERVICE.unique) do
 		local id = skynet.uniqueservice(svrname)
 		if not id then
@@ -85,14 +86,15 @@ skynet.start(function ()
 	end
 	startOterSvr(START_USER_SERVICE.adhoc)
 
-	_OpenLogPath()
+	-- _OpenLogPath()
 
-	print("HOST_ENV ", tool.dumptree(HOST_ENV))
-	print("SERVER_CONFIG:", tool.dumptree(SERVER_CONFIG))
-	print("BASIC_SERVICE_MAP ", tool.dumptree(BASIC_SERVICE_MAP))
-	print("ADHOC_SERVICE_MAP ", tool.dumptree(ADHOC_SERVICE_MAP))
-	print("SERVICE_CLUSTERNAME ", tool.dumptree(SERVICE_CLUSTERNAME))
-_DEBUG()
-	print("ADHOC_SERVICE_MAP ", tool.dumptree(ADHOC_SERVICE_MAP))
-	print("NORMAL_SERVICE_MAP ", tool.dumptree(NORMAL_SERVICE_MAP))
+	-- print("HOST_ENV ", tool.dumptree(HOST_ENV))
+	-- print("SERVER_CONFIG:", tool.dumptree(SERVER_CONFIG))
+	-- print("BASIC_SERVICE_MAP ", tool.dumptree(BASIC_SERVICE_MAP))
+	-- print("ADHOC_SERVICE_MAP ", tool.dumptree(ADHOC_SERVICE_MAP))
+	-- print("SERVICE_CLUSTERNAME ", tool.dumptree(SERVICE_CLUSTERNAME))
+	_DEBUG("1111111111111")
+	_INFO("2222222222222")
+	-- print("ADHOC_SERVICE_MAP ", tool.dumptree(ADHOC_SERVICE_MAP))
+	-- print("NORMAL_SERVICE_MAP ", tool.dumptree(NORMAL_SERVICE_MAP))
 end)

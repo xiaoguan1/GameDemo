@@ -19,10 +19,7 @@ local tpack = table.pack
 -- 是否为测试服
 local is_testserver = skynet.getenv("is_testserver") == "true"
 
-local LOG_LEVEL = {
-	WRITE_DELAY = 1,
-	WRITE_NOW = 2,
-}
+local LOG_LEVEL = LOG_LEVEL
 
 local _INFO_LOG_PATH = "./log/" .. nodename .. "/info/"
 local _DEBUG_LOG_PATH = "./log/" .. nodename .. "/debug/"
@@ -121,7 +118,6 @@ local function _log_print(level, context)
 end
 
 local function LogToFile(pfile, level, logContext)
-	-- 注意，字符串的链接不能直接table.concat(arg)
 	GAMELOG_SVR = GAMELOG_SVR or PROXYSVR.GetProxyByServiceName("gamelog")
 	if GAMELOG_SVR then
 		GAMELOG_SVR.send.writefilelog(pfile, level, logContext)
