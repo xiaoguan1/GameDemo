@@ -219,6 +219,20 @@ function mongo_client:runCommand(...)
 	return self.admin:runCommand(...)
 end
 
+-- add guanguowei
+-- 作用：获取mongo集群状态信息
+function mongo_client:rs_status()
+	-- 等价于 mongo shell 的 rs.status()
+	return self:runCommand("replSetGetStatus")
+end
+
+-- add guanguowei
+-- 作用：获取mongo集群配置信息
+function mongo_client:rs_conf()
+	-- 等价于 mongo shell 的 rs.conf()
+	return self:runCommand("replSetGetConfig")
+end
+
 function auth_method:auth_mongodb_cr(user,password)
 	local password = md5.sumhexa(string.format("%s:mongo:%s",user,password))
 	local result= self:runCommand "getnonce"
