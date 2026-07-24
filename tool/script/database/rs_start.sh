@@ -38,6 +38,6 @@ for rsName in $rsList; do
 	fi	
 done
 
-# mongo --host localhost --port 27018 --eval "rs.initiate()"
+mongo --host localhost --port 27018 --eval "rs.status()" > $rsDb/status.log
 
 echo "执行完毕"

@@ -15,11 +15,11 @@ local function _GetDb()
 	if DbObj then
 		return DbObj
 	end
-	local mg = assert(mongo.client({
+	local mgClient = mongo.client({
 		host = MongoCenterDb.host,
 		port = MongoCenterDb.port,
-	}))
-	DbObj = mg[MongoCenterDb.dbname]
+	})
+	DbObj = mgClient[MongoCenterDb.dbname]
 	return DbObj
 end
 function GetDb()
