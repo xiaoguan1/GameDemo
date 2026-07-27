@@ -28,7 +28,7 @@ lua_cpath = "./luaclib/?.so;" .. "./skynet/luaclib/?.so;" .. "./tool/cplugins-so
 
 --后台模式（必要时开启）
 -- daemon = "./log/skynet.pid"
--- logger = "./log/userlog"
+logger = "./log/skynet_error.log"
 
 profile = true		-- 默认位true的
 profile_cmd = true	-- 细化指令检测
@@ -71,7 +71,7 @@ centerdatadb_info = [[{
 
 mongo_log_db = [[{
 	host = "127.0.0.1",
-	port = 27018,
+	port = 27020,
 	dbname = "server1",
 }]]
 

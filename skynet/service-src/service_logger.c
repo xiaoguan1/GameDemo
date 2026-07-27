@@ -5,6 +5,9 @@
 #include <stdint.h>
 #include <string.h>
 #include <time.h>
+#include "skynet_server.h"
+
+#define TIP_MSG "---------- skynet logger service init finish ----------"
 
 struct logger {
 	FILE * handle;
@@ -44,6 +47,20 @@ timestring(struct logger *inst, char tmp[SIZETIMEFMT]) {
 	return now % 100;
 }
 
+// add guanguowei 输出流操作
+static void
+output_opt(struct logger *inst, uint32_t source, const void * msg, size_t sz) {
+	if (inst->filename) {
+		char tmp[SIZETIMEFMT];
+		int csec = timestring(inst, tmp);
+		fprintf(inst->handle, "%s.%02d ", tmp, csec);
+	}
+	fprintf(inst->handle, "[:%08x] ", source);
+	fwrite(msg, sz , 1, inst->handle);
+	fprintf(inst->handle, "\n");
+	fflush(inst->handle);
+}
+
 static int
 logger_cb(struct skynet_context * context, void *ud, int type, int session, uint32_t source, const void * msg, size_t sz) {
 	struct logger * inst = ud;
@@ -54,15 +71,7 @@ logger_cb(struct skynet_context * context, void *ud, int type, int session, uint
 		}
 		break;
 	case PTYPE_TEXT:
-		if (inst->filename) {
-			char tmp[SIZETIMEFMT];
-			int csec = timestring(ud, tmp);
-			fprintf(inst->handle, "%s.%02d ", tmp, csec);
-		}
-		fprintf(inst->handle, "[:%08x] ", source);
-		fwrite(msg, sz , 1, inst->handle);
-		fprintf(inst->handle, "\n");
-		fflush(inst->handle);
+		output_opt(inst, source, msg, sz);
 		break;
 	}
 
@@ -86,6 +95,7 @@ logger_init(struct logger * inst, struct skynet_context *ctx, const char * parm)
 	}
 	if (inst->handle) {
 		skynet_callback(ctx, inst, logger_cb);
+		output_opt(inst, skynet_context_handle(ctx), TIP_MSG, strlen(TIP_MSG));
 		return 0;
 	}
 	return 1;
