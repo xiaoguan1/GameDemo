@@ -1037,6 +1037,14 @@ lint64(lua_State *L) {
 	return 1;
 }
 
+/**
+ *	返回值格式：\0 + BSON_TIMESTAMP + inc（4字节，小端序）+ timestamp（4 字节，小端序）
+ *	总字节长度为10
+ * 
+ * 	特别注意：
+ * 	  luaL_buffinit 函数在5.4以及后续版本，在初始化完 lua_Buffer 结构体后会将其地址入栈进lua_State中！！！
+ * 	  所以，在5.4以及后续版本，if分支会失效 仅跑 else分支。看情况修复。
+*/
 static int
 ltimestamp(lua_State *L) {
 	int d = luaL_checkinteger(L,1);
