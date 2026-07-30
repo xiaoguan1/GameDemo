@@ -1043,23 +1043,25 @@ lint64(lua_State *L) {
  * 
  * 	特别注意：
  * 	  luaL_buffinit 函数在5.4以及后续版本，在初始化完 lua_Buffer 结构体后会将其地址入栈进lua_State中！！！
- * 	  所以，在5.4以及后续版本，if分支会失效 仅跑 else分支。看情况修复。
+ * 	  所以，在5.4以及后续版本，if分支会失效 仅跑 else分支。故现逻辑代码和源代码有一些区别！
 */
 static int
 ltimestamp(lua_State *L) {
 	int d = luaL_checkinteger(L,1);
+	uint32_t inc;
+	if (lua_isnoneornil(L,2)) {
+		static uint32_t timeInc = 0;
+		inc = __sync_fetch_and_add(&timeInc, 1);
+	} else {
+		inc = (uint32_t)lua_tointeger(L,2);
+	}
+
 	luaL_Buffer b;
 	luaL_buffinit(L, &b);
 	luaL_addchar(&b, 0);
 	luaL_addchar(&b, BSON_TIMESTAMP);
-	if (lua_isnoneornil(L,2)) {
-		static uint32_t inc = 0;
-		luaL_addlstring(&b, (const char *)&inc, sizeof(inc));
-		++inc;
-	} else {
-		uint32_t i = (uint32_t)lua_tointeger(L,2);
-		luaL_addlstring(&b, (const char *)&i, sizeof(i));
-	}
+
+	luaL_addlstring(&b, (const char *)&inc, sizeof(inc));
 	luaL_addlstring(&b, (const char *)&d, sizeof(d));
 	luaL_pushresult(&b);
 
