@@ -10,7 +10,15 @@ fi
 rsList=`ls ./script/database/rs_env`
 rsDb=$HOME/rs_db
 
-# 尝试初始化相关文件夹
+# ----------- 尝试初始化 /etc/logrotate.d/mongod 日志文件管理 -----------
+envLogFile='/etc/logrotate.d/mongod_ggw'
+if [ ! -f $envLogFile ]; then
+	# echo root | sudo -S touch /etc/logrotate.d/a
+	# sudo echo "yyyyyyyyyyyyyyyyy"
+fi
+
+
+# ----------- 尝试副本集节点进程的数据文件夹 -----------
 if [ ! -d "$rsDb" ]; then
 	# 创建文件
 	mkdir "$rsDb"
@@ -26,7 +34,7 @@ for rsName in $rsList; do
 	fi
 done
 
-# 启动副本集节点
+# ----------- 启动副本集节点进程 -----------
 for rsName in $rsList; do
 	mPid=`ps -ef | grep $rsName | grep -v grep | awk '{print $2}'`
 	if [ -z "$mPid" ] || [ "$mPid" -lt 0 ]; then
@@ -38,6 +46,14 @@ for rsName in $rsList; do
 	fi	
 done
 
+echo "----- 副本集集群节点执行完毕 -----"
+
+
+# 把副本集的状态信息dump进status.log文件
 mongo --host localhost --port 27018 --eval "rs.status()" > $rsDb/status.log
+
+echo "----- 副本集集群状态记录完毕 -----"
+
+
 
 echo "执行完毕"
