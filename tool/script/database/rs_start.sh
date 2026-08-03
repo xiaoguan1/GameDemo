@@ -24,7 +24,7 @@ if [ ! -d "$rsDb" ]; then
 	mkdir "$rsDb"
 fi
 for rsName in $rsList; do
-	port=$(echo "$rsName" | awk -F'-' '{print $2}' | awk -F'.' '{print $1}')
+	port=$(echo "$rsName" | awk -F'-' '{print $2}' | awk -F '.' '{print $1}')
 	portDir="$rsDb"/"$port"
 	if [ ! -d "$portDir" ]; then
 		mkdir "$portDir"
