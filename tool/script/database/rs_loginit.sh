@@ -9,6 +9,16 @@ if [ "$UID" -lt $COMMON_UID_MIN ]; then
 	exit
 fi
 
+logFile=mongodb_rs_ggw
+
+if [ ! -f $logFile ]; then
+	
+	exit
+fi
+
+
+
+
 # readLimit=4	# 可读限制的最低权限
 # sdPath=/etc/sudoers
 
