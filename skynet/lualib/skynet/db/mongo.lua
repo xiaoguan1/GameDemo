@@ -12,6 +12,7 @@ local assert = assert
 local table = table
 local string = string
 local sformat = string.format
+local dns = require "skynet.dns"
 
 -- 服务器地址
 local SERVICEADDR = sformat("[:%08x]", skynet.self())
@@ -94,7 +95,9 @@ local function __parse_addr(addr)
 		return
 	end
 	if host:match("^%d+.%d+.%d+.%d+") ~= host then
-		return
+		-- 域名解析
+		local addrHost = assert(dns.resolve(host))
+		return addrHost, tonumber(port)
 	end
 	return host, tonumber(port)
 end
@@ -120,18 +123,18 @@ local function mongo_auth(mongoc)
 		end
 		local rs_data =	mongoc:runCommand("ismaster")
 		if rs_data.ok == 1 then
-			-- if rs_data.hosts then
-			-- 	local backup = {}
-			-- 	for	_, v in	ipairs(rs_data.hosts) do
-			-- 		local host,	port = __parse_addr(v)
-			-- 		if host and port then
-			-- 			table.insert(backup, {host = host, port	= port})
-			-- 		else
-			-- 			skynet.error(sformat("mongodb %s error", v))
-			-- 		end
-			-- 	end
-			-- 	mongoc.__sock:changebackup(backup)
-			-- end
+			if rs_data.hosts then
+				local backup = {}
+				for	_, v in	ipairs(rs_data.hosts) do
+					local host,	port = __parse_addr(v)
+					if host and port then
+						table.insert(backup, {host = host, port	= port})
+					else
+						skynet.error(sformat("mongodb %s error", v))
+					end
+				end
+				mongoc.__sock:changebackup(backup)
+			end
 			local primary = rs_data.primary
 			if rs_data.ismaster	then
 				skynet.error(sformat("connect mongodb primary node, addr %s", mongoc.host .. ":" .. mongoc.port))

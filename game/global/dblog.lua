@@ -5,6 +5,7 @@ local debug = debug
 local traceback = debug.traceback
 local ostime = os.time
 
+local PROXYSVR = Import("game/global/rpc/proxysvr.lua")
 local GAMELOG_SVR = false
 
 local LOG_LEVEL = LOG_LEVEL
