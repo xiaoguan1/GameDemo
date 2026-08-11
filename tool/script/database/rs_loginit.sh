@@ -1,68 +1,57 @@
 #!/bin/bash
 
-# 尝试创建 /etc/logrotate.d/mongod_ggw 管理日志
-
-#注意：UID范围可以修改，也存在UID≥1000的系统用户，应查阅/etc/login.defs中的UID_MIN。
+# 注意：UID范围可以修改，也存在UID≥1000的系统用户，应查阅/etc/login.defs中的UID_MIN。
 COMMON_UID_MIN=`awk '/^UID_MIN/ {print $2}' /etc/login.defs`
 if [ "$UID" -lt $COMMON_UID_MIN ]; then
 	echo "必须以普通用户身份初始化副本集的日志管理设置"
 	exit
 fi
 
-logFile=mongodb_rs_ggw
+userName=`whoami`
+rsList=`ls ./script/database/rs_env`
+rsDb=$HOME/rs_db
+rsLogD=$rsDb/logrotate.d
+userTempFile=$rsDb/logrotate.d/"$userName"_crontate.tmp
 
-if [ ! -f $logFile ]; then
-	
-	exit
+# ----------- 尝试副本集节点进程的数据文件夹 -----------
+if [ ! -d $rsDb ]; then
+	mkdir $rsDb
+fi
+
+if [ ! -d $rsLogD ]; then
+	mkdir $rsLogD
+fi
+
+for rsName in $rsList; do
+	port=$(echo "$rsName" | awk -F'-' '{print $2}' | awk -F '.' '{print $1}')
+	portDir="$rsDb"/"$port"
+	if [ ! -d $portDir ]; then
+		mkdir $portDir
+	fi
+	if [ ! -d $portDir/data ]; then
+		mkdir $portDir/data
+	fi
+done
+
+userCron=$(crontab -l 2>/dev/null)   # 当前用户的所有crontab信息，（ 2>/dev/null 忽略错误信息）
+# echo "$userCron"		# 必须携带双引号
+isExist=$(echo "$userCron" | grep bin)	# 检测当前用户是否存在日志管理任务
+
+if [ -z "$isExist" ]; then
+	# 在crontab中未找到相关的定时任务，需要插入!!!
+	crontab -l > $userTempFile
+	echo "aaaaaaa" >> $userTempFile
 fi
 
 
-
-
-# readLimit=4	# 可读限制的最低权限
-# sdPath=/etc/sudoers
-
-# selfUser=`whoami`
-# selfGroups=`groups $selfUser | awk '{print $3}'`
-# # echo $selfUser $selfGroups
-
-# #/etc/sudoers 文件 权限、所属用户、所属组
-# sdAuth=`stat -c %a $sdPath`
-# sdOwner=`stat -c "%U" $sdPath`
-# sdGroup=`stat -c "%G" $sdPath`
-# # echo "所有者: $sOwner, 所属组: $sGroup"
-
-# auth1=$(($sdAuth / 100))		# 用户权限
-# auth2=$(($sdAuth % 100 / 10))	# 组权限
-# auth3=$(($sdAuth % 10))			# 其他权限
-# # echo $sdAuth $auth1 $auth2 $auth3
-
-# if [ $selfUser == $sdOwner ]; then
-# 	# 相同用户
-# 	nauth=$auth1
-# 	tipAuth=$((readLimit*100 + auth2*10 + auth3))
-# elif [ $selfGroups == $sdGroup ]; then
-# 	# 相同组
-# 	nauth=$auth2
-# 	tipAuth=$((auth1*100 + readLimit*10 + auth3))
+# ----------- 设置日志 -----------
+# a=`crontab -l`
+# echo $a
+# if [ `crontab -l 2>/dev/null | grep -q "bin"` ]; then
+# 	echo "aaaaa"
 # else
-# 	# 其他权限
-# 	nauth=$auth3
-# 	tipAuth=$((auth1*100 + auth2*10 + readLimit))
+# 	echo "bbbbbb"
 # fi
-
-# # sudoers 文件权限校验
-# if [ $nauth -lt $readLimit ]; then
-# 	# 临时修改一下 /etc/sudoers 权限
-# 	chmod $tipAuth $sdPath
-# 	# echo "$selfUser 用户读取 "$sdPath" 失败，请手动将权限设置为 $sdAuth -> $tipAuth chmod $tipAuth $sdPath"
-# 	# exit
-# fi
-
-# aa=`cat /etc/sudoers | grep -E "^($selfUser)[[:space:]]+ALL=\(ALL\)[[:space:]]+"` | grep -E ".*/usr/sbin/logrotate"
-# echo $aa
-
-
 
 
 
