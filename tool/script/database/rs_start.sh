@@ -7,24 +7,10 @@ if [ "$UID" -lt $COMMON_UID_MIN ]; then
 	exit
 fi
 
-rsList=`ls ./script/database/rs_env`
-rsDb=$HOME/rs_db
+sh ./script/database/rs_loginit.sh
 
-# ----------- 尝试副本集节点进程的数据文件夹 -----------
-if [ ! -d "$rsDb" ]; then
-	# 创建文件
-	mkdir "$rsDb"
-fi
-for rsName in $rsList; do
-	port=$(echo "$rsName" | awk -F'-' '{print $2}' | awk -F '.' '{print $1}')
-	portDir="$rsDb"/"$port"
-	if [ ! -d "$portDir" ]; then
-		mkdir "$portDir"
-	fi
-	if [ ! -d "$portDir"/data ]; then
-		mkdir "$portDir"/data
-	fi
-done
+rsList=`ls ./script/database/rs_env`
+rsDb=$HOME/rsDb
 
 # ----------- 启动副本集节点进程 -----------
 for rsName in $rsList; do

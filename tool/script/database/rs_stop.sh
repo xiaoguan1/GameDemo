@@ -12,7 +12,7 @@ RS_ENV_PATH="./script/database/rs_env"
 RS_ENV_FILES=`ls "$RS_ENV_PATH"`
 
 # 副本集的数据目录
-RS_DB_PATH=$HOME/rs_db
+RS_DB_PATH=$HOME/rsDb
 
 for name in $RS_ENV_FILES; do
 	port=$(echo "$name" | awk -F'-' '{print $2}' | awk -F'.' '{print $1}')

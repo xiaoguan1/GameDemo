@@ -8,11 +8,12 @@ if [ "$UID" -lt $COMMON_UID_MIN ]; then
 fi
 
 userName=`whoami`
+userGroup=`groups $userName | awk '{print $3}'`
 
 RsEnvs=`ls ./script/database/rs_env`
-RsDbDir=$HOME/rs_db
+RsDbDir=$HOME/rsDb
 
-logRotDir=$HOME/rs_logrotate.d
+logRotDir=$HOME/rsLogrot
 logRotFile=$logRotDir/$userName
 logRotStatus=$logRotDir/logrotate.status
 
@@ -42,12 +43,19 @@ $RsDbDir/*/mongod.log {
     delaycompress
     missingok
     notifempty
-    create 640 game game
+    create 640 $userName $userGroup
     postrotate
         # 获取当前日志文件的端口号（从路径中提取）
         port=\$(basename "\$(dirname "\$1")")
-        # 发送 logRotate 命令到对应端口的实例
-        mongosh --quiet --eval "db.adminCommand({ logRotate: 1 })" 127.0.0.1:$port/admin 2>/dev/null || true
+
+        # 发送 logRotate 命令到对应端口的实例。此外 mongodb 的版本不同 mongo 和 mongosh 的支持也不同
+		if command -v mongosh >/dev/null 2>&1; then
+			mongosh --quiet --eval "db.adminCommand({ logRotate: 1 })" 127.0.0.1:\$port/admin 2>/dev/null || echo "mongosh failed for port \$port" >> $logRotDir/logrotate_errors.log
+        elif command -v mongo >/dev/null 2>&1; then
+            mongo --quiet --eval "db.adminCommand({ logRotate: 1 })" 127.0.0.1:\$port/admin 2>/dev/null || echo "mongo failed for port \$port" >> $logRotDir/logrotate_errors.log
+        else
+            echo "No MongoDB client for port \$port" >> $logRotDir/logrotate_errors.log
+        fi
     endscript
 }
 EOF
@@ -70,13 +78,13 @@ userCron=$(crontab -l 2>/dev/null)   # 当前用户的所有crontab信息，（ 
 # echo "$userCron"		# 必须携带双引号
 
 logrotCmd="/usr/sbin/logrotate -s $logRotStatus -v $logRotFile"
-cronCmd="* * * * * "$logrotCmd
+cronCmd="0 2 * * * "$logrotCmd" > /dev/null 2>> $logRotDir/logrotate_errors.log"  # 放弃正常输出，而错误输出则重定向到log文件中
 
 # 检测当前用户是否存在日志管理任务
-isExist=$(echo "* * * * * /bin/ls" | grep "$logrotCmd")
+isExist=$(echo "$userCron" | grep "$logrotCmd")
 
 if [ -z "$isExist" ]; then
-# 	# 在crontab中未找到相关的定时任务，需要插入!!!
+	# 在crontab中未找到相关的定时任务，需要插入!!!
 	logRotTemp=$logRotDir/"$userName"_temp
 
 	echo "$userCron" > "$logRotTemp"
@@ -85,10 +93,4 @@ if [ -z "$isExist" ]; then
 
 	rm -f $logRotTemp
 	echo "finish init crontab logrotate cmd!!!"
-else
-	echo "crontab exit logrotate cmd!!!"
 fi
-
-
-
-
