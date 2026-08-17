@@ -49,10 +49,12 @@ $RsDbDir/*/mongod.log {
         port=\$(basename "\$(dirname "\$1")")
 
         # 发送 logRotate 命令到对应端口的实例。此外 mongodb 的版本不同 mongo 和 mongosh 的支持也不同
-		if command -v mongosh >/dev/null 2>&1; then
-			mongosh --quiet --eval "db.adminCommand({ logRotate: 1 })" 127.0.0.1:\$port/admin 2>/dev/null || echo "mongosh failed for port \$port" >> $logRotDir/logrotate_errors.log
-        elif command -v mongo >/dev/null 2>&1; then
-            mongo --quiet --eval "db.adminCommand({ logRotate: 1 })" 127.0.0.1:\$port/admin 2>/dev/null || echo "mongo failed for port \$port" >> $logRotDir/logrotate_errors.log
+		mongoshPath=`which mongosh >/dev/null 2>&1 && which mongosh || echo ""`
+		mongoPath=`which mongo >/dev/null 2>&1 && which mongo || echo ""`
+		if command -v mongoshPath >/dev/null 2>&1; then
+			mongoshPath --quiet --eval "db.adminCommand({ logRotate: 1 })" 127.0.0.1:\$port/admin 2>/dev/null || echo "mongosh failed for port \$port" >> $logRotDir/logrotate_errors.log
+        elif command -v mongoPath >/dev/null 2>&1; then
+            mongoPath --quiet --eval "db.adminCommand({ logRotate: 1 })" 127.0.0.1:\$port/admin 2>/dev/null || echo "mongo failed for port \$port" >> $logRotDir/logrotate_errors.log
         else
             echo "No MongoDB client for port \$port" >> $logRotDir/logrotate_errors.log
         fi
@@ -94,3 +96,4 @@ if [ -z "$isExist" ]; then
 	rm -f $logRotTemp
 	echo "finish init crontab logrotate cmd!!!"
 fi
+
