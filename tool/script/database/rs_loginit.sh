@@ -36,29 +36,29 @@ if [ ! -f $logRotFile ]; then
 	# 插入内容
 	cat > $logRotFile <<EOF
 $RsDbDir/*/mongod.log {
-    daily
+	daily
 	maxsize 1M
-    rotate 7
-    compress
-    delaycompress
-    missingok
-    notifempty
-    create 640 $userName $userGroup
-    postrotate
-        # 获取当前日志文件的端口号（从路径中提取）
-        port=\$(basename "\$(dirname "\$1")")
+	rotate 7
+	compress
+	delaycompress
+	missingok
+	notifempty
+	create 640 $userName $userGroup
+	postrotate
+		# 获取当前日志文件的端口号（从路径中提取）
+		port=\$(basename "\$(dirname "\$1")")
 
-        # 发送 logRotate 命令到对应端口的实例。此外 mongodb 的版本不同 mongo 和 mongosh 的支持也不同
-		mongoshPath=`which mongosh >/dev/null 2>&1 && which mongosh || echo ""`
-		mongoPath=`which mongo >/dev/null 2>&1 && which mongo || echo ""`
-		if command -v mongoshPath >/dev/null 2>&1; then
-			mongoshPath --quiet --eval "db.adminCommand({ logRotate: 1 })" 127.0.0.1:\$port/admin 2>/dev/null || echo "mongosh failed for port \$port" >> $logRotDir/logrotate_errors.log
-        elif command -v mongoPath >/dev/null 2>&1; then
-            mongoPath --quiet --eval "db.adminCommand({ logRotate: 1 })" 127.0.0.1:\$port/admin 2>/dev/null || echo "mongo failed for port \$port" >> $logRotDir/logrotate_errors.log
-        else
-            echo "No MongoDB client for port \$port" >> $logRotDir/logrotate_errors.log
-        fi
-    endscript
+		# 发送 logRotate 命令到对应端口的实例。此外 mongodb 的版本不同 mongo 和 mongosh 的支持也不同
+		mongoshPath=which mongosh >/dev/null 2>&1 && which mongosh || echo ""
+		mongoPath=which mongo >/dev/null 2>&1 && which mongo || echo ""
+		if command -v "\$mongoshPath" >/dev/null 2>&1; then
+			"\$mongoshPath" --quiet --eval "db.adminCommand({ logRotate: 1 })" 127.0.0.1:\$port/admin 2>/dev/null || echo "mongosh failed for port \$port" >> $logRotDir/logrotate_errors.log
+		elif command -v "\$mongoPath" >/dev/null 2>&1; then
+			"\$mongoPath" --quiet --eval "db.adminCommand({ logRotate: 1 })" 127.0.0.1:\$port/admin 2>/dev/null || echo "mongo failed for port \$port" >> $logRotDir/logrotate_errors.log
+		else
+			echo "No MongoDB client for port \$port" >> $logRotDir/logrotate_errors.log
+		fi
+	endscript
 }
 EOF
 
