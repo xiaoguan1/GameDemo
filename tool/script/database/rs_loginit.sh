@@ -49,8 +49,8 @@ $RsDbDir/*/mongod.log {
 		port=\$(basename "\$(dirname "\$1")")
 
 		# 发送 logRotate 命令到对应端口的实例。此外 mongodb 的版本不同 mongo 和 mongosh 的支持也不同
-		mongoshPath=which mongosh >/dev/null 2>&1 && which mongosh || echo ""
-		mongoPath=which mongo >/dev/null 2>&1 && which mongo || echo ""
+		mongoshPath=`which mongosh >/dev/null 2>&1 && which mongosh || echo ""`
+		mongoPath=`which mongo >/dev/null 2>&1 && which mongo || echo ""`
 		if command -v "\$mongoshPath" >/dev/null 2>&1; then
 			"\$mongoshPath" --quiet --eval "db.adminCommand({ logRotate: 1 })" 127.0.0.1:\$port/admin 2>/dev/null || echo "mongosh failed for port \$port" >> $logRotDir/logrotate_errors.log
 		elif command -v "\$mongoPath" >/dev/null 2>&1; then
