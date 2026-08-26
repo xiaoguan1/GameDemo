@@ -1,5 +1,9 @@
 #!/bin/bash
 
+### 1.尝试初始化副本集的db目录
+###	2.尝试初始化管理副本集日志的crontab和logrotate
+### 3.尝试初始化域名/etc/hosts
+
 # 注意：UID范围可以修改，也存在UID≥1000的系统用户，应查阅/etc/login.defs中的UID_MIN。
 COMMON_UID_MIN=`awk '/^UID_MIN/ {print $2}' /etc/login.defs`
 if [ "$UID" -lt $COMMON_UID_MIN ]; then
@@ -97,3 +101,7 @@ if [ -z "$isExist" ]; then
 	echo "finish init crontab logrotate cmd!!!"
 fi
 
+## ------- 初始化/etc/hosts
+hostsFile=/etc/hosts
+ipAddr=`hostname -I`
+echo `cat $hostsFile | grep "$ipAddr" | grep `

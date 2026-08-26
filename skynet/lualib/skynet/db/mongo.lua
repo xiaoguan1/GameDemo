@@ -236,6 +236,13 @@ function mongo_client:rs_conf()
 	return self:runCommand("replSetGetConfig")
 end
 
+-- add guanguowei
+-- 作用：把主节点变成从节点 （timestamp秒单位， 若600则表示10分钟）
+function mongo_client:stepDown(timestamp)
+	-- 等价于 mongo shell 的 rs.stepDown()
+	return self:runCommand("stepDown", timestamp)
+end
+
 function auth_method:auth_mongodb_cr(user,password)
 	local password = md5.sumhexa(string.format("%s:mongo:%s",user,password))
 	local result= self:runCommand "getnonce"

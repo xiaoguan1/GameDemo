@@ -7,7 +7,7 @@ if [ "$UID" -lt $COMMON_UID_MIN ]; then
 	exit
 fi
 
-sh ./script/database/rs_loginit.sh
+sh ./script/database/rs_init.sh
 
 rsList=`ls ./script/database/rs_env`
 rsDb=$HOME/rsDb

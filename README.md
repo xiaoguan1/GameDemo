@@ -150,3 +150,6 @@
 数据库
 	可以考虑在tool/script目录下创建 replica sets 环境配置文件夹
 	https://www.cnblogs.com/misakivv/p/18166888#%E4%B8%80%E4%BB%80%E4%B9%88%E6%98%AFmongodb%E7%9A%84%E5%89%AF%E6%9C%AC%E9%9B%86
+
+	MongoDB 官方强烈推荐使用 DNS 主机名（域名），而不是 IP 地址。当然也不是localhost.localdomain这类本地地址域名
+	建议先阅读一下有道云笔记中的 “副本集的一些问题” 问题集锦
