@@ -3,9 +3,11 @@
 	流程1 使用protoc对proto文件进行编译生成pb文件
 	
 	流程2 生成协议信息
-		1.game/global/rprotomap.lua 是业务开发定义的协议信息
-		2.protocol/auto-generate-rprotomap.lua 和 protocol/record-protocol-id 是自动化生成的协议文件，不允许手动修改！！！
-		3.节点内，其实加载的是auto-generate-rprotomap.lua文件
+		1.game/global/rprotomap.lua 是业务开发定义的协议信息（协议名 -> {desc, request, response}），type 由脚本自动推导
+		2.protocol/save-prot-id 是自动化生成的 协议名->编号 持久化文件，不允许手动修改！！！
+		作用：保证旧协议编号保持不变，新协议在上一个编号基础上 +1 递增
+		3.protocol/protomap.lua 是自动化生成的协议表文件，不允许手动修改！！！
+		节点内实际加载的是该文件（协议名 -> {desc, type, id, request, response}）
 
 	注意：目前protobuf仅支持版本2，未支持版本3
 ]]
@@ -21,8 +23,10 @@ local protocolPath = "./protocol/"
 local fileProtoPath = protocolPath .. "protos"
 local pbsPath = protocolPath .. "pbs"
 
-local protoc = "protoc --proto_path=" .. fileProtoPath .. " -o "
-local protocTail = "/%s.pb %s"
+-- --include_imports 参数，用于编译时包含导入的proto文件，否则会报错：import "xxx" not found in file "xxx.proto" at line 1
+-- -o 等价于 --descriptor_set_out，输出 FileDescriptorSet 描述文件（.pb），供 pbc 运行时加载
+local protoc = "protoc --proto_path=" .. fileProtoPath .. " --include_imports -o "
+local protocTail = "/%s.pb %s"			-- 每条命令尾部：输出pb文件名 + 输入proto文件名
 local protocHead = protoc .. pbsPath
 
 local proFiles = {}			-- proto后缀的协议文件
@@ -36,7 +40,7 @@ local function _Error(fmt, ...)
 	end
 end
 
--- 字符串切割
+-- 字符串切割（注意：sep 是字符集合，等价于 gmatch 的 [^sep]+ 语义，不是普通分隔字符串）
 function string.split(str, sep)
 	if not sep or not str or str == "" then
 		return
@@ -59,6 +63,7 @@ function table.size(t)
 end
 
 -- 检查 .proto 文件内容 
+-- 校验项：1.syntax 必须为 proto2  2.package 名必须与文件名一致  3.同 package 下 message 不允许重名
 local function _GetProtoFiles()
 	local dirs = assert(ipopen("ls " .. fileProtoPath),
 							sformat("%s popen fail!", fileProtoPath))
@@ -109,7 +114,8 @@ local function _GetProtoFiles()
 	dirs:close()
 end
 
--- protoc 编译 .proto 文件
+-- protoc 编译 .proto 文件，生成 protocol/pbs/*.pb
+-- 编译失败（os.execute 返回非 true）时直接报错中断，避免用不完整的 pb 继续生成协议表
 local function _MakePbs()
 	_GetProtoFiles()
 	if #proFiles <= 0 then
@@ -125,18 +131,24 @@ local function _MakePbs()
 						sformat("%s not find file name", file))
 
 		local tail = sformat(protocTail, fileName, file)
-		os.execute(protocHead .. tail)
-		print("protoc make " .. file)
+		local isOk = os.execute(protocHead .. tail)
+		if isOk then
+			print("protoc make " .. file)
+		else
+			_Error("protoc make %s fail", file)
+		end
 	end
 end
 
 local TipMsg = "----- auto generate file, please do not modify -----"
-local Spi_Is_Cover = true	-- save-prot-id文件默认为覆盖写入
-local MAXPROTID = 65536		-- 最大允许的协议编号
-local addProtocol = 0		-- 新增协议数量
-local nowProtId				-- 当前协议编号
-local protName2Id, id2ProtoName = {}, {}
+local Spi_Is_Cover = true	-- save-prot-id文件 覆盖写标记：首次生成或文件异常时为true（覆盖写），正常文件（首行为TipMsg）为false（追加写）。
+local MAXPROTID = 65536		-- 最大允许的协议编号（协议编号只占2字节，范围1~65536）
+local addProtocol = 0		-- 本次运行新增的协议数量（rprotomap中未分配过编号的协议）
+local nowProtId				-- 当前协议编号（save-prot-id中记录的最后一个编号）
+local protName2Id, id2ProtoName = {}, {}	-- 协议名<->编号 的双向映射
 local saveprotid_path = "protocol/save-prot-id"
+
+-- 加载 save-prot-id，建立 协议名<->编号 映射，并校验编号必须从1开始且严格+1递增
 local function _LoadSaveProtId()
 	local f = iopen(saveprotid_path, "r")
 	if not f then
@@ -155,7 +167,7 @@ local function _LoadSaveProtId()
 				Spi_Is_Cover = false
 			end
 		else
-			local protName, protId = string.match(c, "%s*(.*)%s*,%s*(%d*)%s*")
+			local protName, protId = string.match(c, "^%s*([^,]+)%s*,%s*(%d+)%s*$")
 			protId = protId and tonumber(protId)
 			if protName and protId then
 				if protId > MAXPROTID then
@@ -188,14 +200,17 @@ local function _LoadSaveProtId()
 	end
 	f:close()
 
-	-- 若空，则默认值为1
+	-- 若文件为空（或首行不是TipMsg），则当前编号默认0，新增协议将从1开始分配
 	nowProtId = nowProtId or 0
 end
 
-local PROT_TYPE_PUSH = "push"			-- 服务器推送协议（S->C）
-local PROT_TYPE_NOTIFY = "notify"		-- 客户端推送协议（C->S）
-local PROT_TYPE_RESPONSE = "response"	-- 前后端正常响应协议（C->S、S->C）
+local PROT_TYPE_PUSH = "push"			-- 服务器推送协议（S->C）：只定义response
+local PROT_TYPE_NOTIFY = "notify"		-- 客户端推送协议（C->S）：只定义request
+local PROT_TYPE_RESPONSE = "response"	-- 前后端正常响应协议（C->S、S->C）：request和response都定义
 local rprotomap_path = "game/global/rprotomap.lua"
+
+-- 加载业务协议定义 rprotomap.lua，校验 request/response 指向的 message 必须存在于 proto 文件中
+-- 协议 type 由脚本根据 request/response 自动推导；已存在协议复用 save-prot-id 中的编号，新协议从末尾+1递增
 local function _LoadRprotomap()
 	dofile(rprotomap_path)
 	assert(RPROTOMAP and type(RPROTOMAP) == "table", "rprotomap.lua RPROTOMAP error")
@@ -248,6 +263,8 @@ local function _LoadRprotomap()
 	end
 end
 
+-- 写回 save-prot-id：覆盖写（首次生成）或追加写（仅写本次新增的协议）
+-- 通过 id2ProtoName 反查编号对应的协议名，保证与 protomap.lua 使用同一份编号
 local function _WriteSaveSpi()
 	local startId, endId, mode
 	if Spi_Is_Cover then
@@ -285,6 +302,9 @@ local function _WriteSaveSpi()
 end
 
 local protomap_path = "protocol/protomap.lua"
+
+-- 生成 protocol/protomap.lua（节点实际加载的协议表）
+-- 按编号顺序遍历输出；rprotomap 中已删除的协议仅保留在 save-prot-id 中占位，防止旧编号被新协议复用
 local function _WriteProtomap()
 	local f = iopen(protomap_path, "w+")
 	if not f then
@@ -338,10 +358,10 @@ local function _WriteProtomap()
 	end
 end
 
----------------- 生成协议信息 ----------------
-_MakePbs()
-_LoadSaveProtId()
-_LoadRprotomap()
-_WriteSaveSpi()
-_WriteProtomap()
+---------------- 主流程 ----------------
+_MakePbs()          -- 1. protoc 编译 .proto -> protocol/pbs/*.pb
+_LoadSaveProtId()   -- 2. 加载 save-prot-id，恢复 协议名<->编号 映射
+_LoadRprotomap()    -- 3. 加载业务协议定义，校验并分配编号（旧协议复用，新协议递增）
+_WriteSaveSpi()     -- 4. 写回 save-prot-id（覆盖或追加新增编号）
+_WriteProtomap()    -- 5. 生成 protocol/protomap.lua 协议表
 print("---------- make protocol all finish ----------")
