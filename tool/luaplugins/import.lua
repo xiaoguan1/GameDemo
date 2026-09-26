@@ -242,8 +242,13 @@ local function SafeImport(PathFile, Reload)
 	-- 使用原来的module作为fenv，可以保证之前的引用可以更新到
 	local ok, errmsg = xpcall(func, traceback)
 	if not ok then
-		-- 热更新失败：恢复旧模块内容（含旧 __update__），避免模块被清空后损坏
-		for k in pairs(Old) do Old[k] = nil end
+		-- 热更新失败
+		-- 恢复旧模块内容（含旧 __update__）
+
+		for k in pairs(Old) do
+			-- 失败情况下，二次清空Old，是因为 func() 跑一半留下的新内容 ，保证回滚干净。
+			Old[k] = nil
+		end
 		for k, v in pairs(OldCache) do Old[k] = v end
 		if OldUpdate ~= nil then Old[__update__] = OldUpdate end
 		error(errmsg)
