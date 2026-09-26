@@ -129,7 +129,7 @@ local function SafeImport(PathFile, Reload)
 		end
 
 		local metatable = getmetatable(Old)
-		if metatable["__newindex"] then
+		if metatable and metatable["__newindex"] then
 			metatable["__newindex"] = nil
 		end
 	end
@@ -166,7 +166,7 @@ local function SafeImport(PathFile, Reload)
 	end
 
 	local function BindCheckLeak(Module)
-		local metatable = getmetatable(Module)
+		local metatable = assert(getmetatable(Module))
 		if metatable["__bound"] then
 			return
 		end
@@ -229,15 +229,25 @@ local function SafeImport(PathFile, Reload)
 
 	-- 先缓存原来的旧内容
 	local OldCache = {}
+	local OldUpdate = nil
 	for k, v in pairs(Old) do
-		if k ~= __update__ then
+		if k == __update__ then
+			OldUpdate = v
+		else
 			OldCache[k] = v
 		end
 		Old[k] = nil
 	end
 
 	-- 使用原来的module作为fenv，可以保证之前的引用可以更新到
-	func()
+	local ok, errmsg = xpcall(func, traceback)
+	if not ok then
+		-- 热更新失败：恢复旧模块内容（含旧 __update__），避免模块被清空后损坏
+		for k in pairs(Old) do Old[k] = nil end
+		for k, v in pairs(OldCache) do Old[k] = v end
+		if OldUpdate ~= nil then Old[__update__] = OldUpdate end
+		error(errmsg)
+	end
 
 	-- 更新以后的模块，里面的table的reference将不再有效，需要还原
 	local New = Old
@@ -269,7 +279,7 @@ local function SafeImport(PathFile, Reload)
 
 	BindCheckLeak(New)
 	if PathFile ~= "global/protocolevent.lua" and _ImportModule["global/protocolevent.lua"] then
-		_ImportModule["globa上/protocolevent.lua"].ProtoUpdate(New)
+		_ImportModule["global/protocolevent.lua"].ProtoUpdate(New)
 	end
 	CallUpdate(New)
 
