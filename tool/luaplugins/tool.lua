@@ -210,11 +210,17 @@ function tool.traceback(msg)
 	return string.format("tool.traceback: \n%s\n%s\n%s\n%s", msg, localMsg, upvalueMsg, debug.traceback("", 2))
 end
 
-local function serialise_table(value, depth)
+local function serialise_table(value, depth, visited)
 	depth = depth + 1
 	if depth > 50 then
-		return "Cannot serialise_table any further: too many nested tables"
+		error("tool.serialise: too many nested tables")
 	end
+
+	-- 循环引用检测：当前 table 已在祖先链中，检测到循环引用则报错
+	if visited[value] then
+		error("tool.serialise: circular reference detected")
+	end
+	visited[value] = true
 
 	local isArr, len = is_array(value)
 	local fragment = { "{" }
@@ -225,7 +231,7 @@ local function serialise_table(value, depth)
 			if comma then
 				table.insert(fragment, ",")
 			end
-			table.insert(fragment, tool.serialise(value[i], depth))
+			table.insert(fragment, tool.serialise(value[i], depth, visited))
 			comma = true
 		end
 	else
@@ -240,33 +246,44 @@ local function serialise_table(value, depth)
 			end
 			local ser
 			if indexs[k] then
-				ser = ("%s"):format(tool.serialise(v, depth))
+				ser = ("%s"):format(tool.serialise(v, depth, visited))
 			else
-				ser = ("[%s]=%s"):format(tool.serialise(k, depth), tool.serialise(v, depth))
+				ser = ("[%s]=%s"):format(tool.serialise(k, depth, visited), tool.serialise(v, depth, visited))
 			end
 			table.insert(fragment, ser)
 			comma = true
 		end
 	end
+
+	visited[value] = nil
+
 	table.insert(fragment, "}")
 	return table.concat(fragment)
 end
 
-function tool.serialise(value, depth)
+function tool.serialise(value, depth, visited)
 	if depth == nil then depth = 0 end
+	visited = visited or {}
 
+	local typ = type(value)
 	if value == json.null then
-		return "json.null"
-	elseif type(value) == "string" then
+		error("tool.serialise: json.null is not supported")
+	elseif typ == "string" then
 		return ("%q"):format(value)
-	elseif type(value) == "nil" or
-			type(value) == "number" or
-			type(value) == "boolean"
+	elseif typ == "nil" or
+			typ == "boolean"
 	then
 		return tostring(value)
-	elseif type(value) == "table" then
-		return serialise_table(value, depth)
+	elseif typ == "number" then
+		if value ~= value then
+			error("tool.serialise: NaN is not supported")
+		elseif value == math.huge or value == -math.huge then
+			error("tool.serialise: inf is not supported")
+		end
+		return tostring(value)
+	elseif typ == "table" then
+		return serialise_table(value, depth, visited)
 	else
-		return "\"<" .. type(value) .. ">\""
+		error("tool.serialise: unsupported type " .. typ)
 	end
 end
