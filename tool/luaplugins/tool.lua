@@ -89,18 +89,25 @@ function tool.FindErrorType(value, dummy)
 	end
 end
 
-local function dodump(value, c)
+local function dodump(value, c, visited)
 	local retval = ''
 	if type(value) == 'table' then
 		c = (c or 0) + 1
 		if c >= 100 then
-			error("dump to deep:" .. retval)
+			error("dump to deep: " .. c)
 		end
+
+		visited = visited or {}
+		if visited[value] then
+			return '<circular>'
+		end
+		visited[value] = true
 
 		retval = retval .. '{'
 		for k, v in pairs(value) do
-			retval = retval .. '[' .. dodump(k, c) .. '] = ' .. dodump(v, c) .. ', '
+			retval = retval .. '[' .. dodump(k, c, visited) .. '] = ' .. dodump(v, c, visited) .. ', '
 		end
+		visited[value] = nil
 		retval = retval .. '}'
 		return retval
 	else
@@ -109,10 +116,9 @@ local function dodump(value, c)
 	return retval
 end
 
--- 为了防止死循环，不让它遍历超过100个结点。谨慎使用。
+-- 循环引用会以 <circular> 占位，不会死循环；超深(100层)仍会报错。
 function tool.dump(value)
-	local ni, ret = pcall(dodump, value)
-	return ret
+	return dodump(value)
 end
 
 local function _Foreach(t, f)
@@ -131,40 +137,49 @@ local function _WordsIndentBy(xn)
 	return result
 end
 
-local function _ToTreeString(t, deep)
+local function _ToTreeString(t, deep, visited)
 	if deep >= 100 then
 		error("tool.dumptree deep error!")
 	end
 	if type(t) ~= "table" then
 		return tostring(t)
-	else
-		local indent = _WordsIndentBy(deep)
-		local result = indent .. "{\n"
-
-		_Foreach(t, function(k, v)
-			result = result .. _WordsIndentBy(deep + 1)
-			if type(k) == "string" then
-				result = result .. "[" .. string.format('%q', k) .. "]="
-			else
-				result = result .. "[" .. tostring(k) .. "]="
-			end
-			if type(v) == "table" then
-				local subT = _ToTreeString(v, deep + 2)
-				result = result .. "\n" .. subT .. "," .. "\n"
-			else
-				if type(v) == "string" then
-					result = result .. string.format('%q', v) .. "," .. "\n"
-				else
-					result = result .. tostring(v) .. "," .. "\n"
-				end
-			end
-		end)
-		return result .. indent .. "}"
 	end
+
+	visited = visited or {}
+	if visited[t] then
+		-- 遇到循环引用 打印占位符（暂不报错）
+		return tostring(t) .. '---<circular>'
+	end
+	visited[t] = true
+
+	local indent = _WordsIndentBy(deep)
+	local result = indent .. "{\n"
+
+	_Foreach(t, function(k, v)
+		result = result .. _WordsIndentBy(deep + 1)
+		if type(k) == "string" then
+			result = result .. "[" .. string.format('%q', k) .. "]="
+		else
+			result = result .. "[" .. tostring(k) .. "]="
+		end
+		if type(v) == "table" then
+			local subT = _ToTreeString(v, deep + 2, visited)
+			result = result .. "\n" .. subT .. "," .. "\n"
+		else
+			if type(v) == "string" then
+				result = result .. string.format('%q', v) .. "," .. "\n"
+			else
+				result = result .. tostring(v) .. "," .. "\n"
+			end
+		end
+	end)
+
+	visited[t] = nil
+	return result .. indent .. "}"
 end
 
--- 注意：当table的某个key的值为table时，不支持将其摊开打印出来。
--- 此外，也不建议用table作为key（因为table是一个指向内存的指针）
+-- 支持递归打印嵌套 table；循环引用会以 <circular> 占位。
+-- 不建议用 table 作为 key（table 是指向内存的指针，打印出来只是地址）
 function tool.dumptree(t)
 	return _ToTreeString(t, 0)
 end
