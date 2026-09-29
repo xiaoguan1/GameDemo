@@ -40,16 +40,21 @@ function table.deepcopy(src)
 	if type(src) ~= "table" then
 		return src
 	end
+	local copied = {}
 	local function clone_table(t, deep)
-		deep = deep or 0
+		deep = deep or 1
 		if deep >= 100 then
 			error("deepcopy deep >= 100, fail!")
 		end
+		if copied[t] then
+			return copied[t]	-- 循环/共享引用直接复用
+		end
 		local r = {}
+		copied[t] = r
 		for k, v in pairs(t) do
 			local vt = type(v)
 			if vt == "userdata" then
-				error("not support copy usedata")
+				error("not support copy userdata")
 			elseif vt == "table" then
 				r[k] = clone_table(v, deep + 1)
 			else
