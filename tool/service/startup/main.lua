@@ -56,8 +56,8 @@ skynet.start(function ()
 	dofile "./game/global/log.lua"
 	dofile "game/global/dblog.lua"
 	for _, svrname in ipairs(START_USER_SERVICE.unique) do
-		local id = skynet.uniqueservice(svrname)
-		if not id then
+		local isOk, id = pcall(skynet.uniqueservice, svrname)
+		if not isOk or not id then
 			abort(string.format("start service[%s] fail", svrname))
 		end
 		skynet.name(BASIC_SERVICE_MAP[svrname].named, id)

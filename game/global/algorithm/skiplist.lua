@@ -9,7 +9,6 @@ local SKIPLIST_MAXLEVEL = 32
 local tdeepcopy = table.deepcopy
 local sformat = string.format
 local tempty = table.empty
-local class = require "oop.class"
 
 --- 随机生成节点层数（每层 1/4 概率继续递增）
 --- @return number level 层数，范围 [1, SKIPLIST_MAXLEVEL]
@@ -97,7 +96,7 @@ local function _Insert(obj, newNode)
 	end
 end
 
-SkipList = class.NewClass("<<skiplist class>>")
+SkipList = Class.NewClass("<<skiplist class>>")
 
 --- 创建排行榜跳表实例
 --- @param uniqueKey string 唯一标识字段名（如玩家 id），用于判重与查找

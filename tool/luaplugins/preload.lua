@@ -3,6 +3,8 @@ local skynet_getenv = skynet.getenv
 require "skynet.manager"
 local traceback = debug.traceback
 scoroutine = require "skynet.coroutine"
+Class = require "oop.class"
+
 
 -- 重置随机种子
 math.randomseed()
