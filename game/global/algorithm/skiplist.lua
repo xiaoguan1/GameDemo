@@ -34,6 +34,33 @@ local function _CreateNode(data, level)
 	}
 end
 
+--- 维护排名字段：在名次 rank 处插入 unique，并顺移其后的 key2Rank
+--- @param obj table SkipList 实例
+--- @param unique any 唯一键值
+--- @param rank number 插入位置（从 1 起）
+local function _RankInsert(obj, unique, rank)
+	table.insert(obj.rankList, rank, unique)
+	obj.key2Rank[unique] = rank
+	for i = rank + 1, #obj.rankList do
+		obj.key2Rank[obj.rankList[i]] = i
+	end
+end
+
+--- 维护排名字段：删除 unique 对应的名次，并顺移其后的 key2Rank
+--- @param obj table SkipList 实例
+--- @param unique any 唯一键值
+--- @return number|nil rank 被删除的名次；不存在时返回 nil
+local function _RankDelete(obj, unique)
+	local rank = obj.key2Rank[unique]
+	if not rank then return end
+	for i = rank + 1, #obj.rankList do
+		obj.key2Rank[obj.rankList[i]] = i - 1
+	end
+	table.remove(obj.rankList, rank)
+	obj.key2Rank[unique] = nil
+	return rank
+end
+
 --- 将节点插入跳表，并维护 key2Node/rankList/key2Rank
 --- @param obj table SkipList 实例
 --- @param newNode table _CreateNode 创建的节点（data 已含 uniqueKey 与所有 sortKeys 字段）
@@ -76,21 +103,11 @@ local function _Insert(obj, newNode)
 	obj:SetKey2Node(unique, newNode)
 
 	local prevNode = newNode.prev[1]
-	if prevNode.isHead then
-		table.insert(obj.rankList, 1, unique)
-		obj.key2Rank[unique] = 1
-		for rank = 2, #obj.rankList do
-			obj.key2Rank[obj.rankList[rank]] = rank
-		end
-	else
-		local funique = prevNode.data[uniqueKey]
-		local frank = obj.key2Rank[funique]
-		table.insert(obj.rankList, frank + 1, unique)
-		obj.key2Rank[unique] = frank + 1
-		for rank = (frank + 2), #obj.rankList do
-			obj.key2Rank[obj.rankList[rank]] = rank
-		end
+	local rank = 1
+	if not prevNode.isHead then
+		rank = obj.key2Rank[prevNode.data[uniqueKey]] + 1
 	end
+	_RankInsert(obj, unique, rank)
 end
 
 SkipList = Class.NewClass("<<skiplist class>>")
@@ -244,17 +261,12 @@ function SkipList:Delete(unique)
 		return
 	end
 
-	local rank = self.key2Rank[unique]
 	for i = 1, delNode.level do
 		local prevNode = delNode.prev[i]   -- 该层上被删节点的前驱（队头方向）
 		prevNode.next[i] = delNode.next[i] -- 前驱跳过后继，直接指向被删节点的后继
 	end
 	self:SetKey2Node(unique)
-	for i = rank + 1, #self.rankList do
-		self.key2Rank[self.rankList[i]] = i - 1
-	end
-	table.remove(self.rankList, rank)
-	self.key2Rank[unique] = nil
+	_RankDelete(self, unique)
 	return delNode
 end
 
