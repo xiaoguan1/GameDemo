@@ -3,6 +3,14 @@
 local skynet = require "skynet"
 local traceback = debug.traceback
 
+local __ClassType = "__ClassType"
+local __CreateClass = "__CreateClass"
+local ClassIgnoreFields = {
+	-- 类模板字段，不支持热更新
+	[__ClassType] = true,
+	[__CreateClass] = true,
+}
+
 _G._ImportModule = _G._ImportModule or {}
 local _ImportModule = _G._ImportModule
 
@@ -62,8 +70,10 @@ local function ReplaceTbl(Dest,Src)
 					Dest[k] = Src[k]
 				end
 			else
-				-- 对Dest[k]非table的更新或者删减
-				Dest[k] = Src[k]
+				-- 对Dest[k]非table的更新或者删减，不支持热更新 类的__ClassType 字段
+				if not ClassIgnoreFields[k] then
+					Dest[k] = Src[k]
+				end
 			end
 		end
 

@@ -35,7 +35,6 @@ local SKIPLIST_P = 2500
 local SKIPLIST_MAXLEVEL = 32
 local tdeepcopy = table.deepcopy
 local sformat = string.format
-local tempty = table.empty
 
 --- 随机生成节点层数（每层 1/4 概率继续递增）
 --- @return number level 层数，范围 [1, SKIPLIST_MAXLEVEL]

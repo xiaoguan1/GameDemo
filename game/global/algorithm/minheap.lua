@@ -13,7 +13,7 @@ local ostime = os.time
 local tdump = tool.dump
 
 -- 最小堆类
-MinHeap = { __ClassType = "<<minheap class>>" }
+MinHeap = Class.NewClass("<<minheap class>>")
 
 -- isQuote:true 引用(不对ele进行复制)
 function MinHeap:New(uniqueKey, sortKeys, extData)
@@ -62,6 +62,9 @@ function MinHeap:Size()
 end
 
 function MinHeap:IsFull()
+	if self.isInfinite then
+		return false
+	end
 	return #self.heap >= self.len
 end
 
