@@ -65,16 +65,13 @@ local function _Insert(obj, newNode)
 	end
 
 	for i = 1, newNode.level do
-		local nextNode = update[i].next[i]
-		newNode.next[i] = nextNode
+		local nextNode = update[i].next[i]		-- 先把 "原后继（队尾方向）" 记下
+		newNode.next[i] = nextNode				-- 新节点 指向 原后继
 		if nextNode then
-			nextNode.prev[i] = newNode
+			nextNode.prev[i] = newNode			-- 原后继（若存在）指向 新节点
 		end
-		newNode.prev[i] = update[i]
-		update[i].next[i] = newNode
-
-		-- newNode.next[i] = update[i].next[i]
-		-- update[i].next[i] = newNode
+		newNode.prev[i] = update[i]				-- 新节点 指向 前驱（队头方向）
+		update[i].next[i] = newNode				-- 前驱 指向 新节点（队尾方向）
 	end
 	obj:SetKey2Node(unique, newNode)
 
@@ -119,7 +116,6 @@ function SkipList:New(uniqueKey, sortKeys, orders, maxLength)
 	end
 
 	local o = {
-		__SuperClass = self,			-- 标记RoleClass为父类
 		__IsObject = ostime(),			-- 标记为实例对象
 		linkData = {					-- 带头节点的链表
 			isHead = true,
