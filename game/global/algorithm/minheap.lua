@@ -39,7 +39,6 @@ function MinHeap:New(uniqueKey, sortKeys, extData)
 		isQuote = extData.isquote,	-- true:表示引用元素、false:深复制插入的元素
 		isInfinite = isInfinite,	-- true:无穷容量、false:有限容量
 
-		__SuperClass = self,		-- 标记RoleClass为父类
 		__IsObject = ostime(),		-- 标记为实例对象
 	}
 	if not o.isInfinite then
@@ -98,7 +97,7 @@ function MinHeap:GetTopUnique()
 	if self:IsEmpty() then
 		return
 	end
-	return self.heap[self.uniqueKey]
+	return self.heap[1][self.uniqueKey]
 end
 
 function MinHeap:GetTop()
