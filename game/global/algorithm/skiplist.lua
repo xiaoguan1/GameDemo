@@ -1,3 +1,30 @@
+--[[
+与官方跳表（Pugh 经典版 / Redis zskiplist）的主要差异：
+  1. 链表方向（双向 vs 单向）
+     - 本实现：每个节点在每一层同时维护 prev（前驱）与 next（后继），是双向跳表。
+     - 官方：Pugh 经典版只有单个 forward 指针；Redis zskiplist 仅第 0 层有 back 回退，高层仍是单向前进。
+  2. 排名维护方式
+     - 本实现：用独立的 rankList 数组（名次 → unique）+ key2Rank map（unique → 名次），
+       查找名称与按名次取人都是 O(1)，但插入/删除/改分需顺移数组，为 O(n)。
+     - 官方：不内置排名；Redis 用 span 字段在查找路径上累加，得到 O(log n) 排名。
+  3. 排序能力
+     - 本实现：支持多字段复合排序（sortKeys），且每个字段可独立设升/降序（orders）。
+     - 官方/Redis：按单一 key（score）排序，一个比较器即可。
+  4. 容量与淘汰
+     - 本实现：有 maxLength 上限，满时插入会与队尾比较并淘汰队尾（见 Push）。
+     - 官方：无容量限制，是纯动态集合。
+  5. 层数概率
+     - 本实现：p = SKIPLIST_P / RANDOM_MAX = 1/4，与 Redis（ZSKIPLIST_P=0.25）一致，与 Pugh 经典 1/2 不同。
+  6. 节点数据存储
+     - 本实现：_CreateNode 对 data 深拷贝一份存入节点。
+     - 官方：通常直接持有数据引用/指针，不做深拷贝。
+  7. span 字段缺失
+     - 本实现节点无 span，无法像 Redis 那样就地 O(log n) 计算“第 K 个 / 名次”；
+       排名完全依赖 rankList / key2Rank 两份冗余结构。
+  8. 防御性检查
+     - 本实现：插入时跟踪 loop 计数，超过 maxLength + 1 即报错（防死循环/环）。
+  注：查找本身仍是期望 O(log n)（多层跳跃）；上述差异主要影响“排名维护”与“存储/容量”语义。
+]]
 -- 跳表 guanguowei
 local ostime = os.time
 local mrandom = math.random
