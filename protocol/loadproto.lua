@@ -116,11 +116,7 @@ function LoadProto()
 end
 
 -- 热更新协议
-function command.update(isUpdateProto)
-	if not isUpdateProto then
-		return
-	end
-
+function command.update()
 	local PROXYSVR = Import("game/global/rpc/proxysvr.lua")
 	local lsvr = PROXYSVR.GetProxy(".launcher", SELF_CLUSTERNAME)
 	if not lsvr then
@@ -144,6 +140,7 @@ function command.update(isUpdateProto)
 	protobuf.update_local_pgc()
 	if not _DoLoad(filesMtime, oALREADY_LOAD_PBS) then
 		-- 未知原因，热更新协议失败。回退旧的P
+		ALREADY_LOAD_PBS = oALREADY_LOAD_PBS
 		protobuf.P = OldP
 		protobuf.update_local_pgc()
 		c.pbc_delete(newP)
@@ -159,6 +156,7 @@ function command.update(isUpdateProto)
 	-- 通知所有服务进行协议更新
 	if not lsvr.call.UPDATE_PROTO() then
 		-- 其他服务更新失败,恢复原来的数据。回退旧的P
+		ALREADY_LOAD_PBS = oALREADY_LOAD_PBS
 		protobuf.P = OldP
 		protobuf.update_local_pgc()
 

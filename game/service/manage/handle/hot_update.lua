@@ -116,7 +116,7 @@ function Handle_Request(data)
 	end
 	-- 错误码判断、协议编号是否有新增等等。。。。
 	if isUpdateProto then
-		if psvr.call.update(isUpdateProto) then
+		if psvr.call.update() then
 			PROTO_FILEMTIME = protoFiles
 		end
 	end
@@ -129,17 +129,20 @@ function Handle_Request(data)
 		[UPDATE_TYPE.IMPORT] = {},
 	}
 	for pathFile, mtime in pairs(toolfiles) do
-		if TOOL_FILEMTIME[pathFile] and mtime > TOOL_FILEMTIME[pathFile] then
+		local omTime = TOOL_FILEMTIME[pathFile]
+		if (omTime and mtime > omTime) or not omTime then
 			tinsert(updateFiles[UPDATE_TYPE.TOOL], pathFile)
 		end
 	end
 	for pathFile, mtime in pairs(macroFiles) do
-		if MACRO_FILETIME[pathFile] and mtime > MACRO_FILETIME[pathFile] then
+		local omTime = MACRO_FILETIME[pathFile]
+		if (omTime and mtime > omTime) or not omTime then
 			tinsert(updateFiles[UPDATE_TYPE.MACROS], pathFile)
 		end
 	end
 	for pathFile, mtime in pairs(gameFiles) do
-		if GAME_FILEMTIME[pathFile] and mtime > GAME_FILEMTIME[pathFile] then
+		local omTime = GAME_FILEMTIME[pathFile]
+		if omTime and mtime > omTime then -- 不做 not omTime，因为新模块需要旧模块里先`Import`
 			tinsert(updateFiles[UPDATE_TYPE.IMPORT], pathFile)
 		end
 	end

@@ -2,6 +2,8 @@
 --	使用方法Import('base/util.lua')，代替Lua的require机制
 local skynet = require "skynet"
 local traceback = debug.traceback
+local tequal = table.equal
+local tempty = table.empty
 
 local __ClassType = "__ClassType"
 local __CreateClass = "__CreateClass"
@@ -11,17 +13,12 @@ local ClassIgnoreFields = {
 	[__CreateClass] = true,
 }
 
+local is_pool_service = false
+
 _G._ImportModule = _G._ImportModule or {}
 local _ImportModule = _G._ImportModule
 
 local IMPORT_FILE = {}
-
-function tempty(tbl)
-	for k, v in pairs(tbl) do
-		return false
-	end
-	return true
-end
 
 local function tmember_key(Table, Value)
 	for k, v in pairs(Table) do
@@ -229,6 +226,8 @@ local function SafeImport(PathFile, Reload)
 		end, traceback)
 		IMPORT_FILE[PathFile] = nil
 		if not ok then
+			-- 加载模块失败，清理_ImportModule中的内容
+			_ImportModule[PathFile] = nil
 			error(err)
 		end
 

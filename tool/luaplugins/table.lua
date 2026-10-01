@@ -97,3 +97,27 @@ function table.onlyread(tbl)
 	})
 	return rtbl
 end
+
+-- 比较两个table是否相等
+function table.equal(ele1, ele2)
+    local seen = {}
+    local function eq(a, b)
+        -- 基础类型
+        if type(a) ~= "table" or type(b) ~= "table" then
+            return a == b
+        end
+		-- table类型
+        if a == b then return true end
+        if seen[a] and seen[a][b] then return true end
+        if not seen[a] then seen[a] = {} end
+        seen[a][b] = true
+        for k, v in pairs(a) do
+            if not eq(v, b[k]) then return false end
+        end
+        for k, v in pairs(b) do
+            if a[k] == nil then return false end
+        end
+        return true
+    end
+    return eq(ele1, ele2)
+end
