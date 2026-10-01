@@ -139,8 +139,9 @@ local function SafeImport(PathFile, Reload)
 		end
 
 		local metatable = getmetatable(Old)
-		if metatable and metatable["__newindex"] then
+		if metatable then
 			metatable["__newindex"] = nil
+			metatable["__bound"] = nil
 		end
 	end
 
