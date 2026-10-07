@@ -32,7 +32,7 @@ local ANSI_COLORS = {
 	pink	= "#e603e6",
 	red		= "#e50000",
 	green 	= "#008011",
-	yellow	= "#ff8a00",
+	yellow	= "#ebb039",
 	yellow2 = "#fff44f",
 
 	purple	= "#8a2be2",
