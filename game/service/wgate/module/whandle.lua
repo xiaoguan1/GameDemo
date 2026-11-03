@@ -57,10 +57,7 @@ end
 -- 打包下行协议帧：消息总长度（2字节）| 协议编号（2字节）| 协议内容
 local function _PackFrame(proto_id, payload)
 	local total = 4 + #payload
-	return schar(
-		math.floor(total / 256), total % 256,
-		math.floor(proto_id / 256), proto_id % 256
-	) .. payload
+	return string.pack(">I2", total) .. string.pack(">I2", proto_id) .. payload
 end
 
 function handle.warning ()
@@ -235,7 +232,7 @@ function PushToClient(uid, proto_id, payload)
 		_WARN_F("push fail, uid:%s not on gate:%s", uid, GateName)
 		return false
 	end
-	return websocket.write(id, _PackFrame(proto_id, payload))
+	return websocket.write(id, _PackFrame(proto_id, payload), "binary")
 end
 
 -- 踢下线（顶号等场景）

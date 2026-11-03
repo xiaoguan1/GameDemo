@@ -64,11 +64,28 @@ skynet.start(function ()
 	end
 
 	for _, svrname in ipairs(START_USER_SERVICE.normal) do
-		local id = skynet.newservice(svrname)
-		if not id then
-			abort(string.format("start service[%s] fail", svrname))
+		if svrname == "wgate" then
+			-- 网关为无状态服务，按 gateway_num 启动多个实例，便于水平扩展
+			local gateway_num = tonumber(skynet.getenv("gateway_num")) or 1
+			for i = 1, gateway_num do
+				local id = skynet.newservice(svrname, i)
+				if not id then
+					abort(string.format("start service[%s] fail", svrname))
+				end
+				local named = NORMAL_SERVICE_MAP[nodename][svrname].named
+				if i == 1 then
+					skynet.name(named, id)
+				else
+					skynet.name(named .. i, id)
+				end
+			end
+		else
+			local id = skynet.newservice(svrname)
+			if not id then
+				abort(string.format("start service[%s] fail", svrname))
+			end
+			skynet.name(NORMAL_SERVICE_MAP[nodename][svrname].named, id)
 		end
-		skynet.name(NORMAL_SERVICE_MAP[nodename][svrname].named, id)
 	end
 
 	-- 启动寄生服务
