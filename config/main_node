@@ -87,6 +87,10 @@ mcs_port = 40001
 wsocket_port = 30001
 max_wscoket_count = 1
 gateway_num = 1		-- 无状态网关实例数（>1时端口依次为 wsocket_port + (i-1)*10）
+
+------------------ 玩家逻辑服 agent ------------------
+agent_max_player = 50	-- 单个 agent 实例最大容纳玩家数
+agent_default_num = 8	-- 开服默认启动的 agent 实例数（底座编号1~N，不参与缩容回收）
 ------------------ openssl ------------------
 -- enablessl = true
 

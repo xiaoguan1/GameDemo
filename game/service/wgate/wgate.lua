@@ -54,6 +54,12 @@ local function _CreateWsInfo()
 	})
 end
 
+skynet.register_protocol {
+	name = "client",
+	id = skynet.PTYPE_CLIENT,
+	unpack = skynet.unpack,
+	pack = skynet.pack,
+}
 
 skynet.start(function (gate_index)
 	gate_index = tonumber(gate_index) or 1

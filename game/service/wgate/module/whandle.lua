@@ -124,7 +124,7 @@ local function _Message(id, msg, msg_type)
 
 	if sinfo.status == WPlayerConnect then
 		-- 已绑定：转发给玩家逻辑服(agent)
-		TryCall(PROXYSVR.GetProxy(sinfo.agent_name, sinfo.agent_clustername, "lua").send,
+		TryCall(PROXYSVR.GetProxy(sinfo.agent_name, sinfo.agent_clustername, "client").send,
 			"client_msg", sinfo.uid, proto_id, payload)
 	else
 		-- 未绑定：首包视为登录请求，交给登录仲裁服务
@@ -136,7 +136,7 @@ local function _Message(id, msg, msg_type)
 		end
 		-- 尝试从握手url解析uid（?uid=xxx），解析不到由jlogin兜底生成
 		local uid = sinfo.url and smatch(sinfo.url, "uid=([%w_%-]+)")
-		TryCall(PROXYSVR.GetProxy(".JLOGIN", jlogin_cn, "lua").send,
+		TryCall(PROXYSVR.GetProxy(".JLOGIN", jlogin_cn, "client").send,
 			"login", id, uid, sinfo.url or "", proto_id, payload)
 	end
 end
@@ -172,12 +172,12 @@ local function _Clean(id, code, reason)
 		-- 通知登录仲裁服务校验并注销路由
 		local jlogin_cn = GetJLoginClusterName()
 		if jlogin_cn then
-			TryCall(PROXYSVR.GetProxy(".JLOGIN", jlogin_cn, "lua").send,
+			TryCall(PROXYSVR.GetProxy(".JLOGIN", jlogin_cn, "client").send,
 				"logout", uid, GateName, GateClusterName)
 		end
 		-- 通知玩家逻辑服(agent)解绑
 		if sinfo.agent_name and sinfo.agent_clustername then
-			TryCall(PROXYSVR.GetProxy(sinfo.agent_name, sinfo.agent_clustername, "lua").send,
+			TryCall(PROXYSVR.GetProxy(sinfo.agent_name, sinfo.agent_clustername, "client").send,
 				"unbind", uid)
 		end
 		_INFO_F("player:%s offline, gate:%s sid:%s code:%s reason:%s", uid, GateName, id, tostring(code), tostring(reason))

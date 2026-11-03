@@ -38,7 +38,7 @@ ALL_SERVICE_MAP = {
 	-- 玩家服的服务
 	-- ["mail"] = { named = ".MAIL"},
 	-- ["ugate"] = { named = ".UGATE"},	-- 登录服务(会代理起到agent服务)
-	-- ["agent"] = { named = ".AGENT"},	-- 玩家服务
+	["agent"] = { named = ".AGENT"},	-- 玩家逻辑服(无状态，多实例，可动态扩缩容)
 }
 
 CLUSTER_NAME_MATCH = "^(%a+)@(%d+)_(%d+)$"	-- 解析集群节点名称
@@ -60,6 +60,7 @@ START_USER_SERVICE = {
 	normal = {
 		"display",
 		"wgate",
+		"agent",
 	},
 
 	-- 相对自由的服务，可根据数据库配置决定是否启动

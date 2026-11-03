@@ -64,10 +64,15 @@ skynet.start(function ()
 	end
 
 	for _, svrname in ipairs(START_USER_SERVICE.normal) do
+		-- 无状态多实例服务：按配置数量启动多个实例，便于水平扩展
+		local svr_num
 		if svrname == "wgate" then
-			-- 网关为无状态服务，按 gateway_num 启动多个实例，便于水平扩展
-			local gateway_num = tonumber(skynet.getenv("gateway_num")) or 1
-			for i = 1, gateway_num do
+			svr_num = tonumber(skynet.getenv("gateway_num")) or 1
+		elseif svrname == "agent" then
+			svr_num = tonumber(skynet.getenv("agent_default_num")) or 1
+		end
+		if svr_num then
+			for i = 1, svr_num do
 				local id = skynet.newservice(svrname, i)
 				if not id then
 					abort(string.format("start service[%s] fail", svrname))
