@@ -16,6 +16,8 @@ local sformat = string.format
 local WSocketConnect = 1	-- 完成初始网络连接
 local WPlayerConnect = 2	-- 完成玩家连接
 
+local MESSAGE_BINARY_TYPE = "binary"	-- 前后端仅支持binary消息类型
+
 WScoketToInfo = false
 -- {
 	-- [socket_id] = {
@@ -96,7 +98,7 @@ end
 -- 消息总长度（2字节）| 协议编号（2字节）| 协议内容
 -- 注释：协议长度 = 消息总长度 - 4
 local function _Message(id, msg, msg_type)
-	assert(msg_type == "binary" or msg_type == "text")
+	assert(msg_type == MESSAGE_BINARY_TYPE)
 	local sinfo = WScoketToInfo[id]
 	if not sinfo then
 		_ERROR_F("sid:%s not exist, msg discard", id)
@@ -232,7 +234,7 @@ function PushToClient(uid, proto_id, payload)
 		_WARN_F("push fail, uid:%s not on gate:%s", uid, GateName)
 		return false
 	end
-	return websocket.write(id, _PackFrame(proto_id, payload), "binary")
+	return websocket.write(id, _PackFrame(proto_id, payload), MESSAGE_BINARY_TYPE)
 end
 
 -- 踢下线（顶号等场景）
