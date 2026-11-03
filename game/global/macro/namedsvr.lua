@@ -26,6 +26,9 @@ ALL_SERVICE_MAP = {
 
 	["display"] = { named = ".DISPLAY" },
 
+	-- 无状态网关服务（可按 gateway_num 多实例部署）
+	["wgate"] = { named = ".WGATE" },
+
 	-- 仲裁登录服务（仲裁玩家登录那个user节点）
 	["jlogin"] = { named = ".JLOGIN" },
 
@@ -56,6 +59,7 @@ START_USER_SERVICE = {
 	-- 一般服务
 	normal = {
 		"display",
+		"wgate",
 	},
 
 	-- 相对自由的服务，可根据数据库配置决定是否启动

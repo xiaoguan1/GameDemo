@@ -385,7 +385,7 @@ function CMD.close_connect(fd)
 
 	s.status = FD_STATUS_CLOSE
 	s.co = coroutine.running()
-	socketdriver.close(listenId)
+	socketdriver.close(fd)
 
 	-- 挂起当前协程，等待socket线程响应
 	skynet.wait(s.co)

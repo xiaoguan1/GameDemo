@@ -28,7 +28,7 @@ lua_cpath = "./luaclib/?.so;" .. "./skynet/luaclib/?.so;" .. "./tool/cplugins-so
 
 --后台模式（必要时开启）
 -- daemon = "./log/skynet.pid"
-logger = "./log/skynet_error.log"
+-- logger = "./log/skynet_error.log"
 
 profile = true		-- 默认位true的
 profile_cmd = true	-- 细化指令检测
@@ -86,6 +86,7 @@ mcs_port = 40001
 
 wsocket_port = 30001
 max_wscoket_count = 1
+gateway_num = 1		-- 无状态网关实例数（>1时端口依次为 wsocket_port + (i-1)*10）
 ------------------ openssl ------------------
 -- enablessl = true
 

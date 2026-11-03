@@ -21,6 +21,15 @@ local MsgPack = assert(MsgPack)
 
 socket_err = false
 
+-- 发送失败时通知 gcluster 主服务（真正的 SocketErr 由 gcluster_helper 注入到 FdClass.socket_err）
+local function notify_socket_err(clusterName)
+	if FdClass and FdClass.socket_err then
+		FdClass.socket_err(clusterName)
+	else
+		skynet.error(sformat("gcluster socket write fail, clusterName:[%s], socket_err not bind!", clusterName))
+	end
+end
+
 local authYes = "1"
 local authNo = "0"
 local gcluster_auths = assert(skynet.getenv("gcluster_auths"))
@@ -92,11 +101,11 @@ function FdClass:write(request, padding)
 	if padding then
 		-- 分包发送
 		if not socket_write(fd , request) then
-			socket_err(self.cluster_name)
+			notify_socket_err(self.cluster_name)
 		end
 		for _, v in ipairs(padding) do
 			if not socket_write(fd , v) then
-				socket_err(self.cluster_name)
+				notify_socket_err(self.cluster_name)
 			end
 		end
 		if #padding >= padding_warn then
@@ -104,7 +113,7 @@ function FdClass:write(request, padding)
 		end
 	else
 		if not socket_write(fd , request) then
-			socket_err(self.cluster_name)
+			notify_socket_err(self.cluster_name)
 		end
 	end
 	self:update_heartbeat()
@@ -142,7 +151,7 @@ function FdClass:do_auth()
 
 		local msg = MsgPack(authCode .. SELF_CLUSTERNAME_CODE)
 		if not socket_write(fd, msg) then -- 发送认证码
-			socket_err(self.cluster_name)
+			notify_socket_err(self.cluster_name)
 		end
 
 		local stime = os_time()
@@ -220,7 +229,7 @@ function FdClass:deal_auth(msg)
 			skynet.wakeup(co)
 		end
 		if not socket_write(fd, response) then
-			socket_err(self.cluster_name)
+			notify_socket_err(self.cluster_name)
 		end
 	elseif self:is_auth_do() then
 		-- 认证码的比对结果

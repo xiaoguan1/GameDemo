@@ -96,6 +96,10 @@ local function dealOvertime()
 				pcall(Ghelper.DealResponse, _session, false, skynet.pack("time out"))
 			end
 		end
+		-- 心跳保活与死链检测
+		pcall(Ghelper.HeartbeatTick)
+		-- 回收超时未收齐的大包分包缓存
+		pcall(Ghelper.CheckLargeRequest)
 	end
 end
 

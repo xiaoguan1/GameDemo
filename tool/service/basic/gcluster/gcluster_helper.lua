@@ -13,8 +13,16 @@ local MSG_TYPE_PUSH 		= 1 -- 异步类型
 local MSG_TYPE_REQUEST 		= 2 -- 同步类型的发起
 local MSG_TYPE_RESPONSE 	= 3 -- 同步类型的回应
 local MSG_TYPE_RESPONSE_E 	= 4 -- 同步类型的回应（请求出错）
+local MSG_TYPE_PINGPONG 	= 6 -- 心跳/保活
 
 local MSG_TYPE_MAX = 0xff
+
+-- 心跳/保活参数（单位：秒）
+local HEARTBEAT_INTERVAL 	= 5		-- 空闲超过该时长则主动发送心跳
+local HEARTBEAT_DEAD 		= 45		-- 超过该时长无任何收发则判定为死链并断开
+
+-- 大包分包缓存回收阈值（单位：秒）
+local LARGE_REQ_TIMEOUT 	= 30
 
 --[[
 local MSG_TYPE_REQUEST		= 1			-- 请求中
@@ -142,6 +150,9 @@ local function deal_rpc(source, des_addr, session, msg_type, proto_type, msg, sz
 	elseif msg_type == MSG_TYPE_PUSH then
 		des_addr = HOSTADDR_M[des_addr]
 		skynet.rawsend(des_addr, proto_type, msg, sz)
+	elseif msg_type == MSG_TYPE_PINGPONG then
+		-- 心跳包：仅用于保活，不转发给业务，直接释放消息内存
+		skynet.trash(msg, sz)
 	elseif msg_type == MSG_TYPE_RESPONSE then
 		deal_response(session, true, msg, sz)
 	elseif msg_type == MSG_TYPE_RESPONSE_E then
@@ -202,6 +213,71 @@ function DealResponse(session, ok, msg, sz)
         skynet.error("DealResponse not ok:", session, skynet.unpack(msg, sz))
 	end
 	response_data[2](ok, msg, sz)
+end
+
+-- 心跳保活：空闲连接定时发心跳，长期无任何收发则判定死链并主动断开
+function HeartbeatTick()
+	local now = os.time()
+
+	-- node_channel 同时以 clustername 和 address 为 key，需要按 fdObj 去重
+	local channels = {}
+	local seen = {}
+	for _, fdObj in pairs(node_channel) do
+		if not seen[fdObj] then
+			seen[fdObj] = true
+			channels[#channels + 1] = fdObj
+		end
+	end
+
+	for _, fdObj in ipairs(channels) do
+		if fdObj:is_auth_yes() then
+			local last = fdObj.heartbeat_time or fdObj.connected or now
+			local gap = now - last
+			if gap >= HEARTBEAT_DEAD then
+				skynet.error(sformat("gcluster heartbeat timeout, clusterName:[%s] address:[%s] gap:[%s]s",
+						fdObj.cluster_name, fdObj.address, gap))
+				local isOk, err = pcall(SocketErr, fdObj.cluster_name, false)
+				if not isOk then
+					skynet.error(sformat("gcluster heartbeat disconnect fail, clusterName:[%s] err:[%s]",
+							fdObj.cluster_name, err))
+				end
+			elseif gap >= HEARTBEAT_INTERVAL then
+				-- 空闲超过阈值才发心跳，消息体本身无业务含义
+				local msg, sz = skynet.pack(nil)
+				local reqMsg, _, padding = ldpcluster.pack(0, SELF_CLUSTERNAME, "",
+						mergeProtoType(MSG_TYPE_PINGPONG, 0), msg, sz)
+				local isOk, err = pcall(fdObj.write, fdObj, reqMsg, padding)
+				if not isOk then
+					skynet.error(sformat("gcluster send heartbeat fail, clusterName:[%s] err:[%s]",
+							fdObj.cluster_name, err))
+				end
+			end
+		end
+	end
+end
+
+-- 回收长时间未收齐的大包分包缓存
+function CheckLargeRequest()
+	local now = os.time()
+	for clusterName, largeReq in pairs(LARGE_REQUEST) do
+		local expired = {}
+		for session, req in pairs(largeReq) do
+			local createTime = req.create_time or now
+			if now - createTime >= LARGE_REQ_TIMEOUT then
+				expired[#expired + 1] = session
+			end
+		end
+		for _, session in ipairs(expired) do
+			local req = largeReq[session]
+			largeReq[session] = nil
+			-- padding里的元素是普通Lua字符串，置nil后由GC回收
+			_ERROR_F("gcluster large request timeout, clusterName:[%s] session:[%s] wait:[%s]s",
+					clusterName, session, now - (req.create_time or now))
+		end
+		if next(largeReq) == nil then
+			rawset(LARGE_REQUEST, clusterName, nil)
+		end
+	end
 end
 
 function OpenChannel(_node_channel, clusterName)           -- key集群名称（例：cross@1_55001）
@@ -364,10 +440,8 @@ function command.socket(source, subcmd, fd, ...)
 			if largeReq[session] then
 				local oReq = largeReq[session]
 				largeReq[session] = nil
-				-- 若出现某个节点的session重复，则需要将旧的msg缓存进行释放。否则会内存堆积。
-				for _, pMsg in pairs(oReq.padding) do
-					skynet.packstring(pMsg, #pMsg)	-- 字节流
-				end
+				-- 若出现某个节点的session重复，则丢弃旧的msg缓存，否则会内存堆积。
+				-- 注意：padding里的元素是普通Lua字符串，置nil后交给GC回收即可
 				_ERROR_F("clustername:[%s] session:[%s] repeated! addr:[%s] msgType:[%s] prototypeId:[%s] sz:[%s]",
 						sourceName, session, oReq.addr, oReq.msgType, oReq.prototypeId, oReq.sz)
 			end
@@ -378,6 +452,7 @@ function command.socket(source, subcmd, fd, ...)
 				prototypeId = prototypeId,
 				sz = sz,
 				padding = {},
+				create_time = os.time(),	-- 用于超时回收未收齐的分包缓存
 			}
 		elseif multType == MULTI_M or multType == MULTI_E then
 			local largeReq = LARGE_REQUEST[sourceName]
