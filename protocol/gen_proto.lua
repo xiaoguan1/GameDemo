@@ -314,17 +314,17 @@ local function _WriteProtomap()
 	f:write("PROTOMAP = {\n")
 
 	local bodyFmt1 = [[
-	["%s"] = { desc = "%s", type = "%s", id = "%s",
+	["%s"] = { desc = "%s", type = "%s", id = %d,
 		response = "%s",
 	},
 ]]
 	local bodyFmt2 = [[
-	["%s"] = { desc = "%s", type = "%s", id = "%s",
+	["%s"] = { desc = "%s", type = "%s", id = %d,
 		request = "%s",
 	},
 ]]
 	local bodyFmt3 = [[
-	["%s"] = { desc = "%s", type = "%s", id = "%s",
+	["%s"] = { desc = "%s", type = "%s", id = %d,
 		request = "%s",
 		response = "%s",
 	},
