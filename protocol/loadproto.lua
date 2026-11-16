@@ -2,6 +2,7 @@
 --- 加载协议 和 更新协议
 -----------------------------
 local skynet = require "skynet"
+local cc = require "skynet.codecache"	-- 进程级代码缓存（按文件路径缓存编译结果）
 local c = require "protobuf.c"
 local posix = require "posix"
 local pstat = posix.stat
@@ -24,6 +25,21 @@ local preload_load = {
 
 -- 记录已加载的协议文件
 ALREADY_LOAD_PBS = false
+
+-- 协议表文件路径（dofile 加载，路径字面量需与 codecache key 一致）
+local PROTOMAP_PATH = "protocol/protomap.lua"
+
+-- 加载/重载协议表：codecache 按文件路径缓存编译结果，先清缓存再 dofile 才能真正重读文件
+local function _ReloadProtomap()
+	if not pcall(cc.clearone, PROTOMAP_PATH) then
+		_WARN_F("clear codecache fail:%s", PROTOMAP_PATH)
+	end
+	if not pcall(dofile, PROTOMAP_PATH) then
+		_ERROR_F("load %s fail", PROTOMAP_PATH)
+		return false
+	end
+	return true
+end
 
 local function _AllPbFiles()
 	local pbfiles = posix.scandir("protocol/pbs", {ftype = ".pb"})
@@ -112,7 +128,17 @@ function LoadProto()
 	end
 
 	-- 不返回true，会导致起服失败！
-	return _DoLoad(filesMtime)
+	if not _DoLoad(filesMtime) then
+		return
+	end
+
+	-- 加载协议表（协议名 <-> 编号 等业务映射，与 pb 描述一起构成完整协议信息）
+	-- 业务服务侧的编解码用 game/global/proto.lua，各自加载一份
+	if not _ReloadProtomap() then
+		return
+	end
+
+	return true
 end
 
 -- 热更新协议
@@ -138,7 +164,7 @@ function command.update()
 	local OldP, OldGC = protobuf.P, protobuf.GC
 	protobuf.P = newP
 	protobuf.update_local_pgc()
-	if not _DoLoad(filesMtime, oALREADY_LOAD_PBS) then
+	if not _DoLoad(filesMtime, oALREADY_LOAD_PBS) or not _ReloadProtomap() then
 		-- 未知原因，热更新协议失败。回退旧的P
 		ALREADY_LOAD_PBS = oALREADY_LOAD_PBS
 		protobuf.P = OldP

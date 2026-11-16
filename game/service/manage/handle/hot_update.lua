@@ -1,5 +1,6 @@
 local skynet = require "skynet"
 local posix = require "posix"
+local cc = require "skynet.codecache"	-- 进程级代码缓存（按文件路径缓存编译结果）
 local pstat = posix.stat
 local string = string
 local table = table
@@ -42,6 +43,8 @@ TOOL_FILEMTIME = {}	-- 工具库文件的最近一次修改时间
 MACRO_FILETIME = {}	-- 常量文件的最近一次修改时间
 GAME_FILEMTIME = {}	-- game目录下的文件最近一次修改时间
 PROTO_FILEMTIME = {} -- 协议文件(目的：判断协议文件是否有更新)
+local PROTOMAP_PATH = "protocol/protomap.lua"	-- 自动生成的协议表（dofile 加载，需配合清 codecache）
+local LOADPROTO_PATH = "protocol/loadproto.lua"	-- protosvr 协议加载模块（Import 加载，归入 IMPORT 类热更）
 
 local function _ReadFile(path, ftype)
 	path = path or "game"
@@ -63,6 +66,7 @@ local function _GetFileMtimes()
 	local fileMtimes1 = _ReadFile()
 	local fileMtimes2 = _ReadFile("tool/luaplugins")
 	local fileMtimes3 = _ReadFile("protocol/protos", ".proto")
+	local fileMtimes4 = _ReadFile("protocol", ".lua")	-- 协议表(protomap.lua)也纳入协议变化检测
 
 	local toolfiles = {}	-- lua原生函数拓展文件
 	local macroFiles = {}	-- 常量文件
@@ -78,12 +82,17 @@ local function _GetFileMtimes()
 				gameFiles[fileName] = mtime
 			elseif endswith(fileName, ".proto") then
 				protoFiles[fileName] = mtime
+			elseif fileName == PROTOMAP_PATH then
+				protoFiles[fileName] = mtime
+			elseif fileName == LOADPROTO_PATH then
+				gameFiles[fileName] = mtime	-- 仅 protosvr(_ImportModule 命中) 会热更它
 			end
 		end
 	end
 	func(fileMtimes1)
 	func(fileMtimes2)
 	func(fileMtimes3)
+	func(fileMtimes4)
 	return toolfiles, macroFiles, gameFiles, protoFiles
 end
 
@@ -116,6 +125,12 @@ function Handle_Request(data)
 	end
 	-- 错误码判断、协议编号是否有新增等等。。。。
 	if isUpdateProto then
+		-- protomap.lua 是 dofile 加载的，skynet codecache 按文件路径缓存编译结果；
+		-- 不先清掉的话，各服务重新 dofile 会命中旧字节码，协议表不会真正更新
+		local ok = pcall(cc.clearone, PROTOMAP_PATH)
+		if not ok then
+			_WARN_F("clear codecache fail:%s", PROTOMAP_PATH)
+		end
 		if psvr.call.update() then
 			PROTO_FILEMTIME = protoFiles
 		end
@@ -145,6 +160,13 @@ function Handle_Request(data)
 		if omTime and mtime > omTime then -- 不做 not omTime，因为新模块需要旧模块里先`Import`
 			tinsert(updateFiles[UPDATE_TYPE.IMPORT], pathFile)
 		end
+	end
+
+	-- 协议表(protomap.lua)或 .proto 有变化：让各服务重新加载 game/global/proto.lua
+	-- （proto.lua 顶层会重新 dofile protomap.lua 并重建反向索引）
+	local protoPath = "game/global/proto.lua"
+	if isUpdateProto and not has_value(updateFiles[UPDATE_TYPE.IMPORT], protoPath) then
+		tinsert(updateFiles[UPDATE_TYPE.IMPORT], protoPath)
 	end
 
 	if tempty(updateFiles[UPDATE_TYPE.TOOL]) and
