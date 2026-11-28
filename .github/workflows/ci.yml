@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+jobs:
+  lint:
+    name: luacheck 静态检查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Lua 与 LuaRocks
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.4 luarocks
+
+      - name: 安装 luacheck
+        run: sudo luarocks install luacheck
+
+      - name: 运行 luacheck
+        run: |
+          luacheck --codes --no-color game tool protocol | tee /tmp/luacheck.txt || true
+          # 门禁: 语法错误(E*) + 未定义/未登记全局(W111/W112/W113) 直接失败
+          if grep -qE "\(E[0-9]+\)|\(W11[123]\)" /tmp/luacheck.txt; then
+            echo "::error:: luacheck 发现语法错误或未定义/未登记的全局变量, 请修复或登记到 .luacheckrc"
+            exit 1
+          fi
+
+  proto-sync:
+    name: 协议一致性检查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 protoc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+
+      - name: 编译引擎自带 Lua (linux-noreadline)
+        run: make -C skynet/3rd/lua linux-noreadline
+
+      - name: 重新生成协议
+        run: sh tool/script/gen_proto.sh
+
+      - name: 校验生成物与源码同步
+        run: |
+          if git diff --exit-code -- protocol/pbs protocol/save-prot-id protocol/protomap.lua; then
+            echo "协议生成物与源码一致"
+          else
+            echo "::error:: 协议生成物过期, 请本地运行 sh tool/script/gen_proto.sh 并提交生成物"
+            exit 1
+          fi
