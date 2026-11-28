@@ -1,0 +1,61 @@
+name: Smoke Test
+
+# 手动触发的冒烟测试: 编译引擎 -> 启动 main_node -> 校验存活与致命错误
+# 触发方式: GitHub 仓库页 Actions -> Smoke Test -> Run workflow
+on:
+  workflow_dispatch: {}
+
+jobs:
+  smoke:
+    name: main_node 冒烟启动
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装构建依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libreadline-dev
+
+      - name: 编译 skynet 引擎 (含 lua/jemalloc/cservice/luaclib)
+        run: make -C skynet linux -j"$(nproc)"
+
+      - name: 编译 C 插件 (dpcluster/posix/util/crc)
+        run: make -C tool/cplugins
+
+      - name: 启动 main_node
+        run: |
+          nohup ./skynet/skynet config/main_node > /tmp/smoke_node.log 2>&1 < /dev/null &
+          echo $! > /tmp/smoke.pid
+
+      - name: 等待启动并检查节点存活
+        run: |
+          sleep 20
+          PID=$(cat /tmp/smoke.pid)
+          if ! kill -0 "$PID" 2>/dev/null; then
+            echo "::error:: 节点启动后 20 秒内退出, 冒烟失败"
+            echo "===== 节点日志 ====="
+            cat /tmp/smoke_node.log || true
+            exit 1
+          fi
+          echo "节点存活, 冒烟通过"
+          echo "===== 节点日志 ====="
+          cat /tmp/smoke_node.log || true
+
+      - name: 扫描致命错误模式
+        if: always()
+        run: |
+          if grep -inE "segmentation fault|assert fail|panic:|^.*\[ERROR\]" /tmp/smoke_node.log 2>/dev/null; then
+            echo "::error:: 日志出现致命错误模式"
+            exit 1
+          fi
+          echo "无致命错误模式"
+
+      - name: 停止节点
+        if: always()
+        run: |
+          if [ -f /tmp/smoke.pid ]; then
+            kill "$(cat /tmp/smoke.pid)" 2>/dev/null || true
+          fi
+          pkill -f "skynet config/main_node" 2>/dev/null || true
