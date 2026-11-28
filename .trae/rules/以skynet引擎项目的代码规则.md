@@ -54,11 +54,12 @@
 
 - 基础设施服务：放在 `tool/service/basic/<服务名>/`。所有节点都需要的基础能力（数据库、定时器、集群通信、日志收集等）必须注册为基础设施服务，与玩法解耦。
 - 玩法服务：放在 `game/service/<服务名>/`，每个服务一个子目录，目录内分工（以 GameDemo 的 `game/service/wgate/` 为例）：
-  - `wgate.lua` —— 服务启动文件（skynet.start 入口：先 `dofile ./game/global/log.lua` 初始化日志，注册协议后 `dofile` 加载本服务 `global.lua`，最后打印启动成功日志）。
+  - `wgate.lua` —— 服务启动文件（skynet.start 入口，职责：初始化日志、注册协议、装载本服务 `global.lua`；具体顺序与模板见脚手架 skill）。
   - `global.lua` —— 服务内逻辑装载文件：只负责把 `module/`（及 `handle/`）下的逻辑模块 Import 进来挂到服务环境、供服务内共享（如 `WHANDLE = Import("game/service/wgate/module/whandle.lua")`）。**不提倡**在 global.lua 中直接编写业务逻辑（如直接实现 ACCEPT/RESPONSE 函数体）。
   - `module/` —— 具体业务逻辑模块（ACCEPT/RESPONSE 等处理函数都实现在这里，global.lua 仅做装载与转发）。
   - `handle/` —— 该服务对外暴露的管理指令（含热更指令）。
 - 服务命名、`SERVICE_NAME` 宏、namedsvr 注册名保持一致（见 `game/global/macro/namedsvr.lua`）。
+- 新建玩法服务的操作步骤与代码模板见 skill：`.trae/skills/skynet-service-scaffold`（本文档只定义标准，不重复步骤）。
 
 ## 4. 热更机制【统一规范】
 
